@@ -338,7 +338,7 @@ days = 30
 n = round(days/dt)
 #n = 10
 #npad = round(n/2)
-meanDepth_inch = 1
+meanDepth_inch = 1.5
 depth = rainfall_func(size=n,freq=0.1,meanDepth_inch=meanDepth_inch)
 #depth = np.pad([1], (npad, n - npad - 1), 'constant', constant_values = (0))
 timesteps = np.linspace(0, n*dt, num = n)
@@ -358,7 +358,7 @@ for network in range(10):
     new_network_time = time.time()
     G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = 0.1, diam = 1, node_area = 500, 
     outlet_level = outlet_level, outlet_node_area = outlet_node_area)
-    soil_nodes_combo, soil_nodes_combo_count = random_sample_soil_nodes(range_min = 0, range_max = 10, range_count = 3)
+    soil_nodes_combo, soil_nodes_combo_count = random_sample_soil_nodes(range_min = 0, range_max = 15, range_count = 4)
     # fig_init, ax_init = plt.subplots(1,1)
     # node_colors1 = draw_varying_size(G, ax = ax_init, attribute = 'elev', node_drawing_ratio = 1)
     # fig_init.suptitle('Initial Set-up')
@@ -424,7 +424,7 @@ for network in range(10):
         output_df.loc[k,'soil_node_elev_list'] = soil_node_elev
         output_df.loc[k,'soil_nodes_combo_count'] = soil_nodes_length
         #output_df['outlet_max_list'].loc[k] = max(out_edge_wl)
-        k = k + 1
+        k += 1
     print("network: ", network, "run time: ")
     print_time(new_network_time)
     main_df = pd.concat([main_df, output_df], ignore_index=True)

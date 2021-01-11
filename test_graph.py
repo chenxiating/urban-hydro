@@ -10,6 +10,7 @@ import sys
 # dataset_4-inch20201223-2214.pickle - this one the degree & elev indices were divided by # of soil nodes
 # dataset_4-inch20201223-2238.pickle - divided by total number of nodes
 datafile_name = sys.argv[1]
+# datafile_name = 'dataset_1-inch_20-nodes_30-day_20210103-1347.pickle'
 print("sys.argv is", sys.argv)
 print("datafile_name is", datafile_name)
 # datafile_name = 'dataset_3.5-inch_20-nodes_20201231-1320'
@@ -27,13 +28,12 @@ df = pickle.load(open(datafile_name, 'rb'))
 #df = pd.DataFrame([soil_nodes_list, flood_duration_list, soil_node_degree_list, soil_node_elev_list, outlet_max_list]).transpose()
 #df.columns =['soil_nodes_list', "flood_duration_list", "soil_node_degree_list", "soil_node_elev_list", "outlet_max_list"]
 df['soil_nodes_count'] = [(len(k)) for k in df.soil_nodes_list]
-df['flood_duration_total_list'] = df['flood_duration_total_list']
 #df['soil_node_degree_list'] = df['soil_node_degree_list']*10/(df['soil_nodes_count']+1)
 #df['soil_node_elev_list'] = df['soil_node_elev_list']*10/(df['soil_nodes_count']+1)
 
 def three_figure_plot(df = df, yaxis_attribute = 'flood_duration_list', cmap = plt.cm.Reds, datafile_name = datafile_name):
     yaxis = df[yaxis_attribute]
-    ymax = max(yaxis) + 0.1
+    ymax = max(yaxis) + 1
     if yaxis_attribute == 'flood_duration_list':
         ylabel = 'Days with Flooding'
     elif yaxis_attribute == 'flood_duration_total_list':
@@ -75,11 +75,11 @@ def three_figure_plot(df = df, yaxis_attribute = 'flood_duration_list', cmap = p
     ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
     ax.set_ylabel(ylabel)
     fig_name = datafile_name + yaxis_attribute
-    # plt.savefig(path + fig_name +'.png')
+    plt.savefig(path + fig_name +'.png')
 
 def per_node_count_plot(df = df, soil_nodes_count = 0, yaxis_attribute = 'flood_duration_list', cmap = plt.cm.Reds, datafile_name = datafile_name):
     yaxis = df[yaxis_attribute]
-    ymax = max(yaxis) + 0.1
+    ymax = max(yaxis) + 0.2
     c = yaxis
 
     if yaxis_attribute == 'flood_duration_list':
@@ -117,7 +117,7 @@ def per_node_count_plot(df = df, soil_nodes_count = 0, yaxis_attribute = 'flood_
 
     fig.suptitle(graph_nodes_count_string + ylabel + ' | m = '+ str(soil_nodes_count))
     fig_name = datafile_name + yaxis_attribute + '_m='+ str(soil_nodes_count)
-    # plt.savefig(path + fig_name +'.png')
+    plt.savefig(path + fig_name +'.png')
 
 three_figure_plot(df = df, yaxis_attribute='flood_duration_list')
 three_figure_plot(df = df, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues)
