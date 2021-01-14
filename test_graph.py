@@ -7,10 +7,8 @@ import pickle
 import os
 import sys
 
-# dataset_4-inch20201223-2214.pickle - this one the degree & elev indices were divided by # of soil nodes
-# dataset_4-inch20201223-2238.pickle - divided by total number of nodes
-datafile_name = sys.argv[1]
-# datafile_name = 'dataset_1-inch_20-nodes_30-day_20210103-1347.pickle'
+# datafile_name = sys.argv[1]
+datafile_name = 'dataset_1-inch_20-nodes_50-day_20210113-1111.pickle'
 print("sys.argv is", sys.argv)
 print("datafile_name is", datafile_name)
 # datafile_name = 'dataset_3.5-inch_20-nodes_20201231-1320'
@@ -31,13 +29,21 @@ df['soil_nodes_count'] = [(len(k)) for k in df.soil_nodes_list]
 #df['soil_node_degree_list'] = df['soil_node_degree_list']*10/(df['soil_nodes_count']+1)
 #df['soil_node_elev_list'] = df['soil_node_elev_list']*10/(df['soil_nodes_count']+1)
 
-def three_figure_plot(df = df, yaxis_attribute = 'flood_duration_list', cmap = plt.cm.Reds, datafile_name = datafile_name):
+def three_figure_plot(df = df, yaxis_attribute = 'flood_duration_list', cmap_on = False, 
+cmap = plt.cm.Reds, datafile_name = datafile_name):
     yaxis = df[yaxis_attribute]
     ymax = max(yaxis) + 1
+    cmap0 = cm.get_cmap(cmap)
+    color_dict = {'color': cmap0(0.8), 'alpha': 0.3}
+    if cmap_on: 
+        color_dict = {'c': yaxis, 'alpha': 0.7, 'cmap': cmap}
     if yaxis_attribute == 'flood_duration_list':
         ylabel = 'Days with Flooding'
     elif yaxis_attribute == 'flood_duration_total_list':
         ylabel = 'Average Days of Flooding per Node'
+    elif yaxis_attribute == 'water_level_highest':
+        ylabel = 'Highest Water Level in Network (ft)'
+
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -46,27 +52,25 @@ def three_figure_plot(df = df, yaxis_attribute = 'flood_duration_list', cmap = p
     ax_nodes = fig.add_subplot(313)
 
     c = yaxis
-    TI = ax_TI.scatter(df.soil_node_elev_list, yaxis, c = c,# s = s,
-    cmap = cmap, alpha = 0.7, edgecolor = 'k')
+    TI = ax_TI.scatter(df.soil_node_elev_list, yaxis, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_TI.xaxis.tick_top()
     ax_TI.set_xlabel("Topography Index")
     ax_TI.xaxis.set_label_position('top')
-    ax_TI.set_ylim(bottom = -0.02, top = ymax)
+    ax_TI.set_ylim(bottom = -0.05, top = ymax)
     
-    NI = ax_NI.scatter(df.soil_node_degree_list, yaxis, c = c, #s = s, 
-    cmap = cmap, alpha = 0.7, edgecolor = 'k')
+    NI = ax_NI.scatter(df.soil_node_degree_list, yaxis, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_NI.set_xlabel("Neighbor Index")
-    ax_NI.set_ylim(bottom = -0.02, top = ymax)
+    ax_NI.set_ylim(bottom = -0.05, top = ymax)
 
-    nodes_fig = ax_nodes.scatter(df.soil_nodes_count, yaxis, c = c, #s = s, 
-    cmap = cmap, alpha = 0.7, edgecolor = 'k')
+    nodes_fig = ax_nodes.scatter(df.soil_nodes_count, yaxis, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_nodes.set_xlabel("Node Count")
-    ax_nodes.set_ylim(bottom = -0.02, top = ymax)
+    ax_nodes.set_ylim(bottom = -0.05, top = ymax)
 
-    fig.subplots_adjust(top = 0.8, left =0.3)
-    cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
-    cbar = fig.colorbar(TI, cax=cbar_ax)
-    fig.suptitle(graph_nodes_count_string + ylabel)
+    if cmap_on: 
+        fig.subplots_adjust(top = 0.8, left =0.3)
+        cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
+        cbar = fig.colorbar(TI, cax=cbar_ax)
+        fig.suptitle(graph_nodes_count_string + ylabel)
     
     ax.spines['top'].set_color('none')
     ax.spines['bottom'].set_color('none')
@@ -75,34 +79,40 @@ def three_figure_plot(df = df, yaxis_attribute = 'flood_duration_list', cmap = p
     ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
     ax.set_ylabel(ylabel)
     fig_name = datafile_name + yaxis_attribute
+    plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
     plt.savefig(path + fig_name +'.png')
 
-def per_node_count_plot(df = df, soil_nodes_count = 0, yaxis_attribute = 'flood_duration_list', cmap = plt.cm.Reds, datafile_name = datafile_name):
+def per_node_count_plot(df = df, soil_nodes_count = 0, yaxis_attribute = 'flood_duration_list', cmap_on = False,
+cmap = plt.cm.Reds, datafile_name = datafile_name):
     yaxis = df[yaxis_attribute]
     ymax = max(yaxis) + 0.2
-    c = yaxis
+
+    cmap0 = cm.get_cmap(cmap)
+    color_dict = {'color': cmap0(0.8), 'alpha': 0.3}
+    if cmap_on: 
+        color_dict = {'c': yaxis, 'alpha': 0.7, 'cmap': cmap}
 
     if yaxis_attribute == 'flood_duration_list':
         ylabel = 'Days with Flooding'
     elif yaxis_attribute == 'flood_duration_total_list':
         ylabel = 'Average Days of Flooding per Node'
+    elif yaxis_attribute == 'water_level_highest':
+        ylabel = 'Highest Water Level in Network (ft)'
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax_TI = fig.add_subplot(211)
     ax_NI = fig.add_subplot(212)
     #fig, [ax_TI, ax_NI] = plt.subplots(2,1)
-    TI = ax_TI.scatter(df.soil_node_elev_list, yaxis, c = c,# s = s,
-    cmap = cmap, alpha = 0.7, edgecolor = 'k')
+    TI = ax_TI.scatter(df.soil_node_elev_list, yaxis, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_TI.xaxis.tick_top()
     ax_TI.set_xlabel("Topography Index")
     ax_TI.xaxis.set_label_position('top') 
-    ax_TI.set_ylim(bottom = -0.02, top = ymax)
+    ax_TI.set_ylim(bottom = -0.05, top = ymax)
     
-    NI = ax_NI.scatter(df.soil_node_degree_list, yaxis, c = c, #s = s, 
-    cmap = cmap, alpha = 0.7, edgecolor = 'k')
+    NI = ax_NI.scatter(df.soil_node_degree_list, yaxis, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_NI.set_xlabel("Neighbor Index")
-    ax_NI.set_ylim(bottom = -0.02, top = ymax)
+    ax_NI.set_ylim(bottom = -0.05, top = ymax)
     
     ax.spines['top'].set_color('none')
     ax.spines['bottom'].set_color('none')
@@ -110,25 +120,29 @@ def per_node_count_plot(df = df, soil_nodes_count = 0, yaxis_attribute = 'flood_
     ax.spines['right'].set_color('none')
     ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
     ax.set_ylabel(ylabel)
+    fig.subplots_adjust(top = 0.8)
+    plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
 
-    fig.subplots_adjust(top = 0.8, left =0.3)
-    cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
-    cbar = fig.colorbar(TI, cax=cbar_ax)
+    if cmap_on: 
+        fig.subplots_adjust(top = 0.8, left =0.3)
+        cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
+        cbar = fig.colorbar(TI, cax=cbar_ax)
 
     fig.suptitle(graph_nodes_count_string + ylabel + ' | m = '+ str(soil_nodes_count))
     fig_name = datafile_name + yaxis_attribute + '_m='+ str(soil_nodes_count)
     plt.savefig(path + fig_name +'.png')
 
-three_figure_plot(df = df, yaxis_attribute='flood_duration_list')
-three_figure_plot(df = df, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues)
+three_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = True)
+# three_figure_plot(df = df, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues)
+three_figure_plot(df = df, yaxis_attribute='water_level_highest',cmap = plt.cm.Greys, cmap_on = True)
 
 soil_nodes_count_set = set(df.soil_nodes_count)
 for k in soil_nodes_count_set:
     is_set = df['soil_nodes_count'] == k
     df_plt = df[is_set]
-    per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='flood_duration_list')
-    per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues)
-
+    per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='flood_duration_list', cmap_on = True)
+    # per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues, cmap_on = False)
+    per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='water_level_highest',cmap = plt.cm.Greys, cmap_on = True)
 
 #ax_NI.set_ylim(bottom = -0.1, top = 1.6)
 # kw = dict(prop="sizes", num=4, color=NI.cmap(0.5), fmt="{x:.0f}",

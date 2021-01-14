@@ -139,35 +139,37 @@ def soil_moisture_func(s, nporo = 0.45, zr = 10, emax = 0.05):
     return s
 
 def bioretention(gph, soil_nodes = [], s_old = 0.3, nporo = 0.45, zr = 10, emax = 0.05):
-    nodes = len(gph.nodes)
+    #nodes = len(gph.nodes)
     #soil_nodes = np.random.choice(nodes, soil_nodes, replace=False)
     s = soil_moisture_func(s = s_old, nporo = nporo, zr = zr, emax = emax)
     #print("New soil moisture:", s)
-    soil_array = np.ones(nodes)*s
-    soil = dict(zip(soil_nodes, soil_array))
-    soil = fill_numbers(soil, gph.nodes)
-    #print("Runoff reduction: ",soil)
-    nx.set_node_attributes(gph, soil, 'soil')
+    soil_array = np.ones(len(soil_nodes))*s
+    soil_moisture = dict(zip(soil_nodes, soil_array))
+    soil_moisture = fill_numbers(soil_moisture, gph.nodes)
+    #print("Runoff reduction: ",soil_moisture)
+    nx.set_node_attributes(gph, soil_moisture, 'soil_moisture')
     return s
 
-def attr_array_func(attr_name, gph, elem = 'edge', column = 1, ignore_outlet = False, ignore_attr = None):
-    if elem == 'node': 
-        dict0 = nx.get_node_attributes(gph,attr_name)
-    else:
-        dict0 = nx.get_edge_attributes(gph,attr_name)
-    if ignore_outlet == True:
-        last_elem = list(nx.topological_sort(gph))[-1]
-        dict0[last_elem]=ignore_attr[last_elem]
+# def attr_array_func(attr_name, gph, elem = 'edge', column = 1, ignore_outlet = False, ignore_attr = None):
+#     if elem == 'node': 
+#         dict0 = nx.get_node_attributes(gph,attr_name)
+#     else:
+#         dict0 = nx.get_edge_attributes(gph,attr_name)
+#     if ignore_outlet == True:
+#         last_elem = list(nx.topological_sort(gph))[-1]
+#         dict0[last_elem]=ignore_attr[last_elem]
 
-    data0 = list(dict0.items())
-    data = np.array(data0, dtype = object)
-    array = data[:,column]
-    return array 
+#     data0 = list(dict0.items())
+#     data = np.array(data0, dtype = object)
+#     array = data[:,column]
+#     return array 
 
 def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = 'n', l_name = 'length', shape = 'circular'):
     edge_list = []
     node_list = gph.nodes
-    node_area = attr_array_func('node_area', gph, elem = 'node')
+    # node_area = attr_array_func('node_area', gph, elem = 'node')
+    node_area_dict = nx.get_node_attributes(gph, 'node_area')
+    node_area = np.array([node_area_dict[k] for k in gph.nodes])
     h_list = []
     h_radius_list = []
     dqdt0_list = []
@@ -248,35 +250,37 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
     #     node_list.append(n)
     #     dhdt1_list.append(dhdt1)
 
-def rainfall_nodes_func(gph, s, nporo = 0.45, zr = 10, emax = 0.05):#, rain_nodes = rain_nodes, soil_nodes = soil_nodes):
-    s = bioretention(gph = gph, soil_nodes = soil_nodes, s_old = s)
+def rainfall_nodes_func(gph, s, nporo = 0.45, zr = 10, emax = 0.05): 
+    #   This function calculates the runoff on nodes after a result of bioretention activities. 
+    #   Runoff is the amount of rainfall that is unable to be absorbed by the soil, and needs to
+    #   be received by the stormwater pipes. 
+    bioretention(gph = gph, soil_nodes = soil_nodes, s_old = s)
     #bioretention(gph, soil_nodes = [])
     rain_nodes_count = len(rain_nodes)
-    h0 = attr_array_func('level', gph = gph, elem = 'node', ignore_outlet = True, ignore_attr=outlet_level)
-    edge_h = nx.get_edge_attributes(gph,'edge_h')     
     precip = fill_numbers(dict(zip(rain_nodes, np.ones(rain_nodes_count)*depth[i])), gph.nodes) # precipitation at the highest node, exponential distribution like in the project
     nx.set_node_attributes(gph, precip, 'precip')
-    #precip = nx.get_node_attributes(gph, 'precip')
     soil_depth = nx.get_node_attributes(gph,'soil_depth')
-    soil = nx.get_node_attributes(gph, 'soil')
-    #print("precip:", precip, "soil:", soil, "soil_depth:", soil_depth)
-    runoff = {k: ((precip[k]-(1-soil[k])*soil_depth[k])>0)*(precip[k]-(1-soil[k])*soil_depth[k]) for k in precip} # check this part
-    # if depth[i] > 0: 
-    #     print('precip:', precip)
-    #     print('runoff:', runoff)
-    #     print('soil moisture:', soil)
-    #     print({k: (precip[k]-(1-soil[k])*soil_depth[k]) for k in precip})
-    #     print()
-    nx.set_node_attributes(gph, runoff, 'runoff')
-    runoff0 = attr_array_func('runoff', gph = gph, elem = 'node')
-
-    dh = attr_array_func('dhdt', gph = gph, elem = 'node') * dt
+    soil_moisture = nx.get_node_attributes(gph, 'soil_moisture')
+    runoff = {k: (precip[k]>(1-soil_moisture[k])*soil_depth[k])*(precip[k]-(1-soil_moisture[k])*soil_depth[k]) for k in precip} # check this part
+    # nx.set_node_attributes(gph, runoff, 'runoff')
+    # h0 = attr_array_func('level', gph = gph, elem = 'node', ignore_outlet = True, ignore_attr=outlet_level)
+    h0 = nx.get_node_attributes(gph,'level')
+    # runoff0 = attr_array_func('runoff', gph = gph, elem = 'node')
+    # dh = attr_array_func('dhdt', gph = gph, elem = 'node') * dt
+    dhdt = nx.get_node_attributes(gph, 'dhdt')
     #what happens if h0 + dh < 0?
-    h_new = dict(zip(gph.nodes, h0 + dh + runoff0))
-    #print("new node level: ", h_new)
+    # h_new = dict(zip(gph.nodes, h0 + dh + runoff0))
+    ##test here
+    dhdt = nx.get_node_attributes(gph, 'dhdt')
+    h_new = {k: (h0[k] + dhdt[k]*dt + runoff[k]) for k in gph.nodes}
+    # if max(runoff0_test.values())>0:
+    #     print("new node level: ", h_new)
+    #     print("new node level_TEST: ", h_new_test)
+    #     print(h0)
+    #     print(h0_test)
     #print(h_new)
     nx.set_node_attributes(gph, h_new, 'level')  
-    return s, h_new, edge_h  
+    return h_new#, edge_h  
 
 def random_sample_soil_nodes(range_min = 1, range_max = 20, range_count = 10):
     soil_nodes_combo_all = []
@@ -286,7 +290,7 @@ def random_sample_soil_nodes(range_min = 1, range_max = 20, range_count = 10):
     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int)
     for combo in combo_iter_list:
         soil_nodes_combo_to_add_full = (list(itertools.combinations(range(1, nodes_num), combo)))
-        soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, int(np.ceil(len(soil_nodes_combo_to_add_full)/nodes_num**2)))
+        soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, int(np.ceil(len(soil_nodes_combo_add_full)/nodes_num**2)))
         soil_nodes_combo_all = soil_nodes_combo_all + soil_nodes_combo_to_add
         print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
     #soil_nodes_combo = sample(soil_nodes_combo_to_add, nodes_num*10)
@@ -313,12 +317,13 @@ np.random.seed(seed = 1358)
 outlet_level = {0: 0.2}                  # set outlet river water level to be constant
 outlet_node_area = {0: 5000}           # set the river area to be 10 times 
 soil_depth = 6
-flood_level = 1
+init_level = 0.05
+flood_level = 1.5
 s = 0.1                               # initial soil moisture
-nodes_num = int(20)
+nodes_num = int(100)
 main_df = pd.DataFrame()
 
-G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = 0.1, diam = 1, node_area = 500, 
+G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
 outlet_level = outlet_level, outlet_node_area = outlet_node_area)
 filename = 'graph_' + str(nodes_num) + 'nodes'
 outfile = open(filename,'wb')
@@ -334,11 +339,11 @@ fig_init.suptitle('Initial Set-up')
 ## Precipitation
 # Rainfall generation. Units will be presented in foot. 
 dt = 0.1
-days = 30
+days = 50
 n = round(days/dt)
 #n = 10
 #npad = round(n/2)
-meanDepth_inch = 1.5
+meanDepth_inch = 1
 depth = rainfall_func(size=n,freq=0.1,meanDepth_inch=meanDepth_inch)
 #depth = np.pad([1], (npad, n - npad - 1), 'constant', constant_values = (0))
 timesteps = np.linspace(0, n*dt, num = n)
@@ -356,9 +361,9 @@ time_openf = time.time()
 
 for network in range(10):
     new_network_time = time.time()
-    G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = 0.1, diam = 1, node_area = 500, 
+    G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
     outlet_level = outlet_level, outlet_node_area = outlet_node_area)
-    soil_nodes_combo, soil_nodes_combo_count = random_sample_soil_nodes(range_min = 0, range_max = 15, range_count = 4)
+    soil_nodes_combo, soil_nodes_combo_count = random_sample_soil_nodes(range_min = 0, range_max = 50, range_count = 50)
     # fig_init, ax_init = plt.subplots(1,1)
     # node_colors1 = draw_varying_size(G, ax = ax_init, attribute = 'elev', node_drawing_ratio = 1)
     # fig_init.suptitle('Initial Set-up')
@@ -368,7 +373,8 @@ for network in range(10):
     # pickle.dump(G,mapfile)
     # mapfile.close()
 
-    output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", "soil_node_degree_list", "soil_node_elev_list"]
+    output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'water_level_highest', 
+    "soil_node_degree_list", "soil_node_elev_list"]
     output_df = pd.DataFrame(np.nan, index=range(soil_nodes_combo_count), columns=output_columns)
     #print("count of combo", len(soil_nodes_combo))
     #print(output_df.loc[:,'soil_nodes_list'])
@@ -380,6 +386,7 @@ for network in range(10):
         soil_nodes_depth = dict(zip(soil_nodes, np.ones(soil_nodes_length)*soil_depth))
         nx.set_node_attributes(H, soil_nodes_depth, "soil_depth")
         # sl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.nodes)
+        water_level = []
         # wl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.nodes)
         # edge_wl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.edges)
         flood_nodes = 0
@@ -390,24 +397,26 @@ for network in range(10):
             #time_openf = print_time(start_time)
             Manning_func(gph = H)    # calculate hydraulic radius and calculate flow rate
             #
-            [s, h_new, edge_h] = rainfall_nodes_func(gph = H, s = s, zr = soil_depth)
-            #sl.loc[n] = s
-            #wl.loc[n] = h_new
+            h_new = rainfall_nodes_func(gph = H, s = s, zr = soil_depth)
+            water_level.append(max(h_new.values()))
+            # sl.loc[n] = s
+            # wl.loc[n] = h_new
             #flood_nodes = flood_nodes + len([v for k, v in h_new.items() if (k >0 and v>= flood_level)])
-            flood_nodes = flood_nodes + sum(h_new.get(k, 0) >= flood_level for k in H.nodes if k != 0)
+            flood_nodes = flood_nodes + sum(h_new[k]>= flood_level for k in H.nodes if k != 0)
             flood_time = flood_time + (max(h_new.values()) >= flood_level)
             ## count how many nodes were above flood level!!!!!!!
-            #edge_wl.loc[n]=edge_h
+            # edge_wl.loc[n]=edge_h
 
         ## Properties and Performance of the network 
-        print("Run", k,"of", soil_nodes_combo_count, soil_nodes, "Network no.", network + 1, "|| node count", len(soil_nodes))
-        print("Time to run Manning & simulation: ")
-        print_time(time_soil_nodes)
+        #print("Run", k,"of", soil_nodes_combo_count, soil_nodes, "Network no.", network + 1, "|| node count", len(soil_nodes))
+        #print("Time to run Manning & simulation: ")
+        #print_time(time_soil_nodes)
         degrees = dict(H.degree())
         mean_of_edges = sum(degrees.values())/len(degrees)
         flood_duration = dt*flood_time
         flood_duration_total = dt*flood_nodes/nodes_num
-        soil_node_degree = ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),len(H.nodes))
+        water_level_highest = max(water_level)
+        #soil_node_degree = ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),len(H.nodes))
         soil_node_degree = ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
         # soil_node_elev = ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1
         # for k in soil_nodes),len(H.nodes))
@@ -423,9 +432,10 @@ for network in range(10):
         output_df.loc[k,'soil_node_degree_list'] = soil_node_degree
         output_df.loc[k,'soil_node_elev_list'] = soil_node_elev
         output_df.loc[k,'soil_nodes_combo_count'] = soil_nodes_length
+        output_df.loc[k,'water_level_highest'] = water_level_highest
         #output_df['outlet_max_list'].loc[k] = max(out_edge_wl)
         k += 1
-    print("network: ", network, "run time: ")
+    print("network: ", network + 1, "run time: ")
     print_time(new_network_time)
     main_df = pd.concat([main_df, output_df], ignore_index=True)
 f = open(datafile_name,'wb')
