@@ -1,5 +1,5 @@
 # urban-hydro 
-Jan 12, 2020
+Jan 12, 2021
 - Tested transparency, added fig_text in test_graph.py
 - Cleaned up flood nodes and flood time calculations in efficiency_test_manning.py
 - rainfall_nodes_func now outputs runoff, h_new instead of s, h_new, edge_h
@@ -8,8 +8,8 @@ This is because the runoff currently is only affecting other conveyance activiti
 soil. 
 - Turned off attr_array_func. It's unnecessary.
 
-Jan 9, 2020
+Jan 9, 2021
 Added test_box_plot.py to create box plots, but I'm not very happy with how they look. 
 
-Jan 5, 2020
+Jan 5, 2021
 create_network function now can calculate diameter changes based on degrees away from the outlet.
