@@ -10,6 +10,7 @@ import datetime
 import time
 from random import sample
 import os
+import sys
 
 ## Functions
 def create_networks(g_type = 'gn', nodes_num = 10, n = 0.01, diam = 1, changing_diam = True, diam_increment = 0.1, soil_depth = 0, 
@@ -290,7 +291,8 @@ def random_sample_soil_nodes(range_min = 1, range_max = 20, range_count = 10):
     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int)
     for combo in combo_iter_list:
         soil_nodes_combo_to_add_full = (list(itertools.combinations(range(1, nodes_num), combo)))
-        soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, int(np.ceil(len(soil_nodes_combo_add_full)/nodes_num**2)))
+        # soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, int(np.ceil(len(soil_nodes_combo_add_full)/nodes_num**(nodes_num+1))))
+        soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, 1)
         soil_nodes_combo_all = soil_nodes_combo_all + soil_nodes_combo_to_add
         print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
     #soil_nodes_combo = sample(soil_nodes_combo_to_add, nodes_num*10)
@@ -315,7 +317,7 @@ def print_time(earlier_time):
 np.random.seed(seed = 1358)
 #G = pickle.load(open('graph_10nodes', 'rb'))
 outlet_level = {0: 0.2}                  # set outlet river water level to be constant
-outlet_node_area = {0: 5000}           # set the river area to be 10 times 
+outlet_node_area = {0: 10000}           # set the river area to be 10 times 
 soil_depth = 6
 init_level = 0.05
 flood_level = 1.5
@@ -373,7 +375,7 @@ for network in range(10):
     # pickle.dump(G,mapfile)
     # mapfile.close()
 
-    output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'water_level_highest', 
+    output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'outlet_water_level', 
     "soil_node_degree_list", "soil_node_elev_list"]
     output_df = pd.DataFrame(np.nan, index=range(soil_nodes_combo_count), columns=output_columns)
     #print("count of combo", len(soil_nodes_combo))
@@ -386,7 +388,7 @@ for network in range(10):
         soil_nodes_depth = dict(zip(soil_nodes, np.ones(soil_nodes_length)*soil_depth))
         nx.set_node_attributes(H, soil_nodes_depth, "soil_depth")
         # sl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.nodes)
-        water_level = []
+        # water_level = []
         # wl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.nodes)
         # edge_wl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.edges)
         flood_nodes = 0
@@ -398,7 +400,7 @@ for network in range(10):
             Manning_func(gph = H)    # calculate hydraulic radius and calculate flow rate
             #
             h_new = rainfall_nodes_func(gph = H, s = s, zr = soil_depth)
-            water_level.append(max(h_new.values()))
+            # water_level.append(max(h_new.values()))
             # sl.loc[n] = s
             # wl.loc[n] = h_new
             #flood_nodes = flood_nodes + len([v for k, v in h_new.items() if (k >0 and v>= flood_level)])
@@ -415,7 +417,7 @@ for network in range(10):
         mean_of_edges = sum(degrees.values())/len(degrees)
         flood_duration = dt*flood_time
         flood_duration_total = dt*flood_nodes/nodes_num
-        water_level_highest = max(water_level)
+        outlet_water_level = H.nodes[0]['level']
         #soil_node_degree = ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),len(H.nodes))
         soil_node_degree = ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
         # soil_node_elev = ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1
@@ -432,7 +434,7 @@ for network in range(10):
         output_df.loc[k,'soil_node_degree_list'] = soil_node_degree
         output_df.loc[k,'soil_node_elev_list'] = soil_node_elev
         output_df.loc[k,'soil_nodes_combo_count'] = soil_nodes_length
-        output_df.loc[k,'water_level_highest'] = water_level_highest
+        output_df.loc[k,'outlet_water_level'] = outlet_water_level
         #output_df['outlet_max_list'].loc[k] = max(out_edge_wl)
         k += 1
     print("network: ", network + 1, "run time: ")
@@ -443,6 +445,11 @@ pickle.dump(main_df, f)
 f.close()
 print("File name is: ", datafile_name, "File size: ", os.path.getsize(datafile_name), "Total time: ")
 print_time(time_openf)
+
+f = open("test.out", 'w')
+sys.stdout = f
+print "test"
+f.close()
 
 # ## Plots
 # # Plot 1: 
@@ -612,5 +619,5 @@ print_time(time_openf)
 # ax_sl.set_xlabel('Days')
 # ax_sl.set_ylabel('Soil Moisture Level')
 # plt.savefig(path + "SoilMoisture-"+ str(meanDepth_inch) +'-inch' + dt_str + '.png')
-os.system("python3 ./urban-hydro/test_graph.py " + datafile_name)
+# os.system("python3 ./urban-hydro/test_graph.py " + datafile_name)
 #plt.show()
