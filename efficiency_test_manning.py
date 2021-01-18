@@ -358,7 +358,15 @@ dt_str = today.strftime("%Y%m%d-%H%M")
 #     os.makedirs(path)
 datafile_name = 'dataset_'+str(meanDepth_inch)+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'.pickle'
 time_openf = time.time()
+file_directory = os.path.dirname(os.path.abspath(__file__))
+os.chdir(file_directory)
+output_file_name = "output_" + dt_str + ".txt"
+terminal_output = open(output_file_name, 'w')
+sys.stdout = terminal_output
 
+print("Output File:", output_file_name)
+print("==========")
+print("==========")
 # Simulations
 
 for network in range(10):
@@ -446,10 +454,7 @@ f.close()
 print("File name is: ", datafile_name, "File size: ", os.path.getsize(datafile_name), "Total time: ")
 print_time(time_openf)
 
-f = open("test.out", 'w')
-sys.stdout = f
-print "test"
-f.close()
+terminal_output.close() 
 
 # ## Plots
 # # Plot 1: 
