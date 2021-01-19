@@ -295,7 +295,8 @@ def random_sample_soil_nodes(range_min = 1, range_max = 20, range_count = 10):
         range_count = range_len 
     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int)
     for combo in combo_iter_list:
-        soil_nodes_combo_to_add_full = (list(itertools.combinations(range(1, nodes_num), combo)))
+        soil_nodes_combo_to_add_full = (list(itertools.combinations(range(1, nodes_num+1), combo)))
+        #soil_nodes_combo_to_add_full = (list(itertools.combinations(combo_iter_list, combo)))
         # soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, int(np.ceil(len(soil_nodes_combo_add_full)/nodes_num**(nodes_num+1))))
         soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, 1)
         soil_nodes_combo_all = soil_nodes_combo_all + soil_nodes_combo_to_add
