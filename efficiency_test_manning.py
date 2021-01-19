@@ -288,6 +288,11 @@ def random_sample_soil_nodes(range_min = 1, range_max = 20, range_count = 10):
     # range_min = 1
     # range_max = 20
     # range_count = 10
+    if range_max > nodes_num:
+        range_max = nodes_num
+    range_len = range_max - range_min + 1
+    if range_count > range_len:
+        range_count = range_len 
     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int)
     for combo in combo_iter_list:
         soil_nodes_combo_to_add_full = (list(itertools.combinations(range(1, nodes_num), combo)))
@@ -322,7 +327,7 @@ soil_depth = 6
 init_level = 0.05
 flood_level = 1.5
 s = 0.1                               # initial soil moisture
-nodes_num = int(100)
+nodes_num = int(25)
 main_df = pd.DataFrame()
 
 G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
@@ -408,6 +413,7 @@ for network in range(10):
             Manning_func(gph = H)    # calculate hydraulic radius and calculate flow rate
             #
             h_new = rainfall_nodes_func(gph = H, s = s, zr = soil_depth)
+
             # water_level.append(max(h_new.values()))
             # sl.loc[n] = s
             # wl.loc[n] = h_new
