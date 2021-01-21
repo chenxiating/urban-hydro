@@ -13,7 +13,7 @@ import os
 import sys
 
 ## Functions
-def create_networks(g_type = 'gn', nodes_num = 10, n = 0.01, diam = 1, changing_diam = True, diam_increment = 0.1, soil_depth = 0, 
+def create_networks(g_type = 'gn', nodes_num = 10, simulation_timesteps = 0.01, diam = 1, changing_diam = True, diam_increment = 0.1, soil_depth = 0, 
 slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_area = 500, outlet_level = None, outlet_node_area = None):
     elev_range = np.linspace(elev_min, elev_max, num=nodes_num)
     # if g_type == 'random tree': 
@@ -22,10 +22,15 @@ slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_area = 500, outl
     #     gph = nx.gn_graph(nodes_num)
     gph = nx.gn_graph(nodes_num)
     nx.topological_sort(gph)
-    if outlet_level is not None: 
+    #if outlet_level is not None: 
+    try:
         nx.set_node_attributes(gph, outlet_level, "level")
-    if outlet_node_area is not None: 
+    except NameError:
+        pass
+    try:
         nx.set_node_attributes(gph, outlet_node_area, "node_area")
+    except NameError: 
+        pass
     max_path_length = max(len(nx.shortest_path(gph, source = k, target = 0)) for k in gph.nodes)
     for k in gph.nodes:
         elev = elev_range[k]
@@ -37,7 +42,7 @@ slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_area = 500, outl
         length = abs(k[0] - k[1])/slope
         downstream_degree_to_outlet = len(nx.shortest_path(gph, source = k[0], target = 0))
         diam0 = ((max_path_length - downstream_degree_to_outlet) * diam * diam_increment)*changing_diam + diam
-        a = dict(zip(["n", "length", "diam"], [n, length, diam0]))
+        a = dict(zip(["simulation_timesteps", "length", "diam"], [simulation_timesteps, length, diam0]))
         b = dict(zip([k], [a]))
         nx.set_edge_attributes(gph, b)
     return gph
@@ -59,12 +64,12 @@ def draw_varying_size(gph, ax = None, attribute = 'storage', node_drawing_ratio 
     edge_labels = {}
     pos = nx.spring_layout(gph)
     cnt = len(gph.nodes)
-    #for n in nx.topological_sort(gph):
-    for n in gph.nodes:
-        x = gph.nodes[n].get(attribute)
+    #for simulation_timesteps in nx.topological_sort(gph):
+    for simulation_timesteps in gph.nodes:
+        x = gph.nodes[simulation_timesteps].get(attribute)
         node_sizes.append(node_drawing_ratio*x)
-        node_colors.append(n/cnt)
-        labels[n] = str(n) + ": " + str(round(x, 1))
+        node_colors.append(simulation_timesteps/cnt)
+        labels[simulation_timesteps] = str(simulation_timesteps) + ": " + str(round(x, 1))
     
     for m in gph.edges: 
         edge_labels[m] = str(m) #+ ": " + str(round(gph.edges[m].get("length"),1))
@@ -91,24 +96,24 @@ def draw_varying_size(gph, ax = None, attribute = 'storage', node_drawing_ratio 
 #     if cumu_attr_name is None:
 #         cumu_attr_name = 'cumulative_{}'.format(accum_attr)
 
-#     for n in nx.topological_sort(G1):
+#     for simulation_timesteps in nx.topological_sort(G1):
 
 #         # grab value in current node
-#         attrib_val = G1.nodes[n].get(accum_attr, 0)
+#         attrib_val = G1.nodes[simulation_timesteps].get(accum_attr, 0)
 
 #         # sum with cumulative values in upstream nodes and edges
-#         for p in G1.predecessors(n):
+#         for p in G1.predecessors(simulation_timesteps):
 #             # add cumulative attribute val in upstream node, apply flow split fraction
-#             attrib_val += G1.nodes[p][cumu_attr_name] * G1[p][n].get(split_attr, 1)
+#             attrib_val += G1.nodes[p][cumu_attr_name] * G1[p][simulation_timesteps].get(split_attr, 1)
 
 #             # add area routed directly to upstream edge/sewer
-#             attrib_val += G1[p][n].get(accum_attr, 0)
+#             attrib_val += G1[p][simulation_timesteps].get(accum_attr, 0)
 
 #             # store cumulative value in upstream edge
-#             G1[p][n][cumu_attr_name] = attrib_val
+#             G1[p][simulation_timesteps][cumu_attr_name] = attrib_val
 
 #         # store cumulative attribute value in current node
-#         G1.nodes[n][cumu_attr_name] = attrib_val
+#         G1.nodes[simulation_timesteps][cumu_attr_name] = attrib_val
 
 #     return G1
 
@@ -125,7 +130,7 @@ def rainfall_func(size = 10 , freq= 0.1, meanDepth_inch = 10):
         return depth
 
 def soil_moisture_func(s, nporo = 0.45, zr = 10, emax = 0.05):
-    #eta = emax/nporo/zr    # decay function: rho(s) = eta * s = emax/n zr * s
+    #eta = emax/nporo/zr    # decay function: rho(s) = eta * s = emax/simulation_timesteps zr * s
     #gamma_soil = (nporo*zr)/meanDepth 
     old_s = s
     ds = (depth[i] - emax * old_s * dt)/(zr * nporo) 
@@ -165,7 +170,7 @@ def bioretention(gph, soil_nodes = [], s_old = 0.3, nporo = 0.45, zr = 10, emax 
 #     array = data[:,column]
 #     return array 
 
-def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = 'n', l_name = 'length', shape = 'circular'):
+def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = 'simulation_timesteps', l_name = 'length', shape = 'circular'):
     edge_list = []
     node_list = gph.nodes
     # node_area = attr_array_func('node_area', gph, elem = 'node')
@@ -181,7 +186,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
         h = 0.5*(gph.nodes[us_node].get(level) + gph.nodes[ds_node].get(level))
         elevdiff = gph.nodes[us_node].get(elev) + gph.nodes[us_node].get(level) - gph.nodes[ds_node].get(elev) - gph.nodes[ds_node].get(level)
         d = gph.edges[m].get(width)
-        n = gph.edges[m].get(n_name)
+        simulation_timesteps = gph.edges[m].get(n_name)
         l = gph.edges[m].get(l_name)
         s = abs(elevdiff)/l
         if shape == 'circular':
@@ -198,7 +203,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
                 A = 1/8*(theta - np.sin(theta))*d**2
                 #print("edge", m, "h", h, "d", d, sep = "\t")
                 
-        dqdt0 = np.sign(elevdiff)*1.49/n*A*R**(2/3)*s**(1/2) # Manning's Equation (Imperial Unit)
+        dqdt0 = np.sign(elevdiff)*1.49/simulation_timesteps*A*R**(2/3)*s**(1/2) # Manning's Equation (Imperial Unit)
         if dqdt0 > gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level):
             dqdt0 = gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level)
             #print("edge", m, "R", R, "dqdt0", dqdt0)
@@ -236,19 +241,19 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
     # # # translate to increase at nodes (CALCULATIONS CHECK)
     # dhdt1_list = []
     # node_list = []
-    # for n in gph.nodes:
+    # for simulation_timesteps in gph.nodes:
     #     inflow = 0
     #     outflow = 0
-    #     n_area = gph.nodes[n].get('node_area')
-    #     for i in gph.in_edges(n):
-    #         #print("node", n, "in_edge", i, "edge_dqdt", gph.edges[i].get('edge_dqdt'), sep = " ")
+    #     n_area = gph.nodes[simulation_timesteps].get('node_area')
+    #     for i in gph.in_edges(simulation_timesteps):
+    #         #print("node", simulation_timesteps, "in_edge", i, "edge_dqdt", gph.edges[i].get('edge_dqdt'), sep = " ")
     #         inflow = inflow + gph.edges[i].get('edge_dqdt')
-    #     for j in gph.out_edges(n):
-    #         #print("node", n, "out_edge", j, "edge_dqdt", gph.edges[j].get('edge_dqdt'), sep = " ")
+    #     for j in gph.out_edges(simulation_timesteps):
+    #         #print("node", simulation_timesteps, "out_edge", j, "edge_dqdt", gph.edges[j].get('edge_dqdt'), sep = " ")
     #         outflow = outflow + gph.edges[j].get('edge_dqdt')
     #     dhdt1 = (+ inflow - outflow)/n_area
-    #     print("node", n, "height change", dhdt1, " ")
-    #     node_list.append(n)
+    #     print("node", simulation_timesteps, "height change", dhdt1, " ")
+    #     node_list.append(simulation_timesteps)
     #     dhdt1_list.append(dhdt1)
 
 def rainfall_nodes_func(gph, s, nporo = 0.45, zr = 10, emax = 0.05): 
@@ -285,19 +290,15 @@ def rainfall_nodes_func(gph, s, nporo = 0.45, zr = 10, emax = 0.05):
 
 def random_sample_soil_nodes(range_min = 1, range_max = 20, range_count = 10):
     soil_nodes_combo_all = []
-    # range_min = 1
-    # range_max = 20
-    # range_count = 10
-    if range_max > nodes_num:
-        range_max = nodes_num
+    if range_max >= nodes_num:
+        range_max = nodes_num - 1
     range_len = range_max - range_min + 1
     if range_count > range_len:
         range_count = range_len 
     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int)
     for combo in combo_iter_list:
-        soil_nodes_combo_to_add_full = (list(itertools.combinations(range(1, nodes_num+1), combo)))
-        #soil_nodes_combo_to_add_full = (list(itertools.combinations(combo_iter_list, combo)))
-        # soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, int(np.ceil(len(soil_nodes_combo_add_full)/nodes_num**(nodes_num+1))))
+        soil_nodes_combo_to_add_full = list(itertools.combinations(range(1, nodes_num), combo))
+        # soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, int(np.ceil(len(soil_nodes_combo_to_add_full)/nodes_num**(nodes_num+1))))
         soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, 1)
         soil_nodes_combo_all = soil_nodes_combo_all + soil_nodes_combo_to_add
         print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
@@ -323,20 +324,19 @@ def print_time(earlier_time):
 np.random.seed(seed = 1358)
 #G = pickle.load(open('graph_10nodes', 'rb'))
 outlet_level = {0: 0.2}                  # set outlet river water level to be constant
-outlet_node_area = {0: 10000}           # set the river area to be 10 times 
+outlet_node_area = {0: 10e8}           # set the river area to very large
 soil_depth = 6
 init_level = 0.05
 flood_level = 1.5
 s = 0.1                               # initial soil moisture
-nodes_num = int(25)
-main_df = pd.DataFrame()
+nodes_num = int(50)
 
 G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
 outlet_level = outlet_level, outlet_node_area = outlet_node_area)
 filename = 'graph_' + str(nodes_num) + 'nodes'
-outfile = open(filename,'wb')
-pickle.dump(G,outfile)
-outfile.close()
+graph_pickle = open(filename,'wb')
+pickle.dump(G,graph_pickle)
+graph_pickle.close()
 
 rain_nodes = G.nodes
 
@@ -348,31 +348,24 @@ fig_init.suptitle('Initial Set-up')
 # Rainfall generation. Units will be presented in foot. 
 dt = 0.1
 days = 50
-n = round(days/dt)
-#n = 10
-#npad = round(n/2)
+simulation_timesteps = round(days/dt)
+#simulation_timesteps = 10
+#npad = round(simulation_timesteps/2)
 meanDepth_inch = 1
-depth = rainfall_func(size=n,freq=0.1,meanDepth_inch=meanDepth_inch)
-#depth = np.pad([1], (npad, n - npad - 1), 'constant', constant_values = (0))
-timesteps = np.linspace(0, n*dt, num = n)
+depth = rainfall_func(size=simulation_timesteps,freq=0.1,meanDepth_inch=meanDepth_inch)
+#depth = np.pad([1], (npad, simulation_timesteps - npad - 1), 'constant', constant_values = (0))
+timesteps = np.linspace(0, simulation_timesteps*dt, num = simulation_timesteps)
 precip0 = [0]* len(G.nodes)
 
 today = date.datetime.today()
 dt_str = today.strftime("%Y%m%d-%H%M")
-# path="/Users/xchen/Documents/UMN_PhD/urban_stormwater_analysis/figures/ten-node-model/"+dt_str+"/"
-# if not os.path.exists(path):
-#     os.makedirs(path)
-datafile_name = 'dataset_'+str(meanDepth_inch)+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'.pickle'
 time_openf = time.time()
 file_directory = os.path.dirname(os.path.abspath(__file__))
-os.chdir(file_directory)
-output_file_name = "output_" + dt_str + ".txt"
-terminal_output = open(output_file_name, 'w')
-sys.stdout = terminal_output
+datafile_directory=file_directory +'/datafiles_'+dt_str
+if not os.path.exists(datafile_directory):
+    os.makedirs(datafile_directory)
+os.chdir(datafile_directory)
 
-print("Output File:", output_file_name)
-print("==========")
-print("==========")
 # Simulations
 
 for network in range(10):
@@ -380,20 +373,11 @@ for network in range(10):
     G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
     outlet_level = outlet_level, outlet_node_area = outlet_node_area)
     soil_nodes_combo, soil_nodes_combo_count = random_sample_soil_nodes(range_min = 0, range_max = 50, range_count = 50)
-    # fig_init, ax_init = plt.subplots(1,1)
-    # node_colors1 = draw_varying_size(G, ax = ax_init, attribute = 'elev', node_drawing_ratio = 1)
-    # fig_init.suptitle('Initial Set-up')
-    # plt.show()
-    # mapname = 'graph_' + str(nodes_num) + 'nodes_'+ str(network) + '_' + dt_str
-    # mapfile = open(mapname,'wb')
-    # pickle.dump(G,mapfile)
-    # mapfile.close()
-
+    # main_df = pd.DataFrame()
+    datafile_name = 'dataset_'+str(meanDepth_inch)+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'network_count-'+str(network)+'.pickle'
     output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'outlet_water_level', 
     "soil_node_degree_list", "soil_node_elev_list"]
     output_df = pd.DataFrame(np.nan, index=range(soil_nodes_combo_count), columns=output_columns)
-    #print("count of combo", len(soil_nodes_combo))
-    #print(output_df.loc[:,'soil_nodes_list'])
     output_df.loc[:,'soil_nodes_list'] = soil_nodes_combo
     k = 0
     for soil_nodes in output_df['soil_nodes_list']:
@@ -401,14 +385,14 @@ for network in range(10):
         soil_nodes_length = len(soil_nodes)
         soil_nodes_depth = dict(zip(soil_nodes, np.ones(soil_nodes_length)*soil_depth))
         nx.set_node_attributes(H, soil_nodes_depth, "soil_depth")
-        # sl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.nodes)
+        # sl = pd.DataFrame(np.nan, index=range(0,simulation_timesteps+1), columns=G.nodes)
         # water_level = []
-        # wl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.nodes)
-        # edge_wl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.edges)
+        # wl = pd.DataFrame(np.nan, index=range(0,simulation_timesteps+1), columns=G.nodes)
+        # edge_wl = pd.DataFrame(np.nan, index=range(0,simulation_timesteps+1), columns=G.edges)
         flood_nodes = 0
         flood_time = 0
         time_soil_nodes = time.time()
-        for i in range(0,n):
+        for i in range(0,simulation_timesteps):
             #print("day = ", i*dt)
             #time_openf = print_time(start_time)
             Manning_func(gph = H)    # calculate hydraulic radius and calculate flow rate
@@ -416,13 +400,13 @@ for network in range(10):
             h_new = rainfall_nodes_func(gph = H, s = s, zr = soil_depth)
 
             # water_level.append(max(h_new.values()))
-            # sl.loc[n] = s
-            # wl.loc[n] = h_new
+            # sl.loc[simulation_timesteps] = s
+            # wl.loc[simulation_timesteps] = h_new
             #flood_nodes = flood_nodes + len([v for k, v in h_new.items() if (k >0 and v>= flood_level)])
             flood_nodes = flood_nodes + sum(h_new[k]>= flood_level for k in H.nodes if k != 0)
             flood_time = flood_time + (max(h_new.values()) >= flood_level)
             ## count how many nodes were above flood level!!!!!!!
-            # edge_wl.loc[n]=edge_h
+            # edge_wl.loc[simulation_timesteps]=edge_h
 
         ## Properties and Performance of the network 
         #print("Run", k,"of", soil_nodes_combo_count, soil_nodes, "Network no.", network + 1, "|| node count", len(soil_nodes))
@@ -454,14 +438,13 @@ for network in range(10):
         k += 1
     print("network: ", network + 1, "run time: ")
     print_time(new_network_time)
-    main_df = pd.concat([main_df, output_df], ignore_index=True)
-f = open(datafile_name,'wb')
-pickle.dump(main_df, f)
-f.close()
+    # main_df = pd.concat([main_df, output_df], ignore_index=True)
+
+    f = open(datafile_name,'wb')
+    pickle.dump(output_df, f)
+    f.close()
 print("File name is: ", datafile_name, "File size: ", os.path.getsize(datafile_name), "Total time: ")
 print_time(time_openf)
-
-terminal_output.close() 
 
 # ## Plots
 # # Plot 1: 
@@ -581,7 +564,7 @@ terminal_output.close()
 # # ax_p = ax_wl.twinx()
 # # ax_p.plot(timesteps, depth, linewidth = 0.5, alpha = 0.8)
 # # ax_p.set_ylabel('Precipitation (ft)')
-# # #upstream = [n for n in nx.traversal.bfs_tree(H, 0, reverse=True) if n != 0]
+# # #upstream = [simulation_timesteps for simulation_timesteps in nx.traversal.bfs_tree(H, 0, reverse=True) if simulation_timesteps != 0]
 # # for i in range(1,len(H.nodes)):
 # #     label = "Node " + str(i)
 # #     #print("node ", i, "node_colors ", node_colors1[i])
@@ -614,7 +597,7 @@ terminal_output.close()
 # # ax_p = ax_hgl.twinx()
 # # ax_p.plot(timesteps, depth, linewidth = 0.5, alpha = 0.8)
 # # ax_p.set_ylabel('Precipitation (ft)')
-# # #upstream = [n for n in nx.traversal.bfs_tree(H, 0, reverse=True) if n != 0]
+# # #upstream = [simulation_timesteps for simulation_timesteps in nx.traversal.bfs_tree(H, 0, reverse=True) if simulation_timesteps != 0]
 # # for i in range(1,len(H.nodes)):
 # #     label = "Node" + str(i)
 # #     ax_hgl.plot(timesteps, wl[i] + H.nodes[i].get('elev'), color = node_colors1[i], label = label)
