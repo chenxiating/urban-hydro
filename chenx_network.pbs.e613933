@@ -1,0 +1,2 @@
+/var/spool/slurmd/job613933/slurm_script: line 8: 2275764 Killed                  python3 efficiency_test_manning.py
+slurmstepd: error: Detected 1 oom-kill event(s) in step 613933.batch cgroup. Some of your processes may have been killed by the cgroup out-of-memory handler.
