@@ -289,20 +289,19 @@ def rainfall_nodes_func(gph, s, nporo = 0.45, zr = 10, emax = 0.05):
     return h_new#, edge_h  
 
 def random_sample_soil_nodes(range_min = 1, range_max = 20, range_count = 10):
-    soil_nodes_combo_all = []
     if range_max >= nodes_num:
         range_max = nodes_num - 1
     range_len = range_max - range_min + 1
     if range_count > range_len:
         range_count = range_len 
-    combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int)
+
+    soil_nodes_combo_all = []
+    combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int) # numbers of combinations to iterate from
     for combo in combo_iter_list:
-        soil_nodes_combo_to_add_full = list(itertools.combinations(range(1, nodes_num), combo))
-        # soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, int(np.ceil(len(soil_nodes_combo_to_add_full)/nodes_num**(nodes_num+1))))
-        soil_nodes_combo_to_add = sample(soil_nodes_combo_to_add_full, 1)
-        soil_nodes_combo_all = soil_nodes_combo_all + soil_nodes_combo_to_add
+        soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), combo))
+        soil_nodes_combo_all.append(soil_nodes_combo_to_add)
         print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
-    #soil_nodes_combo = sample(soil_nodes_combo_to_add, nodes_num*10)
+        # print(soil_nodes_combo_all)
     soil_nodes_combo = pd.Series(soil_nodes_combo_all, dtype = object)
     soil_nodes_combo_count = len(soil_nodes_combo)
     print("Soil nodes count:", soil_nodes_combo_count)
@@ -367,12 +366,15 @@ if not os.path.exists(datafile_directory):
 os.chdir(datafile_directory)
 
 # Simulations
-
 for network in range(10):
     new_network_time = time.time()
     G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
     outlet_level = outlet_level, outlet_node_area = outlet_node_area)
+    time_before_random_sample_soil_nodes = time.time()
     soil_nodes_combo, soil_nodes_combo_count = random_sample_soil_nodes(range_min = 0, range_max = 50, range_count = 50)
+    time_after_random_sample_soil_nodes = print_time(time_before_random_sample_soil_nodes)
+    print("Time after random sample soil nodes:")
+    print(time_after_random_sample_soil_nodes)
     # main_df = pd.DataFrame()
     datafile_name = 'dataset_'+str(meanDepth_inch)+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'network_count-'+str(network)+'.pickle'
     output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'outlet_water_level', 
