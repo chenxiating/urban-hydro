@@ -298,8 +298,10 @@ def random_sample_soil_nodes(range_min = 1, range_max = 20, range_count = 10):
     soil_nodes_combo_all = []
     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int) # numbers of combinations to iterate from
     for combo in combo_iter_list:
-        soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), combo))
-        soil_nodes_combo_all.append(soil_nodes_combo_to_add)
+        for k in range(combo):
+            soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), combo))
+            soil_nodes_combo_all.append(soil_nodes_combo_to_add)
+     
         print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
         # print(soil_nodes_combo_all)
     soil_nodes_combo = pd.Series(soil_nodes_combo_all, dtype = object)
@@ -328,7 +330,7 @@ soil_depth = 6
 init_level = 0.05
 flood_level = 1.5
 s = 0.1                               # initial soil moisture
-nodes_num = int(50)
+nodes_num = int(100)
 
 G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
 outlet_level = outlet_level, outlet_node_area = outlet_node_area)
