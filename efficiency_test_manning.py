@@ -9,6 +9,8 @@ import datetime as date
 import datetime
 import time
 from random import sample
+from math import comb
+from math import log10
 import os
 import sys
 
@@ -298,11 +300,12 @@ def random_sample_soil_nodes(range_min = 1, range_max = 20, range_count = 10):
     soil_nodes_combo_all = []
     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int) # numbers of combinations to iterate from
     for combo in combo_iter_list:
-        for k in range(combo):
-            soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), combo))
-            soil_nodes_combo_all.append(soil_nodes_combo_to_add)
-     
-        print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
+        count_all_possible_combination = comb(nodes_num - 1, combo)
+        count_to_sample = np.ceil(np.log10(count_all_possible_combination) + 1).astype(int)
+        for k in range(count_to_sample):
+            soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), k))
+            soil_nodes_combo_all.append(soil_nodes_combo_to_add)     
+        # print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
         # print(soil_nodes_combo_all)
     soil_nodes_combo = pd.Series(soil_nodes_combo_all, dtype = object)
     soil_nodes_combo_count = len(soil_nodes_combo)
