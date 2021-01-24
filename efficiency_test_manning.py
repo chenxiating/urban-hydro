@@ -300,10 +300,10 @@ def random_sample_soil_nodes(range_min = 1, range_max = 20, range_count = 10):
     soil_nodes_combo_all = []
     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int) # numbers of combinations to iterate from
     for combo in combo_iter_list:
-        count_all_possible_combination = comb(nodes_num - 1, combo)
+        count_all_possible_combination = float(comb(nodes_num - 1, combo))
         count_to_sample = np.ceil(np.log10(count_all_possible_combination) + 1).astype(int)
         for k in range(count_to_sample):
-            soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), k))
+            soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), combo))
             soil_nodes_combo_all.append(soil_nodes_combo_to_add)     
         # print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
         # print(soil_nodes_combo_all)
@@ -376,7 +376,7 @@ for network in range(10):
     G = create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
     outlet_level = outlet_level, outlet_node_area = outlet_node_area)
     time_before_random_sample_soil_nodes = time.time()
-    soil_nodes_combo, soil_nodes_combo_count = random_sample_soil_nodes(range_min = 0, range_max = 50, range_count = 50)
+    soil_nodes_combo, soil_nodes_combo_count = random_sample_soil_nodes(range_min = 0, range_max = 100, range_count = 100)
     time_after_random_sample_soil_nodes = print_time(time_before_random_sample_soil_nodes)
     print("Time after random sample soil nodes:")
     print(time_after_random_sample_soil_nodes)
