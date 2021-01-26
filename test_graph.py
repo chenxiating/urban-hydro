@@ -1,14 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import matplotlib as mpl
+import matplotlib.ticker as mtick
 import pandas as pd
 import pickle
 import os
 import sys
 
 # datafile_name = sys.argv[1]
-datafile_name = 'dataset_1-inch_20-nodes_50-day_20210113-1111.pickle'
+datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/datasets_compiled'
+os.chdir(datafile_directory)
+
+datafile_name = 'dataset_1-inch_100-nodes_50-day_20210124-2339.pickle'
 print("sys.argv is", sys.argv)
 print("datafile_name is", datafile_name)
 # datafile_name = 'dataset_3.5-inch_20-nodes_20201231-1320'
@@ -16,6 +19,7 @@ pos0 = datafile_name.find('dataset_') + len('dataset_')
 pos1 = datafile_name.find('-inch') + len('-inch')
 pos2 = pos1 + len('_')
 pos3 = datafile_name.find('-nodes')
+nodes_num = int(datafile_name[pos2:pos3])
 graph_nodes_count_string = datafile_name[pos2:pos3] + '-Nodes Graph with Mean Rainfall Intensity of ' + datafile_name[pos0:pos1] + '\n'
 
 path=("/Users/xchen/Documents/UMN_PhD/urban_stormwater_analysis/figures/models/")
@@ -41,8 +45,8 @@ cmap = plt.cm.Reds, datafile_name = datafile_name):
         ylabel = 'Days with Flooding'
     elif yaxis_attribute == 'flood_duration_total_list':
         ylabel = 'Average Days of Flooding per Node'
-    elif yaxis_attribute == 'water_level_highest':
-        ylabel = 'Highest Water Level in Network (ft)'
+    elif yaxis_attribute == 'outlet_water_level':
+        ylabel = 'Water Level at Outlet (ft)'
 
 
     fig = plt.figure()
@@ -52,18 +56,19 @@ cmap = plt.cm.Reds, datafile_name = datafile_name):
     ax_nodes = fig.add_subplot(313)
 
     c = yaxis
-    TI = ax_TI.scatter(df.soil_node_elev_list, yaxis, marker = 's', **color_dict)#, edgecolor = 'k')
+    TI = ax_TI.scatter(df.soil_node_elev_list, yaxis,  s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_TI.xaxis.tick_top()
     ax_TI.set_xlabel("Topography Index")
     ax_TI.xaxis.set_label_position('top')
     ax_TI.set_ylim(bottom = -0.05, top = ymax)
     
-    NI = ax_NI.scatter(df.soil_node_degree_list, yaxis, marker = 's', **color_dict)#, edgecolor = 'k')
+    NI = ax_NI.scatter(df.soil_node_degree_list, yaxis,  s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_NI.set_xlabel("Neighbor Index")
     ax_NI.set_ylim(bottom = -0.05, top = ymax)
 
-    nodes_fig = ax_nodes.scatter(df.soil_nodes_count, yaxis, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_nodes.set_xlabel("Node Count")
+    nodes_fig = ax_nodes.scatter(df.soil_nodes_count/nodes_num*100, yaxis,  s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
+    ax_nodes.set_xlabel("% Permeable")
+    ax_nodes.xaxis.set_major_formatter(mtick.PercentFormatter())
     ax_nodes.set_ylim(bottom = -0.05, top = ymax)
 
     if cmap_on: 
@@ -78,6 +83,8 @@ cmap = plt.cm.Reds, datafile_name = datafile_name):
     ax.spines['right'].set_color('none')
     ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
     ax.set_ylabel(ylabel)
+    plt.tight_layout()
+
     fig_name = datafile_name + yaxis_attribute
     plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
     plt.savefig(path + fig_name +'.png')
@@ -96,21 +103,21 @@ cmap = plt.cm.Reds, datafile_name = datafile_name):
         ylabel = 'Days with Flooding'
     elif yaxis_attribute == 'flood_duration_total_list':
         ylabel = 'Average Days of Flooding per Node'
-    elif yaxis_attribute == 'water_level_highest':
-        ylabel = 'Highest Water Level in Network (ft)'
+    elif yaxis_attribute == 'outlet_water_level':
+        ylabel = 'Water Level at Outlet (ft)'
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax_TI = fig.add_subplot(211)
     ax_NI = fig.add_subplot(212)
     #fig, [ax_TI, ax_NI] = plt.subplots(2,1)
-    TI = ax_TI.scatter(df.soil_node_elev_list, yaxis, marker = 's', **color_dict)#, edgecolor = 'k')
+    TI = ax_TI.scatter(df.soil_node_elev_list, yaxis, s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_TI.xaxis.tick_top()
     ax_TI.set_xlabel("Topography Index")
     ax_TI.xaxis.set_label_position('top') 
     ax_TI.set_ylim(bottom = -0.05, top = ymax)
     
-    NI = ax_NI.scatter(df.soil_node_degree_list, yaxis, marker = 's', **color_dict)#, edgecolor = 'k')
+    NI = ax_NI.scatter(df.soil_node_degree_list, yaxis, s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_NI.set_xlabel("Neighbor Index")
     ax_NI.set_ylim(bottom = -0.05, top = ymax)
     
@@ -129,20 +136,23 @@ cmap = plt.cm.Reds, datafile_name = datafile_name):
         cbar = fig.colorbar(TI, cax=cbar_ax)
 
     fig.suptitle(graph_nodes_count_string + ylabel + ' | m = '+ str(soil_nodes_count))
+    plt.tight_layout()
+
     fig_name = datafile_name + yaxis_attribute + '_m='+ str(soil_nodes_count)
     plt.savefig(path + fig_name +'.png')
 
-three_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = True)
-# three_figure_plot(df = df, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues)
-three_figure_plot(df = df, yaxis_attribute='water_level_highest',cmap = plt.cm.Greys, cmap_on = True)
 
-soil_nodes_count_set = set(df.soil_nodes_count)
-for k in soil_nodes_count_set:
-    is_set = df['soil_nodes_count'] == k
-    df_plt = df[is_set]
-    per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='flood_duration_list', cmap_on = True)
-    # per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues, cmap_on = False)
-    per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='water_level_highest',cmap = plt.cm.Greys, cmap_on = True)
+three_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = False)
+# three_figure_plot(df = df, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues)
+three_figure_plot(df = df, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = False)
+
+# soil_nodes_count_set = set(df.soil_nodes_count)
+# for k in soil_nodes_count_set:
+#     is_set = df['soil_nodes_count'] == k
+#     df_plt = df[is_set]
+#     per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='flood_duration_list', cmap_on = True)
+#     # per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues, cmap_on = False)
+#     per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = True)
 
 #ax_NI.set_ylim(bottom = -0.1, top = 1.6)
 # kw = dict(prop="sizes", num=4, color=NI.cmap(0.5), fmt="{x:.0f}",
