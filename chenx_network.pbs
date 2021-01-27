@@ -5,4 +5,6 @@
 
 module load python3/3.8.3_anaconda2020.07_mamba
 echo "module loaded"
-mpirun -np 10 python3 efficiency_test_manning.py
+module load intel 
+module load ompi/intel 
+mpirun -np 10 python3 run_multiprocessing.py
