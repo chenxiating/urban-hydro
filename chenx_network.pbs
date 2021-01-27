@@ -1,8 +1,8 @@
 #!/bin/bash -l
-#PBS -l walltime=8:00:00,nodes=1:ppn=8,pmem=8gb
+#PBS -l walltime=8:00:00,nodes=2:ppn=8,pmem=8gb
 #PBS -m abe
 #PBS -M chen7090@umn.edu
 
 module load python3/3.8.3_anaconda2020.07_mamba
 echo "module loaded"
-python3 efficiency_test_manning.py
+mpirun -np 2 python3 efficiency_test_manning.py

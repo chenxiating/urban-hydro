@@ -25,15 +25,11 @@ graph_nodes_count_string = datafile_name[pos2:pos3] + '-Nodes Graph with Mean Ra
 path=("/Users/xchen/Documents/UMN_PhD/urban_stormwater_analysis/figures/models/")
 if not os.path.exists(path):
     os.makedirs(path)
-#[flood_duration_list, soil_node_degree_list, soil_node_elev_list] = pickle.load(open('dataset_8-inch.pickle', 'rb'))
 df = pickle.load(open(datafile_name, 'rb'))
-#df = pd.DataFrame([soil_nodes_list, flood_duration_list, soil_node_degree_list, soil_node_elev_list, outlet_max_list]).transpose()
-#df.columns =['soil_nodes_list', "flood_duration_list", "soil_node_degree_list", "soil_node_elev_list", "outlet_max_list"]
 df['soil_nodes_count'] = [(len(k)) for k in df.soil_nodes_list]
-#df['soil_node_degree_list'] = df['soil_node_degree_list']*10/(df['soil_nodes_count']+1)
-#df['soil_node_elev_list'] = df['soil_node_elev_list']*10/(df['soil_nodes_count']+1)
 
-def three_figure_plot(df = df, yaxis_attribute = 'flood_duration_list', cmap_on = False, 
+
+def three_figure_plot(df = df, yaxis_attribute = 'flood_duration_list', cmap_on = False, save_plot = True,
 cmap = plt.cm.Reds, datafile_name = datafile_name):
     yaxis = df[yaxis_attribute]
     ymax = max(yaxis) + 1
@@ -85,128 +81,63 @@ cmap = plt.cm.Reds, datafile_name = datafile_name):
     ax.set_ylabel(ylabel)
     plt.tight_layout()
 
-    fig_name = datafile_name + yaxis_attribute
+    fig_name = datafile_name.replace(".pickle","") + yaxis_attribute
     plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
-    plt.savefig(path + fig_name +'.png')
+    if save_plot:
+        plt.savefig(path + fig_name +'.png')
+        print('Plot is saved as', fig_name +'.png')
 
-def per_node_count_plot(df = df, soil_nodes_count = 0, yaxis_attribute = 'flood_duration_list', cmap_on = False,
-cmap = plt.cm.Reds, datafile_name = datafile_name):
+def two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_count', yaxis_attribute = 'soil_node_elev_list', color_attribute = 'flood_duration_list', 
+cmap_on = True, save_plot = True, cmap = plt.cm.Reds, datafile_name = datafile_name):
+    if xaxis_attribute == 'soil_nodes_count':
+        xaxis = df[xaxis_attribute]/nodes_num*100
+    else: 
+        xaxis = df[xaxis_attribute]
     yaxis = df[yaxis_attribute]
-    ymax = max(yaxis) + 0.2
 
-    cmap0 = cm.get_cmap(cmap)
-    color_dict = {'color': cmap0(0.8), 'alpha': 0.3}
-    if cmap_on: 
-        color_dict = {'c': yaxis, 'alpha': 0.7, 'cmap': cmap}
-
-    if yaxis_attribute == 'flood_duration_list':
-        ylabel = 'Days with Flooding'
-    elif yaxis_attribute == 'flood_duration_total_list':
-        ylabel = 'Average Days of Flooding per Node'
-    elif yaxis_attribute == 'outlet_water_level':
-        ylabel = 'Water Level at Outlet (ft)'
+    ymax = max(yaxis)
+    label_dict = {'flood_duration_list':'Days with Flooding', 'flood_duration_total_list': 'Average Days of Flooding per Node',
+    'outlet_water_level':'Water Level at Outlet (ft)', 'soil_nodes_count':'% Permeable', 'soil_node_elev_list': "Topography Index", 'soil_node_degree_list':'Neighbor Index'} 
+    color_dict = {'c': df[color_attribute], 'alpha': 0.4, 'cmap': cmap}
 
     fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax_TI = fig.add_subplot(211)
-    ax_NI = fig.add_subplot(212)
-    #fig, [ax_TI, ax_NI] = plt.subplots(2,1)
-    TI = ax_TI.scatter(df.soil_node_elev_list, yaxis, s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_TI.xaxis.tick_top()
-    ax_TI.set_xlabel("Topography Index")
-    ax_TI.xaxis.set_label_position('top') 
-    ax_TI.set_ylim(bottom = -0.05, top = ymax)
-    
-    NI = ax_NI.scatter(df.soil_node_degree_list, yaxis, s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_NI.set_xlabel("Neighbor Index")
-    ax_NI.set_ylim(bottom = -0.05, top = ymax)
-    
-    ax.spines['top'].set_color('none')
-    ax.spines['bottom'].set_color('none')
-    ax.spines['left'].set_color('none')
-    ax.spines['right'].set_color('none')
-    ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
-    ax.set_ylabel(ylabel)
-    fig.subplots_adjust(top = 0.8)
-    plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
+    ax_double_axes = fig.add_subplot(111)
+
+    TI = ax_double_axes.scatter(xaxis, yaxis, s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
+    ax_double_axes.set_xlabel(label_dict[xaxis_attribute])
+    ax_double_axes.set_ylabel(label_dict[yaxis_attribute])
+    ax_double_axes.set_ylim(bottom = -0.05, top = ymax)
+    ax_double_axes.yaxis.tick_right()
+    ax_double_axes.yaxis.set_label_position('right')
 
     if cmap_on: 
-        fig.subplots_adjust(top = 0.8, left =0.3)
+        fig.subplots_adjust(top = 0.8, left = 0.28)
         cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
         cbar = fig.colorbar(TI, cax=cbar_ax)
+        cbar_ax.get_xaxis().labelpad = 15
+        cbar_ax.yaxis.tick_left()
+        cbar_ax.xaxis.set_label_position('top')
+        cbar_ax.set_xlabel(label_dict[color_attribute])
+        # fig.suptitle(graph_nodes_count_string + ylabel)
+    plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
 
-    fig.suptitle(graph_nodes_count_string + ylabel + ' | m = '+ str(soil_nodes_count))
-    plt.tight_layout()
+    if save_plot:
+        fig_name = datafile_name.replace(".pickle","") + color_attribute + xaxis_attribute + yaxis_attribute
+        plt.savefig(path + fig_name +'.png')
+        print('Plot is saved as'+ fig_name +'.png')
 
-    fig_name = datafile_name + yaxis_attribute + '_m='+ str(soil_nodes_count)
-    plt.savefig(path + fig_name +'.png')
 
+# three_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = False, save_plot = True)
+# three_figure_plot(df = df, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = False, save_plot = True)
 
-three_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = False)
-# three_figure_plot(df = df, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues)
-three_figure_plot(df = df, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = False)
+# two_axis_plot(df = df, color_attribute = 'flood_duration_list', save_plot = True)
+# two_axis_plot(df = df, color_attribute = 'flood_duration_list', yaxis_attribute ='soil_node_degree_list', save_plot = True)
+# two_axis_plot(df = df, color_attribute = 'flood_duration_list', xaxis_attribute = 'soil_node_degree_list', save_plot = True)
 
-# soil_nodes_count_set = set(df.soil_nodes_count)
-# for k in soil_nodes_count_set:
-#     is_set = df['soil_nodes_count'] == k
-#     df_plt = df[is_set]
-#     per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='flood_duration_list', cmap_on = True)
-#     # per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='flood_duration_total_list',cmap = plt.cm.Blues, cmap_on = False)
-#     per_node_count_plot(df = df_plt, soil_nodes_count = k, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = True)
+# two_axis_plot(df = df, color_attribute = 'outlet_water_level', cmap =  plt.cm.Greys, save_plot = True)
+# two_axis_plot(df = df, color_attribute = 'outlet_water_level', yaxis_attribute ='soil_node_degree_list', cmap =  plt.cm.Greys, save_plot = True)
+# two_axis_plot(df = df, color_attribute = 'outlet_water_level', xaxis_attribute = 'soil_node_degree_list', cmap =  plt.cm.Greys, save_plot = True)
 
-#ax_NI.set_ylim(bottom = -0.1, top = 1.6)
-# kw = dict(prop="sizes", num=4, color=NI.cmap(0.5), fmt="{x:.0f}",
-#           func=lambda s: np.log(s))
-# legend = ax_NI.legend(*NI.legend_elements(**kw),
-#                     bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., title="# of Nodes")
-# legend.get_frame().set_edgecolor('k')
+two_axis_plot(df = df, yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_elev_list', save_plot = False)
 
-# fig, axes = plt.subplots(2,2)
-# axes = axes.ravel()
-
-# nodes_num = [1, 5, 10, 15]
-# for k in range(4):
-#     i = nodes_num[k]
-#     is_set = df['soil_nodes_count'] == i
-#     plt_set = df[is_set]
-#     #print(plt_set.head())
-#     #s = [10**i for i in plt_set['flood_duration_list']]
-#     axes[k].scatter(plt_set['soil_node_degree_list'], plt_set['soil_node_elev_list'], c = 'red', #s = s,
-#     alpha = 0.7)#, edgecolor = 'k')
-#     #fig_dots.subplots_adjust(right=0.8)
-#     #cbar_ax = fig_dots.add_axes([0.85, 0.5, 0.05, 0.35])
-#     #cbar = fig.colorbar(dots)
-#     #cbar.set_label('Flood Duration (Days)')
-#     axes[k].set_ylabel("Topography Index " + str(i))
-#     axes[k].set_xlabel("Neighbor Index " + str(i))
-#     #ax_dots.set_ylim(bottom = -0.1, top = 0.5)
-#     # kw = dict(prop="sizes", num=4, color=dots.cmap(0.5), fmt="{x:.0f}",
-#     #         func=lambda s: np.log(s))
-#     # legend = cbar_ax.legend(*dots.legend_elements(**kw),
-#     #                     bbox_to_anchor=(1, -0.1), loc='upper center', borderaxespad=0., title="# of Nodes")
-#     # legend.get_frame().set_edgecolor('k')
-
-# fig, axes = plt.subplots(2,2)
-# axes = axes.ravel()
-
-# for k in range(4):
-#     i = k+1
-#     is_set = df['soil_nodes_count'] == i
-#     plt_set = df[is_set]
-#     #print(plt_set.head())
-#     s = [10**i for i in plt_set['outlet_max_list']]
-#     axes[k].scatter(plt_set['soil_node_degree_list'], plt_set['soil_node_elev_list'], s = s,
-#     alpha = 0.7)#, edgecolor = 'k')
-#     #fig_dots.subplots_adjust(right=0.8)
-#     #cbar_ax = fig_dots.add_axes([0.85, 0.5, 0.05, 0.35])
-#     #cbar = fig.colorbar(dots)
-#     #cbar.set_label('Flood Duration (Days)')
-#     axes[k].set_ylabel("TI " + str(i) + " Nodes")
-#     axes[k].set_xlabel("NI " + str(i)+ " Nodes")
-#     #ax_dots.set_ylim(bottom = -0.1, top = 0.5)
-#     # kw = dict(prop="sizes", num=4, color=dots.cmap(0.5), fmt="{x:.0f}",
-#     #         func=lambda s: np.log(s))
-#     # legend = cbar_ax.legend(*dots.legend_elements(**kw),
-#     #                     bbox_to_anchor=(1, -0.1), loc='upper center', borderaxespad=0., title="# of Nodes")
-#     # legend.get_frame().set_edgecolor('k')
 plt.show()
