@@ -43,9 +43,11 @@ def main(nodes_num = int(100), process_core_name = None):
     time_openf = time.time()
     file_directory = os.path.dirname(os.path.abspath(__file__))
     datafile_directory=file_directory +'/datafiles_'+dt_str
-    if not os.path.exists(datafile_directory):
+    try: 
+        os.chdir(datafile_directory)
+    except FileNameError: 
         os.makedirs(datafile_directory)
-    os.chdir(datafile_directory)
+    
 
     # Simulations
     for network in range(4):

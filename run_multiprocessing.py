@@ -11,7 +11,7 @@ if __name__ == '__main__':
     processes = []
     for k in range(9):
         p = multiprocessing.Process(target = main, args = (int(100), k))
-        print(k)
+        print('Process core number: ', k)
         p.start()
         processes.append(p)
 
