@@ -45,7 +45,7 @@ def main(nodes_num = int(100), process_core_name = None):
     datafile_directory=file_directory +'/datafiles_'+dt_str
     try: 
         os.chdir(datafile_directory)
-    except FileNameError: 
+    except FileNotFoundError: 
         os.makedirs(datafile_directory)
     
 

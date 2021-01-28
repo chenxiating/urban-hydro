@@ -16,6 +16,7 @@ if __name__ == '__main__':
         processes.append(p)
 
     for process in processes:
+        print('Running process: ', process)
         process.join()
 
 finish = time.perf_counter()
