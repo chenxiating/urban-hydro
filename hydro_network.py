@@ -16,7 +16,7 @@ import sys
 
 
 ## Functions
-def create_networks(g_type = 'gn', nodes_num = 10, topo_node = 0.01, diam = 1, changing_diam = True, diam_increment = 0.1, soil_depth = 0, 
+def create_networks(g_type = 'gn', nodes_num = 10, n = 0.01, diam = 1, changing_diam = True, diam_increment = 0.1, soil_depth = 0, 
 slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_area = 500, outlet_level = None, outlet_node_area = None):
     elev_range = np.linspace(elev_min, elev_max, num=nodes_num)
     # if g_type == 'random tree': 
@@ -45,7 +45,7 @@ slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_area = 500, outl
         length = abs(k[0] - k[1])/slope
         downstream_degree_to_outlet = len(nx.shortest_path(gph, source = k[0], target = 0))
         diam0 = ((max_path_length - downstream_degree_to_outlet) * diam * diam_increment)*changing_diam + diam
-        a = dict(zip(["topo_node", "length", "diam"], [topo_node, length, diam0]))
+        a = dict(zip(["n", "length", "diam"], [n, length, diam0]))
         b = dict(zip([k], [a]))
         nx.set_edge_attributes(gph, b)
     return gph
@@ -67,12 +67,12 @@ def draw_varying_size(gph, ax = None, attribute = 'storage', node_drawing_ratio 
     edge_labels = {}
     pos = nx.spring_layout(gph)
     cnt = len(gph.nodes)
-    #for topo_node in nx.topological_sort(gph):
-    for topo_node in gph.nodes:
-        x = gph.nodes[topo_node].get(attribute)
+    #for n in nx.topological_sort(gph):
+    for n in gph.nodes:
+        x = gph.nodes[n].get(attribute)
         node_sizes.append(node_drawing_ratio*x)
-        node_colors.append(topo_node/cnt)
-        labels[topo_node] = str(topo_node) + ": " + str(round(x, 1))
+        node_colors.append(n/cnt)
+        labels[n] = str(n) + ": " + str(round(x, 1))
     
     for m in gph.edges: 
         edge_labels[m] = str(m) #+ ": " + str(round(gph.edges[m].get("length"),1))
@@ -132,7 +132,7 @@ def rainfall_func(size = 10, freq= 0.1, meanDepth_inch = 10, dt = 0.1):
         return depth
 
 def soil_moisture_func(s, depth, dt, nporo = 0.45, zr = 10, emax = 0.05):
-    #eta = emax/nporo/zr    # decay function: rho(s) = eta * s = emax/topo_node zr * s
+    #eta = emax/nporo/zr    # decay function: rho(s) = eta * s = emax/n zr * s
     #gamma_soil = (nporo*zr)/meanDepth 
     old_s = s
     ds = (depth - emax * old_s * dt)/(zr * nporo) 
@@ -172,7 +172,7 @@ def bioretention(gph, depth, dt, soil_nodes = [], s_old = 0.3, nporo = 0.45, zr 
 #     array = data[:,column]
 #     return array 
 
-def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = 'topo_node', l_name = 'length', shape = 'circular'):
+def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = 'n', l_name = 'length', shape = 'circular'):
     edge_list = []
     node_list = gph.nodes
     # node_area = attr_array_func('node_area', gph, elem = 'node')
@@ -188,7 +188,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
         h = 0.5*(gph.nodes[us_node].get(level) + gph.nodes[ds_node].get(level))
         elevdiff = gph.nodes[us_node].get(elev) + gph.nodes[us_node].get(level) - gph.nodes[ds_node].get(elev) - gph.nodes[ds_node].get(level)
         d = gph.edges[m].get(width)
-        topo_node = gph.edges[m].get(n_name)
+        n = gph.edges[m].get(n_name)
         l = gph.edges[m].get(l_name)
         s = abs(elevdiff)/l
         if shape == 'circular':
@@ -205,7 +205,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
                 A = 1/8*(theta - np.sin(theta))*d**2
                 #print("edge", m, "h", h, "d", d, sep = "\t")
                 
-        dqdt0 = np.sign(elevdiff)*1.49/topo_node*A*R**(2/3)*s**(1/2) # Manning's Equation (Imperial Unit)
+        dqdt0 = np.sign(elevdiff)*1.49/n*A*R**(2/3)*s**(1/2) # Manning's Equation (Imperial Unit)
         if dqdt0 > gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level):
             dqdt0 = gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level)
             #print("edge", m, "R", R, "dqdt0", dqdt0)
@@ -243,19 +243,19 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
     # # # translate to increase at nodes (CALCULATIONS CHECK)
     # dhdt1_list = []
     # node_list = []
-    # for topo_node in gph.nodes:
+    # for n in gph.nodes:
     #     inflow = 0
     #     outflow = 0
-    #     n_area = gph.nodes[topo_node].get('node_area')
-    #     for i in gph.in_edges(topo_node):
-    #         #print("node", topo_node, "in_edge", i, "edge_dqdt", gph.edges[i].get('edge_dqdt'), sep = " ")
+    #     n_area = gph.nodes[n].get('node_area')
+    #     for i in gph.in_edges(n):
+    #         #print("node", n, "in_edge", i, "edge_dqdt", gph.edges[i].get('edge_dqdt'), sep = " ")
     #         inflow = inflow + gph.edges[i].get('edge_dqdt')
-    #     for j in gph.out_edges(topo_node):
-    #         #print("node", topo_node, "out_edge", j, "edge_dqdt", gph.edges[j].get('edge_dqdt'), sep = " ")
+    #     for j in gph.out_edges(n):
+    #         #print("node", n, "out_edge", j, "edge_dqdt", gph.edges[j].get('edge_dqdt'), sep = " ")
     #         outflow = outflow + gph.edges[j].get('edge_dqdt')
     #     dhdt1 = (+ inflow - outflow)/n_area
-    #     print("node", topo_node, "height change", dhdt1, " ")
-    #     node_list.append(topo_node)
+    #     print("node", n, "height change", dhdt1, " ")
+    #     node_list.append(n)
     #     dhdt1_list.append(dhdt1)
 
 def rainfall_nodes_func(gph, s, dt, depth, soil_nodes, rain_nodes, nporo = 0.45, zr = 10, emax = 0.05): 
@@ -352,13 +352,13 @@ def print_time(earlier_time):
 # # Rainfall generation. Units will be presented in foot. 
 # dt = 0.1
 # days = 50
-# topo_node = round(days/dt)
-# #topo_node = 10
-# #npad = round(topo_node/2)
+# n = round(days/dt)
+# #n = 10
+# #npad = round(n/2)
 # meanDepth_inch = 1
-# depth = rainfall_func(size=topo_node,freq=0.1,meanDepth_inch=meanDepth_inch)
-# #depth = np.pad([1], (npad, topo_node - npad - 1), 'constant', constant_values = (0))
-# timesteps = np.linspace(0, topo_node*dt, num = topo_node)
+# depth = rainfall_func(size=n,freq=0.1,meanDepth_inch=meanDepth_inch)
+# #depth = np.pad([1], (npad, n - npad - 1), 'constant', constant_values = (0))
+# timesteps = np.linspace(0, n*dt, num = n)
 # precip0 = [0]* len(G.nodes)
 
 # today = date.datetime.today()
@@ -394,27 +394,27 @@ def print_time(earlier_time):
 #         soil_nodes_length = len(soil_nodes)
 #         soil_nodes_depth = dict(zip(soil_nodes, np.ones(soil_nodes_length)*soil_depth))
 #         nx.set_node_attributes(H, soil_nodes_depth, "soil_depth")
-#         # sl = pd.DataFrame(np.nan, index=range(0,topo_node+1), columns=G.nodes)
+#         # sl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.nodes)
 #         # water_level = []
-#         # wl = pd.DataFrame(np.nan, index=range(0,topo_node+1), columns=G.nodes)
-#         # edge_wl = pd.DataFrame(np.nan, index=range(0,topo_node+1), columns=G.edges)
+#         # wl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.nodes)
+#         # edge_wl = pd.DataFrame(np.nan, index=range(0,n+1), columns=G.edges)
 #         flood_nodes = 0
 #         flood_time = 0
 #         time_soil_nodes = time.time()
-#         for i in range(0,topo_node):
+#         for i in range(0,n):
 #             #print("day = ", i*dt)
 #             #time_openf = print_time(start_time)
 #             Manning_func(gph = H)    # calculate hydraulic radius and calculate flow rate
 #             h_new = rainfall_nodes_func(gph = H, s = s, zr = soil_depth)
 
 #             # water_level.append(max(h_new.values()))
-#             # sl.loc[topo_node] = s
-#             # wl.loc[topo_node] = h_new
+#             # sl.loc[n] = s
+#             # wl.loc[n] = h_new
 #             #flood_nodes = flood_nodes + len([v for k, v in h_new.items() if (k >0 and v>= flood_level)])
 #             flood_nodes = flood_nodes + sum(h_new[k]>= flood_level for k in H.nodes if k != 0)
 #             flood_time = flood_time + (max(h_new.values()) >= flood_level)
 #             ## count how many nodes were above flood level!!!!!!!
-#             # edge_wl.loc[topo_node]=edge_h
+#             # edge_wl.loc[n]=edge_h
 
 #         ## Properties and Performance of the network 
 #         #print("Run", k,"of", soil_nodes_combo_count, soil_nodes, "Network no.", network + 1, "|| node count", len(soil_nodes))
@@ -573,7 +573,7 @@ def print_time(earlier_time):
 # # ax_p = ax_wl.twinx()
 # # ax_p.plot(timesteps, depth, linewidth = 0.5, alpha = 0.8)
 # # ax_p.set_ylabel('Precipitation (ft)')
-# # #upstream = [topo_node for topo_node in nx.traversal.bfs_tree(H, 0, reverse=True) if topo_node != 0]
+# # #upstream = [n for n in nx.traversal.bfs_tree(H, 0, reverse=True) if n != 0]
 # # for i in range(1,len(H.nodes)):
 # #     label = "Node " + str(i)
 # #     #print("node ", i, "node_colors ", node_colors1[i])
@@ -606,7 +606,7 @@ def print_time(earlier_time):
 # # ax_p = ax_hgl.twinx()
 # # ax_p.plot(timesteps, depth, linewidth = 0.5, alpha = 0.8)
 # # ax_p.set_ylabel('Precipitation (ft)')
-# # #upstream = [topo_node for topo_node in nx.traversal.bfs_tree(H, 0, reverse=True) if topo_node != 0]
+# # #upstream = [n for n in nx.traversal.bfs_tree(H, 0, reverse=True) if n != 0]
 # # for i in range(1,len(H.nodes)):
 # #     label = "Node" + str(i)
 # #     ax_hgl.plot(timesteps, wl[i] + H.nodes[i].get('elev'), color = node_colors1[i], label = label)
