@@ -9,7 +9,7 @@ start = time.perf_counter()
 
 if __name__ == '__main__':
     processes = []
-    for k in range(9):
+    for k in range(2):
         p = multiprocessing.Process(target = main, args = (int(100), k))
         print('Process core number: ', k)
         p.start()
