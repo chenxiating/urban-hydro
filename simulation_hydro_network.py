@@ -47,7 +47,7 @@ def main(nodes_num = int(100), process_core_name = None):
         os.chdir(datafile_directory)
     except FileNotFoundError: 
         os.makedirs(datafile_directory)
-    
+        os.chdir(datafile_directory)
 
     # Simulations
     for network in range(4):
