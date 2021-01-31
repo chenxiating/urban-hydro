@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#PBS -l walltime=8:00:00,nodes=2:ppn=5,pmem=8gb
+#PBS -l walltime=8:00:00,nodes=1:ppn=5,pmem=8gb
 #PBS -m abe
 #PBS -M chen7090@umn.edu
 
@@ -7,4 +7,4 @@ module load python3/3.8.3_anaconda2020.07_mamba
 echo "module loaded"
 module load intel 
 module load ompi/intel 
-mpirun -np 10 python3 run_multiprocessing.py
+mpirun -np 5 python3 run_multiprocessing.py

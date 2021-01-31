@@ -16,8 +16,7 @@ import sys
 
 
 ## Functions
-def create_networks(g_type = 'gn', nodes_num = 10, topo_node = 0.01, diam = 1, changing_diam = True, diam_increment = 0.1, soil_depth = 0, 
-slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_area = 500, outlet_level = None, outlet_node_area = None):
+def create_networks(g_type = 'gn', nodes_num = 10, topo_node = 0.01, diam = 1, changing_diam = True, diam_increment = 0.1, soil_depth = 0, slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_area = 500, outlet_level = None, outlet_node_area = None):
     elev_range = np.linspace(elev_min, elev_max, num=nodes_num)
     # if g_type == 'random tree': 
     #     gph = nx.scale_free_graph(nodes_num)
