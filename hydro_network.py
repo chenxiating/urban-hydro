@@ -119,17 +119,20 @@ def accumulate_downstream(gph, accum_attr='node_area', cumu_attr_name=None, soil
     accumulate_downstream_on_soil_nodes = sum(gph.nodes[k][cumu_attr_name] for k in soil_nodes)
     return accumulate_downstream_on_soil_nodes
 
-def rainfall_func(size = 10, freq= 0.1, meanDepth_inch = 10, dt = 0.1):
+def rainfall_func(size = 10, freq= 0.1, meanDepth_inch = 2, dt = 0.1, is_pulse = False):
+    meanDepth = meanDepth_inch/12
+    depth = np.zeros(size)
+    if is_pulse: 
+        depth[1] = meanDepth
+    else: 
         # generate uniform and exponentially distributed random variables 
-        meanDepth = meanDepth_inch/12
         depthExponential = np.random.exponential( meanDepth * np.ones(size) ) 
         freqUniform = np.random.random( size=size )
-        depth = np.zeros(size)
         # the occurence of rainfall in any independent interval is lambda*dt 
         yesrain = freqUniform<np.tile(freq,size)*dt
         # rain falls according to prob within an increment 
         depth[yesrain] = depthExponential[yesrain]
-        return depth
+    return depth
 
 def soil_moisture_func(s, depth, dt, nporo = 0.45, zr = 10, emax = 0.05):
     #eta = emax/nporo/zr    # decay function: rho(s) = eta * s = emax/n zr * s
