@@ -86,7 +86,7 @@ def draw_varying_size(gph, ax = None, attribute = 'storage', node_drawing_ratio 
     #print(dict(zip(["node", "node_colors", "node_colors_array"],[gph.nodes, node_colors, node_colors_array])))
     return node_colors_array
 
-def accumulate_downstream(gph, accum_attr='node_area', cumu_attr_name=None, soil_nodes=None):
+def accumulate_downstream(gph, accum_attr='node_area', cumu_attr_name=None, soil_nodes=None, type = 'node'):
     """
     pass through the graph from upstream to downstream and accumulate the value
     an attribute found in nodes and edges, and assign the accumulated value
@@ -100,27 +100,42 @@ def accumulate_downstream(gph, accum_attr='node_area', cumu_attr_name=None, soil
 
     for topo_node in nx.topological_sort(gph):
         # grab value in current node
-        attrib_val = gph.nodes[topo_node].get(accum_attr, 0)
+        if type == 'node': 
+            attrib_val = gph.nodes[topo_node].get(accum_attr, 0)
 
         # sum with cumulative values in upstream nodes and edges
-        for p in gph.predecessors(topo_node):
-            # add cumulative attribute val in upstream node, apply flow split fraction
-            attrib_val += gph.nodes[p][cumu_attr_name]
+            for p in gph.predecessors(topo_node):
+                # add cumulative attribute val in upstream node, apply flow split fraction
+                attrib_val += gph.nodes[p][cumu_attr_name]
 
-            # add area routed directly to upstream edge/sewer
-            attrib_val += gph[p][topo_node].get(accum_attr, 0)
+                # add area routed directly to upstream edge/sewer
+                attrib_val += gph[p][topo_node].get(accum_attr, 0)
 
-            # store cumulative value in upstream edge
-            gph[p][topo_node][cumu_attr_name] = attrib_val
+                # store cumulative value in upstream edge
+                gph[p][topo_node][cumu_attr_name] = attrib_val
 
-        # store cumulative attribute value in current node
-        gph.nodes[topo_node][cumu_attr_name] = attrib_val
-        # print(soil_nodes, topo_node, attrib_val)
-    accumulate_downstream_on_soil_nodes = sum(gph.nodes[k][cumu_attr_name] for k in soil_nodes)
-    return accumulate_downstream_on_soil_nodes
+            # store cumulative attribute value in current node
+            gph.nodes[topo_node][cumu_attr_name] = attrib_val
+            # print(soil_nodes, topo_node, attrib_val)
+        else:
+            for topo_node in nx.topological_sort(gph):
+                flow_path = nx.shortest_path(gph, source = topo_node, target = 0)
+                attrib_val = 0
+                for i in range(len(flow_path)-1):
+                    attrib_val += gph.out_edges[i][cumu_attr_name]
+                    attrib_val += gph[path[i]][path[i + 1]].get(accumulate_downstream, 0)
+                    gph[path[i]][path[i + 1]] = attrib_val
+    if soil_nodes is not None: 
+        sum_cumu_attr_downstream = sum(gph.nodes[k][cumu_attr_name] for k in soil_nodes)
+    else if type == 'edge': 
+        dict_sum_cumu_attr_downstream = nx.get_edge_attributes(gph, cumu_attr_name)
+        sum_cumu_attr_downstream = sum(v for k, v in dict_sum_cumu_attr_downstream)
+    else: 
+        sum_cumu_attr_downstream = sum(gph.nodes[k][cumu_attr_name] for k in gph.nodes)
+        return sum_cumu_attr_downstream
 
 def rainfall_func(size = 10, freq= 0.1, meanDepth_inch = 2, dt = 0.1, is_pulse = False):
-    meanDepth = meanDepth_inch/12
+    meanDepth = meanDepth_inch/12   # mean depth in foot
     depth = np.zeros(size)
     if is_pulse: 
         depth[1] = meanDepth
@@ -183,8 +198,9 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
     node_area = np.array([node_area_dict[k] for k in gph.nodes])
     h_list = []
     h_radius_list = []
-    dqdt0_list = []
+    dq_list = []
     area_list = []
+    # cumulative_q
     for m in gph.edges:
         us_node = m[0]
         ds_node = m[1]
@@ -208,22 +224,22 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
                 A = 1/8*(theta - np.sin(theta))*d**2
                 #print("edge", m, "h", h, "d", d, sep = "\t")
                 
-        dqdt0 = np.sign(elevdiff)*1.49/n*A*R**(2/3)*s**(1/2) # Manning's Equation (Imperial Unit)
-        if dqdt0 > gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level):
-            dqdt0 = gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level)
-            #print("edge", m, "R", R, "dqdt0", dqdt0)
+        dq = np.sign(elevdiff)*1.49/n*A*R**(2/3)*s**(1/2) # Manning's Equation (Imperial Unit)
+        if dq > gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level):
+            dq = gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level)
+            #print("edge", m, "R", R, "dq", dq)
         # if np.sign(elevdiff) < 0: 
         #     print("us node", us_node, "ds node", ds_node, "us flow", gph.nodes[us_node].get(elev) + gph.nodes[us_node].get(level), 
         #     "ds flow", gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level), "edge", m, "hydraulic radius", R, "area", A, 
-        #     "slope", s, "edge_dqdt", dqdt0, sep = '\t')
-        dqdt0_list.append(dqdt0)
+        #     "slope", s, "edge_dqdt", dq, sep = '\t')
+        dq_list.append(dq)
         edge_list.append(m)
         h_list.append(h)
         h_radius_list.append(R)
         area_list.append(A)
 
     # # calculate ACAt
-    Q = dqdt0_list*np.eye(len(dqdt0_list))
+    Q = dq_list*np.eye(len(dq_list))
     A = (nx.incidence_matrix(gph, oriented=True)).toarray()
     edge_cnt = len(gph.edges)
     J = np.ones(edge_cnt)
@@ -233,12 +249,12 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
     dhdt_list = np.divide(A@Q@J,node_area)
    
     # record results
-    dict_dqdt0 = dict(zip(edge_list, dqdt0_list))
+    dict_dq = dict(zip(edge_list, dq_list))
     dict_h0 = dict(zip(edge_list, h_list))
     dict_rad = dict(zip(edge_list, h_radius_list))
     dict_h1 = dict(zip(node_list, dhdt_list))
     #print("edge water level: ", dict_h0, "dh at node", dict_h1)
-    nx.set_edge_attributes(gph, dict_dqdt0, 'edge_dqdt0')
+    nx.set_edge_attributes(gph, dict_dq, 'edge_dq')
     nx.set_edge_attributes(gph, dict_h0, 'edge_h')
     nx.set_edge_attributes(gph, dict_rad, 'h_rad')
     nx.set_node_attributes(gph, dict_h1, 'dhdt')
@@ -260,6 +276,12 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
     #     print("node", n, "height change", dhdt1, " ")
     #     node_list.append(n)
     #     dhdt1_list.append(dhdt1)
+
+def dispersion_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = 'n', l_name = 'length', shape = 'circular'):
+    length = nx.get_edge_attributes(gph, l_name)
+    network_total_path_length = accumulate_downstream(gph, accum_attr= l_name)       
+    network_total_length = sum(v for k,v in length.items())
+    network_mean_length = network_total_length/len(length)p
 
 def rainfall_nodes_func(gph, s, dt, depth, soil_nodes, rain_nodes, nporo = 0.45, zr = 10, emax = 0.05): 
     #   This function calculates the runoff on nodes after a result of bioretention activities. 
