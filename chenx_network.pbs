@@ -4,7 +4,8 @@
 #PBS -M chen7090@umn.edu
 
 module load python3/3.8.3_anaconda2020.07_mamba
-echo "module loaded"
 module load intel 
 module load ompi/intel 
-mpirun -np 10 python3 run_multiprocessing.py
+echo "module loaded"
+mkdir ./data_output
+mpirun -np 10 python3 run_multiprocessing.py ./data_output
