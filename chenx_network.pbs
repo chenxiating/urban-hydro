@@ -11,7 +11,8 @@ echo "module loaded"
 folder_str='./datafiles_'
 dt_str=$(date +'%Y%m%d-%H%M')
 folder_name="${folder_str}${dt_str}"
-mpirun -np 10 python3 run_multiprocessing.py
+echo "running multiprocessing now"
+mpirun -np 10 python3 run_multiprocessing_pool.py
 echo $folder_name
 mkdir $folder_name
 mv dataset* $folder_name
