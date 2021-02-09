@@ -415,11 +415,11 @@ def dispersion_func(gph, l_name = 'length', t_name = 'edge_time'):
         disp_g = 0.5*ignore_zero_div(var_path_length,mean_path_time)
         #print(disp_g)
         network_celerity = ignore_zero_div(mean_path_length,mean_path_time)
-        print('network_celerity', network_celerity)
+        # print('network_celerity', network_celerity)
         flowpath_celerity_dict = {k: ignore_zero_div(network_path_length_dict[k],network_path_time_dict[k]) for k in network_path_time_dict}
-        print('flowpath_celerity_dict', flowpath_celerity_dict)
+        # print('flowpath_celerity_dict', flowpath_celerity_dict)
         stretched_path_length_set = [ignore_zero_div(network_path_length_dict[k],flowpath_celerity_dict[k])*network_celerity for k in network_path_length_dict]
-        print('stretched_path_length_set', stretched_path_length_set)
+        # print('stretched_path_length_set', stretched_path_length_set)
         disp_kg = 0.5*ignore_zero_div(statistics.variance(stretched_path_length_set),mean_path_length)*network_celerity
     except statistics.StatisticsError:
         var_path_length = 0

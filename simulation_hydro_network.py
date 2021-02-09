@@ -84,7 +84,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
                 hn.Manning_func(gph = H)    # calculate hydraulic radius and calculate flow rate
                 h_new, soil_moisture = hn.rainfall_nodes_func(gph = H, dt = dt, s = soil_moisture, zr = soil_depth, soil_nodes = soil_nodes, 
                 rain_nodes = rain_nodes, depth = depth[i])
-                if depth[i] > 0:
+                # if depth[i] > 0:
                     # print('Network =', network,'soil_nodes', soil_nodes, 'day = ', i*dt, '. It rained!')
                 var_path_length, disp_g, disp_kg = hn.dispersion_func(gph = H)
                 # print(disp_g, disp_kg)
