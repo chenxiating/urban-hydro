@@ -495,10 +495,19 @@ def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, r
     return soil_nodes_combo, soil_nodes_combo_count
 
 def ignore_zero_div(x,y):
-    try:
-        return x/y
-    except ZeroDivisionError:
+    # try:
+    #     return x/y
+    # except ZeroDivisionError:
+    #     return 0
+
+    if not x*y:
+        try:
+            return x/y
+        except ZeroDivisionError:
+            return 0
+    else:
         return 0
+
 
 def print_time(earlier_time):
     now_time = time.time()
@@ -507,8 +516,11 @@ def print_time(earlier_time):
 
 
 if __name__ == '__main__':
-    G = create_networks(nodes_num = 6)
-    for n in range (5):
-        Darcy_func(gph = G)
-        draw_network_timestamp(gph = G, soil_nodes = (1,2,3))
-    dispersion_func(gph = G)
+    a = np.nan
+    b = 0
+    c = 5
+    print('ignore_zero_div(b, a)', ignore_zero_div(b, a))
+    print('ignore_zero_div(a, b)', ignore_zero_div(a, b))
+    print('ignore_zero_div(c, a)', ignore_zero_div(c, a))
+    print('ignore_zero_div(c, b)', ignore_zero_div(c, b))
+    print('ignore_zero_div(a, c)', ignore_zero_div(a, c))

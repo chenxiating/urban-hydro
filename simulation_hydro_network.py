@@ -69,8 +69,7 @@ def main(nodes_num = int(100), process_core_name = None):
         k = 0
         # disp_df = pd.DataFrame()
         kk = 0
-        for soil_nodes in [(2,7)]:
-        # for soil_nodes in output_df['soil_nodes_list']:
+        for soil_nodes in output_df['soil_nodes_list']:
             H = G.copy()
             soil_nodes_total_upstream_area = hn.accumulate_downstream(H, soil_nodes = soil_nodes)
             # print(soil_nodes_total_upstream_area)
@@ -154,7 +153,7 @@ def main(nodes_num = int(100), process_core_name = None):
             output_df.loc[k,'max_disp_g'] = max(disp_g_list)
             output_df.loc[k,'max_disp_kg'] = max(disp_kg_list)
             output_df
-            print(output_df)
+            # print(output_df)
             #output_df['outlet_max_list'].loc[k] = max(out_edge_wl)
             # disp_df.loc[:,kk] = disp_g_list
             # disp_df.loc[:,kk+1] = disp_kg_list
