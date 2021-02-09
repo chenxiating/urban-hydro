@@ -7,6 +7,7 @@ import pickle
 import datetime as date
 import datetime
 import time
+from statistics import mean
 import os
 
 def main(nodes_num = int(100), process_core_name = None):
@@ -61,11 +62,12 @@ def main(nodes_num = int(100), process_core_name = None):
         main_df = pd.DataFrame()
         datafile_name = 'dataset_'+str(meanDepth_inch)+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'network_count-'+str(network)+'_'+str(process_core_name)+'.pickle'
         output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'outlet_water_level', 
-        "soil_node_degree_list", "soil_node_elev_list", 'soil_nodes_total_upstream_area','dispersion_g']
+        "soil_node_degree_list", "soil_node_elev_list", 'soil_nodes_total_upstream_area','mean_disp_g','mean_disp_kg','max_disp_g',
+        'max_disp_kg','mean_var_path_length', 'max_var_path_length']
         output_df = pd.DataFrame(np.nan, index=range(soil_nodes_combo_count), columns=output_columns)
         output_df.loc[:,'soil_nodes_list'] = soil_nodes_combo
         k = 0
-        disp_df = pd.DataFrame()
+        # disp_df = pd.DataFrame()
         kk = 0
         for soil_nodes in [(2,7)]:
         # for soil_nodes in output_df['soil_nodes_list']:
@@ -111,14 +113,14 @@ def main(nodes_num = int(100), process_core_name = None):
                 flood_time = flood_time + (max(h_new.values()) >= flood_level)
                 ## count how many nodes were above flood level!!!!!!!
                 # edge_wl.loc[simulation_timesteps]=çedge_h
-                if i%50 == 0:
-                    hn.draw_network_timestamp(gph = H, soil_nodes = soil_nodes)
-                    plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
-            dispersion = disp_g_list, outlet_level = outlet_level_list)
-                    plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
-            dispersion = disp_kg_list, outlet_level = outlet_level_list)
-                    plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
-            dispersion = var_path_length_list, outlet_level = outlet_level_list)
+            #     if i%50 == 0:
+            #         hn.draw_network_timestamp(gph = H, soil_nodes = soil_nodes)
+            #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
+            # dispersion = disp_g_list, outlet_level = outlet_level_list)
+            #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
+            # dispersion = disp_kg_list, outlet_level = outlet_level_list)
+            #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
+            # dispersion = var_path_length_list, outlet_level = outlet_level_list)
 
             ## Properties and Performance of the network 
             #print("Run", k,"of", soil_nodes_combo_count, soil_nodes, "Network no.", network + 1, "|| node count", len(soil_nodes))
@@ -147,19 +149,24 @@ def main(nodes_num = int(100), process_core_name = None):
             output_df.loc[k,'soil_nodes_combo_count'] = soil_nodes_length
             output_df.loc[k,'outlet_water_level'] = outlet_water_level
             output_df.loc[k,'soil_nodes_total_upstream_area'] = soil_nodes_total_upstream_area
+            output_df.loc[k,'mean_disp_g'] = mean(disp_g_list)
+            output_df.loc[k,'mean_disp_kg'] = mean(disp_kg_list)
+            output_df.loc[k,'max_disp_g'] = max(disp_g_list)
+            output_df.loc[k,'max_disp_kg'] = max(disp_kg_list)
+            print(output_df)
             #output_df['outlet_max_list'].loc[k] = max(out_edge_wl)
-            disp_df.loc[:,kk] = disp_g_list
-            disp_df.loc[:,kk+1] = disp_kg_list
+            # disp_df.loc[:,kk] = disp_g_list
+            # disp_df.loc[:,kk+1] = disp_kg_list
             #print(disp_df)
             k += 1
             kk += 2
         # four_subplots(days = days, simulation_timesteps = simulation_timesteps, depth = depth, disp_df = disp_df, outlet_level = outlet_level_list)
         print("network: ", network + 1, "run time: ")
         hn.print_time(new_network_time)
-        # main_df = pd.concat([main_df, output_df], ignore_index=True)
-        # f = open(datafile_name,'wb')
-        # pickle.dump(output_df, f)
-        # f.close()
+        main_df = pd.concat([main_df, output_df], ignore_index=True)
+        f = open(datafile_name,'wb')
+        pickle.dump(output_df, f)
+        f.close()
         plt.show()
     
     # print("File name is: ", datafile_name, "File size: ", os.path.getsize(datafile_name), "Total time: ")
