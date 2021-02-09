@@ -484,7 +484,7 @@ def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, r
         count_all_possible_combination = float(comb(nodes_num - 1, combo))
         if not count_to_sample:
             count_to_sample = np.ceil(np.log10(count_all_possible_combination) + 1).astype(int)
-        for k in range(count_to_sample):
+        for _ in range(count_to_sample):
             soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), combo))
             soil_nodes_combo_all.append(soil_nodes_combo_to_add)     
         # print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
@@ -495,11 +495,6 @@ def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, r
     return soil_nodes_combo, soil_nodes_combo_count
 
 def ignore_zero_div(x,y):
-    # try:
-    #     return x/y
-    # except ZeroDivisionError:
-    #     return 0
-
     if not x*y:
         try:
             return x/y

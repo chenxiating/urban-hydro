@@ -10,7 +10,7 @@ import time
 from statistics import mean
 import os
 
-def main(nodes_num = int(100), process_core_name = None):
+def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moisture = 0.1, mean_rainfall_inch = 1):
     ## Assign Network Properties ##
     # In this step we build the network based on different criteria
     np.random.seed(seed = 1358)
@@ -20,7 +20,7 @@ def main(nodes_num = int(100), process_core_name = None):
     soil_depth = 6
     init_level = 0.0
     flood_level = 1.5
-    soil_moisture = 0.1                                  # initial soil moisture
+    soil_moisture = antecedent_soil_moisture
 
     G = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
     outlet_level = outlet_level, outlet_node_area = outlet_node_area, kernel = lambda x: x**10)
@@ -31,23 +31,13 @@ def main(nodes_num = int(100), process_core_name = None):
     dt = 0.1
     days = 50
     simulation_timesteps = round(days/dt)
-    #simulation_timesteps = 10
     #npad = round(simulation_timesteps/2)
-    meanDepth_inch = 1
-    depth = hn.rainfall_func(size=simulation_timesteps,freq=0.1,meanDepth_inch=meanDepth_inch, dt = dt, is_pulse=True)
+    depth = hn.rainfall_func(size=simulation_timesteps,freq=0.1,meanDepth_inch=mean_rainfall_inch, dt = dt, is_pulse=True)
     #depth = np.pad([1], (npad, simulation_timesteps - npad - 1), 'constant', constant_values = (0))
     timesteps = np.linspace(0, simulation_timesteps*dt, num = simulation_timesteps)
-    precip0 = [0]* len(G.nodes)
 
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
-
-    # file_directory = os.path.dirname(os.path.abspath(__file__))
-    # datafile_directory=file_directory +'/datafiles_'+dt_str
-    # print('os.path.exists(datafile_directory)', os.path.exists(datafile_directory))
-    # if not os.path.exists(datafile_directory):
-    #     os.makedirs(datafile_directory)
-    # os.chdir(datafile_directory)
 
     # Simulations
     for network in range(5):
@@ -60,8 +50,8 @@ def main(nodes_num = int(100), process_core_name = None):
         print("Time after random sample soil nodes:")
         print(time_after_random_sample_soil_nodes)
         main_df = pd.DataFrame()
-        datafile_name = 'dataset_'+str(meanDepth_inch)+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'network_count-'+str(network)+'_'+str(process_core_name)+'.pickle'
-        output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'outlet_water_level', 
+        datafile_name = 'dataset_'+str(mean_rainfall_inch)+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'network_count-'+str(network)+'_'+str(process_core_name)+'.pickle'
+        output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'outlet_water_level', 'mean_rainfall', 'antecedent_soil'
         "soil_node_degree_list", "soil_node_elev_list", 'soil_nodes_total_upstream_area','mean_disp_g','mean_disp_kg','max_disp_g',
         'max_disp_kg','mean_var_path_length', 'max_var_path_length']
         output_df = pd.DataFrame(np.nan, index=range(soil_nodes_combo_count), columns=output_columns)
@@ -152,7 +142,9 @@ def main(nodes_num = int(100), process_core_name = None):
             output_df.loc[k,'mean_disp_kg'] = mean(disp_kg_list)
             output_df.loc[k,'max_disp_g'] = max(disp_g_list)
             output_df.loc[k,'max_disp_kg'] = max(disp_kg_list)
-            output_df
+            output_df.loc[k,'mean_rainfall'] = mean_rainfall_inch
+            output_df.loc[k,'antecedent_soil'] = antecedent_soil_moisture
+
             # print(output_df)
             #output_df['outlet_max_list'].loc[k] = max(out_edge_wl)
             # disp_df.loc[:,kk] = disp_g_list
@@ -167,7 +159,7 @@ def main(nodes_num = int(100), process_core_name = None):
         f = open(datafile_name,'wb')
         pickle.dump(output_df, f)
         f.close()
-        plt.show()
+        # plt.show()
     
     # print("File name is: ", datafile_name, "File size: ", os.path.getsize(datafile_name), "Total time: ")
 

@@ -1,9 +1,14 @@
 import multiprocessing
 import simulation_hydro_network
 import time
+import numpy as np
 
 def main(nodes_num, process_core_name):
-    simulation_hydro_network.main(nodes_num, process_core_name)
+    soil_moisture_list = np.linspace(0, 1, 20)
+    mean_rainfall_set = np.linspcae(0, 5, 10)
+    for soil_moisture in soil_moisture_list:
+        for mean_rainfall in mean_rainfall_set:
+            simulation_hydro_network.main(nodes_num, process_core_name, soil_moisture, mean_rainfall)
 
 start = time.perf_counter()
 
