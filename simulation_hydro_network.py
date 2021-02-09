@@ -153,6 +153,7 @@ def main(nodes_num = int(100), process_core_name = None):
             output_df.loc[k,'mean_disp_kg'] = mean(disp_kg_list)
             output_df.loc[k,'max_disp_g'] = max(disp_g_list)
             output_df.loc[k,'max_disp_kg'] = max(disp_kg_list)
+            output_df
             print(output_df)
             #output_df['outlet_max_list'].loc[k] = max(out_edge_wl)
             # disp_df.loc[:,kk] = disp_g_list
