@@ -404,7 +404,7 @@ def dispersion_func(gph, l_name = 'length', t_name = 'edge_time'):
     network_path_length_set = [network_path_length_dict[k] for k in network_path_length_dict]
     network_path_time_dict = nx.get_node_attributes(gph, path_time)
     network_path_time_set = [network_path_time_dict[k] for k in network_path_time_dict]
-    print('network_path_length_dict', network_path_length_dict)
+    # print('network_path_length_dict', network_path_length_dict)
     # print('network_path_dq_dict', nx.get_edge_attributes(gph, 'edge_dq'))
     # print('network_path_time_dict', network_path_time_dict)
 
@@ -489,7 +489,6 @@ def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, r
         # print(soil_nodes_combo_all)
     soil_nodes_combo = pd.Series(soil_nodes_combo_all, dtype = object)
     soil_nodes_combo_count = len(soil_nodes_combo)
-    print("Soil nodes count:", soil_nodes_combo_count)
     return soil_nodes_combo, soil_nodes_combo_count
 
 def ignore_zero_div(x,y):

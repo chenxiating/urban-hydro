@@ -46,6 +46,8 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         outlet_level = outlet_level, outlet_node_area = outlet_node_area)
         time_before_random_sample_soil_nodes = time.time()
         soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 100, range_count = 100, nodes_num = nodes_num)
+        print("Process core:", process_core_name, "antecedent soil moisture: ", antecedent_soil_moisture, "mean rainfall:", mean_rainfall_inch)
+        print("network:", network + 1, "Soil nodes count:", soil_nodes_combo_count)
         time_after_random_sample_soil_nodes = hn.print_time(time_before_random_sample_soil_nodes)
         # print("Time after random sample soil nodes:")
         # print(time_after_random_sample_soil_nodes)
@@ -153,7 +155,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             k += 1
             kk += 2
         # four_subplots(days = days, simulation_timesteps = simulation_timesteps, depth = depth, disp_df = disp_df, outlet_level = outlet_level_list)
-        print("process core:", process_core_name, "network: ", network + 1, "run time: ")
+        print("Run time: ")
         hn.print_time(new_network_time)
         main_df = pd.concat([main_df, output_df], ignore_index=True)
         f = open(datafile_name,'wb')

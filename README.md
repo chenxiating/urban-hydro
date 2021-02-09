@@ -1,4 +1,7 @@
 # urban-hydro 
+Feb 9, 2021
+- Varying different antecedent soil moisture and rainfall intensity
+
 Feb 6, 2021
 - Added dispersion and path length/transport time calculations to the hydro_network. 
 - Manning's: now assuming that the water level in a pipe = water level downstream at the node. 
