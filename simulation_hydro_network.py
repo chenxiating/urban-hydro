@@ -49,12 +49,12 @@ def main(nodes_num = int(100), process_core_name = None):
     # os.chdir(datafile_directory)
 
     # Simulations
-    for network in range(1):
+    for network in range(5):
         new_network_time = time.time()
         G = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
         outlet_level = outlet_level, outlet_node_area = outlet_node_area)
         time_before_random_sample_soil_nodes = time.time()
-        soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 1, range_max = 5, range_count = 2, nodes_num = nodes_num, count_to_sample = 1)
+        soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 100, range_count = 100, nodes_num = nodes_num)
         time_after_random_sample_soil_nodes = hn.print_time(time_before_random_sample_soil_nodes)
         print("Time after random sample soil nodes:")
         print(time_after_random_sample_soil_nodes)

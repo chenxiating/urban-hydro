@@ -93,7 +93,7 @@ def draw_varying_size(gph, ax = None, attribute = 'storage', edge_attribute = No
     #print(dict(zip(["node", "node_colors", "node_colors_array"],[gph.nodes, node_colors, node_colors_array])))
     return node_colors_array
 
-def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_u', soil_nodes = None):
+def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_velocity', soil_nodes = None):
     """
     draw the network flow and the dispersion coefficients at a single timestep. 
     """
@@ -382,11 +382,11 @@ def calculate_flow_path(gph, accum_attr='length', path_attr_name=None):
                 if not out_edge_set: 
                     break
                 for out_edge in out_edge_set:
-                    if gph.edges[out_edge].get('edge_u') > 0: 
+                    if gph.edges[out_edge].get('edge_velocity') > 0: 
                         path_attr += gph.edges[out_edge].get(accum_attr)
-                        print('succeed:', node, 'i_node', i, out_edge, gph.edges[out_edge].get('edge_u'), gph.edges[out_edge].get(accum_attr), path_attr)
+                        print('succeed:', node, 'i_node', i, out_edge, gph.edges[out_edge].get('edge_velocity'), gph.edges[out_edge].get(accum_attr), path_attr)
                     else: 
-                        print('fail:', node, 'i_node', i, out_edge, gph.edges[out_edge].get('edge_u'), gph.edges[out_edge].get(accum_attr), path_attr)
+                        print('fail:', node, 'i_node', i, out_edge, gph.edges[out_edge].get('edge_velocity'), gph.edges[out_edge].get(accum_attr), path_attr)
                         path_attr = 0
                         keep_running = False
                         break
