@@ -1,4 +1,14 @@
 # urban-hydro 
+Feb 6, 2021
+- Added dispersion and path length/transport time calculations to the hydro_network. 
+- Manning's: now assuming that the water level in a pipe = water level downstream at the node. 
+Previously, the average of upstream and downstrea water levels were considered.
+
+Jan 18, 2021
+- Separated the simulation_hydro_network file as a separate runfile for hydro_network (ongoing 
+process towards OOP/class set-up).
+- Added multiprocessing.
+
 Jan 12, 2021
 - Tested transparency, added fig_text in test_graph.py
 - Cleaned up flood nodes and flood time calculations in efficiency_test_manning.py
