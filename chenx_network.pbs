@@ -6,10 +6,13 @@
 module load python3/3.8.3_anaconda2020.07_mamba
 module load intel 
 module load ompi/intel 
-<<<<<<< HEAD
-mpirun -np 5 python3 run_multiprocessing.py
-=======
+
 echo "module loaded"
-mkdir ./data_output
-mpirun -np 10 python3 run_multiprocessing.py ./data_output
->>>>>>> 4a4bc98331aa0088244b362bfce3f3097ea03602
+folder_str='./datafiles_'
+dt_str=$(date +'%Y%m%d-%H%M')
+folder_name="${folder_str}${dt_str}"
+mpirun -np 10 python3 run_multiprocessing.py
+echo $folder_name
+mkdir $folder_name
+mv dataset* $folder_name
+
