@@ -268,17 +268,15 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
                 A = 1/8*(theta - np.sin(theta))*d**2
                 #print("edge", m, "h", h, "d", d, sep = "\t")
         u = 1.49/n*R**(2/3)*s**(1/2)
-        # print('Manning edge', m, 'u', u)
         dq = np.sign(elevdiff)*u*A # Manning's Equation (Imperial Unit) for edges
         if dq >= gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level) or gph.nodes[us_node].get(elev) > (gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level)):
             dq = gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level)
             u = abs(ignore_zero_div(dq, A))
-            print(m, 'dq has been capped.', 'dq', dq)
+            # print(m, 'dq has been capped.', 'dq', dq)
         if dq < 1e-4:
             dq = 0
             u = 0
         t = ignore_zero_div(l,u)
-        # print('Manning edge', m, 'dq', dq)
         # if np.sign(elevdiff) < 0: 
         #     print("us node", us_node, "ds node", ds_node, "us flow", gph.nodes[us_node].get(elev) + gph.nodes[us_node].get(level), 
         #     "ds flow", gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level), "edge", m, "hydraulic radius", R, "area", A, 
@@ -384,9 +382,9 @@ def calculate_flow_path(gph, accum_attr='length', path_attr_name=None):
                 for out_edge in out_edge_set:
                     if gph.edges[out_edge].get('edge_velocity') > 0: 
                         path_attr += gph.edges[out_edge].get(accum_attr)
-                        print('succeed:', node, 'i_node', i, out_edge, gph.edges[out_edge].get('edge_velocity'), gph.edges[out_edge].get(accum_attr), path_attr)
+                        # print('succeed:', node, 'i_node', i, out_edge, gph.edges[out_edge].get('edge_velocity'), gph.edges[out_edge].get(accum_attr), path_attr)
                     else: 
-                        print('fail:', node, 'i_node', i, out_edge, gph.edges[out_edge].get('edge_velocity'), gph.edges[out_edge].get(accum_attr), path_attr)
+                        # print('fail:', node, 'i_node', i, out_edge, gph.edges[out_edge].get('edge_velocity'), gph.edges[out_edge].get(accum_attr), path_attr)
                         path_attr = 0
                         keep_running = False
                         break

@@ -47,8 +47,8 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         time_before_random_sample_soil_nodes = time.time()
         soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 100, range_count = 100, nodes_num = nodes_num)
         time_after_random_sample_soil_nodes = hn.print_time(time_before_random_sample_soil_nodes)
-        print("Time after random sample soil nodes:")
-        print(time_after_random_sample_soil_nodes)
+        # print("Time after random sample soil nodes:")
+        # print(time_after_random_sample_soil_nodes)
         main_df = pd.DataFrame()
         datafile_name = 'dataset_'+str(mean_rainfall_inch)+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'network_count-'+str(network)+'_'+str(process_core_name)+'.pickle'
         output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'outlet_water_level', 'mean_rainfall', 'antecedent_soil'
@@ -77,7 +77,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             disp_kg_list = []
             outlet_level_list = []
             for i in range(0,simulation_timesteps):
-                print("day = ", i*dt)
+                # print("day = ", i*dt)
                 #time_openf = hn.print_time(start_time)
                 #### Need to add Darcy's Law to this part. Gets a bit tricky if both overland
                 #### flows and subsurface flows occur in the network. 
@@ -85,9 +85,9 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
                 h_new, soil_moisture = hn.rainfall_nodes_func(gph = H, dt = dt, s = soil_moisture, zr = soil_depth, soil_nodes = soil_nodes, 
                 rain_nodes = rain_nodes, depth = depth[i])
                 if depth[i] > 0:
-                    print('Network =', network,'soil_nodes', soil_nodes, 'day = ', i*dt, '. It rained!')
+                    # print('Network =', network,'soil_nodes', soil_nodes, 'day = ', i*dt, '. It rained!')
                 var_path_length, disp_g, disp_kg = hn.dispersion_func(gph = H)
-                print(disp_g, disp_kg)
+                # print(disp_g, disp_kg)
                 var_path_length_list.append(var_path_length)
                 disp_g_list.append(disp_g)
                 disp_kg_list.append(disp_kg)
@@ -153,7 +153,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             k += 1
             kk += 2
         # four_subplots(days = days, simulation_timesteps = simulation_timesteps, depth = depth, disp_df = disp_df, outlet_level = outlet_level_list)
-        print("network: ", network + 1, "run time: ")
+        print("process core:", process_core_name, "network: ", network + 1, "run time: ")
         hn.print_time(new_network_time)
         main_df = pd.concat([main_df, output_df], ignore_index=True)
         f = open(datafile_name,'wb')
