@@ -268,7 +268,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
                 A = 1/8*(theta - np.sin(theta))*d**2
                 #print("edge", m, "h", h, "d", d, sep = "\t")
         u = 1.49/n*R**(2/3)*s**(1/2)
-        print('Manning edge', m, 'u', u)
+        # print('Manning edge', m, 'u', u)
         dq = np.sign(elevdiff)*u*A # Manning's Equation (Imperial Unit) for edges
         if dq >= gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level) or gph.nodes[us_node].get(elev) > (gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level)):
             dq = gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level)
@@ -278,7 +278,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
             dq = 0
             u = 0
         t = ignore_zero_div(l,u)
-        print('Manning edge', m, 'dq', dq)
+        # print('Manning edge', m, 'dq', dq)
         # if np.sign(elevdiff) < 0: 
         #     print("us node", us_node, "ds node", ds_node, "us flow", gph.nodes[us_node].get(elev) + gph.nodes[us_node].get(level), 
         #     "ds flow", gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level), "edge", m, "hydraulic radius", R, "area", A, 
@@ -466,7 +466,7 @@ def rainfall_nodes_func(gph, s, dt, depth, soil_nodes, rain_nodes, nporo = 0.45,
     outlet_evaporation_func(gph, dt, evap_rate = 0.01)
     return h_new, soil_moisture_new
 
-def random_sample_soil_nodes(nodes_num, count_to_sample, range_min = 1, range_max = 20, range_count = 10 ):
+def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, range_max = 20, range_count = 10 ):
     """
     randomly generate water retentive nodes in the network
     """
@@ -482,9 +482,7 @@ def random_sample_soil_nodes(nodes_num, count_to_sample, range_min = 1, range_ma
     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int) # numbers of combinations to iterate from
     for combo in combo_iter_list:
         count_all_possible_combination = float(comb(nodes_num - 1, combo))
-        try:
-            count_to_sample
-        except NameError:
+        if not count_to_sample:
             count_to_sample = np.ceil(np.log10(count_all_possible_combination) + 1).astype(int)
         for k in range(count_to_sample):
             soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), combo))
