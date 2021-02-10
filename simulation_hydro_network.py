@@ -52,7 +52,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         # print("Time after random sample soil nodes:")
         # print(time_after_random_sample_soil_nodes)
         main_df = pd.DataFrame()
-        datafile_name = 'dataset_'+str(mean_rainfall_inch)+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'network_count-'+str(network)+'_'+str(process_core_name)+'.pickle'
+        datafile_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'network_count-'+str(network)+'_'+str(process_core_name)+'.pickle'
         output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'outlet_water_level', 'mean_rainfall', 'antecedent_soil'
         "soil_node_degree_list", "soil_node_elev_list", 'soil_nodes_total_upstream_area','mean_disp_g','mean_disp_kg','max_disp_g',
         'max_disp_kg','mean_var_path_length', 'max_var_path_length']

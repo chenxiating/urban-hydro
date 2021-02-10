@@ -492,14 +492,13 @@ def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, r
     return soil_nodes_combo, soil_nodes_combo_count
 
 def ignore_zero_div(x,y):
-    if not x*y:
+    if np.isnan(x*y):
+        return 0
+    else:
         try:
             return x/y
         except ZeroDivisionError:
             return 0
-    else:
-        return 0
-
 
 def print_time(earlier_time):
     now_time = time.time()
@@ -515,4 +514,4 @@ if __name__ == '__main__':
     print('ignore_zero_div(a, b)', ignore_zero_div(a, b))
     print('ignore_zero_div(c, a)', ignore_zero_div(c, a))
     print('ignore_zero_div(c, b)', ignore_zero_div(c, b))
-    print('ignore_zero_div(a, c)', ignore_zero_div(a, c))
+    print('ignore_zero_div(a, c)', ignore_zero_div(8, c))
