@@ -29,7 +29,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
     ## Precipitation
     # Rainfall generation. Units will be presented in foot. 
     dt = 0.1
-    days = 50
+    days = 10
     simulation_timesteps = round(days/dt)
     #npad = round(simulation_timesteps/2)
     depth = hn.rainfall_func(size=simulation_timesteps,freq=0.1,meanDepth_inch=mean_rainfall_inch, dt = dt, is_pulse=True)

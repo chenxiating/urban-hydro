@@ -9,7 +9,10 @@ import sys
 from compile_datasets import compile_datasets
 
 # datafile_name = sys.argv[1]
-folder_name = sys.argv[1]
+try: 
+    folder_name = sys.argv[1]
+except IndexError:
+    folder_name = 'datafiles_20210210-0100'
 datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro_datasets-compiled'
 os.chdir(datafile_directory)
 

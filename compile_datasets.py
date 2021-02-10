@@ -3,7 +3,7 @@ import pandas as pd
 import pickle
 import sys
 
-def compile_datasets(folder_name = sys.argv[1]):
+def compile_datasets(folder_name):
     os.chdir('/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/'+folder_name)
     all_files = os.listdir()
     some_datafile_name = all_files[0]
