@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#PBS -l walltime=8:00:00,nodes=2:ppn=5,pmem=8gb
+#PBS -l walltime=12:00:00,nodes=5:ppn=6,pmem=4gb
 #PBS -m abe
 #PBS -M chen7090@umn.edu
 
@@ -12,8 +12,8 @@ folder_str='./datafiles_'
 dt_str=$(date +'%Y%m%d-%H%M')
 folder_name="${folder_str}${dt_str}"
 echo "running multiprocessing now"
-mpirun -np 10 python3 run_multiprocessing_pool.py
+mpirun -np 30 python3 run_multiprocessing_pool.py
 echo $folder_name
 mkdir $folder_name
 mv dataset* $folder_name
-
+python3 compile_datasets.py $folder_name

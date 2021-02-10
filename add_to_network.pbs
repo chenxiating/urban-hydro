@@ -1,0 +1,2 @@
+folder_name="datafiles_20210209-1134"
+python3 compile_datasets.py $folder_name

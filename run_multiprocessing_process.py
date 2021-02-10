@@ -8,7 +8,7 @@ def main(nodes_num, process_core_name, soil_moisture, mean_rainfall):
 
 start = time.perf_counter()
 soil_moisture_list = np.linspace(0, 1, 20)
-mean_rainfall_set = np.linspace(0, 5, 10)
+mean_rainfall_set = np.linspace(0.1, 5.1, 10)
 
 if __name__ == '__main__':
     processes = []

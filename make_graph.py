@@ -9,7 +9,7 @@ import sys
 from compile_datasets import compile_datasets
 
 # datafile_name = sys.argv[1]
-folder_name = 'datafiles_20210126-2234'
+folder_name = sys.argv[1]
 datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro_datasets-compiled'
 os.chdir(datafile_directory)
 
@@ -187,24 +187,24 @@ cmap_on = True, save_plot = True, cmap = plt.cm.Reds, datafile_name = datafile_n
         print('Plot is saved as '+ fig_name +'.png')
 
 
-# three_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = False, save_plot = True)
-# three_figure_plot(df = df, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = False, save_plot = True)
+three_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = False, save_plot = True)
+three_figure_plot(df = df, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = False, save_plot = True)
 
-# four_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = False, save_plot = True)
-# four_figure_plot(df = df, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = False, save_plot = True)
+four_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = False, save_plot = True)
+four_figure_plot(df = df, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = False, save_plot = True)
 
-# two_axis_plot(df = df, color_attribute = 'flood_duration_list', save_plot = True)
-# two_axis_plot(df = df, color_attribute = 'flood_duration_list', yaxis_attribute ='soil_node_degree_list', save_plot = True)
-# two_axis_plot(df = df, color_attribute = 'flood_duration_list', xaxis_attribute = 'soil_node_degree_list', save_plot = True)
+two_axis_plot(df = df, color_attribute = 'flood_duration_list', save_plot = True)
+two_axis_plot(df = df, color_attribute = 'flood_duration_list', yaxis_attribute ='soil_node_degree_list', save_plot = True)
+two_axis_plot(df = df, color_attribute = 'flood_duration_list', xaxis_attribute = 'soil_node_degree_list', save_plot = True)
 
-# two_axis_plot(df = df, color_attribute = 'outlet_water_level', cmap =  plt.cm.Greys, save_plot = True)
-# two_axis_plot(df = df, color_attribute = 'outlet_water_level', yaxis_attribute ='soil_node_degree_list', cmap =  plt.cm.Greys, save_plot = True)
-# two_axis_plot(df = df, color_attribute = 'outlet_water_level', xaxis_attribute = 'soil_node_degree_list', cmap =  plt.cm.Greys, save_plot = True)
+two_axis_plot(df = df, color_attribute = 'outlet_water_level', cmap =  plt.cm.Greys, save_plot = True)
+two_axis_plot(df = df, color_attribute = 'outlet_water_level', yaxis_attribute ='soil_node_degree_list', cmap =  plt.cm.Greys, save_plot = True)
+two_axis_plot(df = df, color_attribute = 'outlet_water_level', xaxis_attribute = 'soil_node_degree_list', cmap =  plt.cm.Greys, save_plot = True)
 
-# two_axis_plot(df = df, yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_elev_list', save_plot = True)
-# two_axis_plot(df = df, yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_degree_list', save_plot = True)
-# two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_elev_list', save_plot = True)
-# two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_degree_list', save_plot = True)
+two_axis_plot(df = df, yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_elev_list', save_plot = True)
+two_axis_plot(df = df, yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_degree_list', save_plot = True)
+two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_elev_list', save_plot = True)
+two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_degree_list', save_plot = True)
 
 two_axis_plot(df = df, xaxis_attribute = 'soil_node_degree_list', yaxis_attribute = 'soil_node_elev_list',color_attribute = 'soil_nodes_count', cmap =  plt.cm.Greys, save_plot = True)
 
