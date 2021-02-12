@@ -40,12 +40,10 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
     dt_str = today.strftime("%Y%m%d-%H%M")
 
     # Simulations
-    for network in range(5):
+    for network in range(1):
         new_network_time = time.time()
-        G = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
-        outlet_level = outlet_level, outlet_node_area = outlet_node_area)
         time_before_random_sample_soil_nodes = time.time()
-        soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 100, range_count = 100, nodes_num = nodes_num)
+        soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 1, range_max = 100, range_count = 100, nodes_num = nodes_num)
         print("Process core:", process_core_name, "antecedent soil moisture: ", antecedent_soil_moisture, "mean rainfall:", mean_rainfall_inch)
         print("network:", network + 1, "Soil nodes count:", soil_nodes_combo_count)
         time_after_random_sample_soil_nodes = hn.print_time(time_before_random_sample_soil_nodes)
@@ -59,10 +57,9 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         output_df = pd.DataFrame(np.nan, index=range(soil_nodes_combo_count), columns=output_columns)
         output_df.loc[:,'soil_nodes_list'] = soil_nodes_combo
         k = 0
-        # disp_df = pd.DataFrame()
         kk = 0
         for soil_nodes in output_df['soil_nodes_list']:
-            H = G.copy()
+            H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, outlet_level = outlet_level, outlet_node_area = outlet_node_area)
             soil_nodes_total_upstream_area = hn.accumulate_downstream(H, soil_nodes = soil_nodes)
             # print(soil_nodes_total_upstream_area)
             soil_nodes_length = len(soil_nodes)
@@ -74,6 +71,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             # edge_wl = pd.DataFrame(np.nan, index=range(0,simulation_timesteps+1), columns=G.edges)
             flood_nodes = 0
             flood_time = 0
+            disp_df = pd.DataFrame()
             var_path_length_list = []
             disp_g_list = []
             disp_kg_list = []
@@ -104,14 +102,13 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
                 flood_time = flood_time + (max(h_new.values()) >= flood_level)
                 ## count how many nodes were above flood level!!!!!!!
                 # edge_wl.loc[simulation_timesteps]=çedge_h
-            #     if i%50 == 0:
-            #         hn.draw_network_timestamp(gph = H, soil_nodes = soil_nodes)
-            #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
-            # dispersion = disp_g_list, outlet_level = outlet_level_list)
-            #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
-            # dispersion = disp_kg_list, outlet_level = outlet_level_list)
-            #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
-            # dispersion = var_path_length_list, outlet_level = outlet_level_list)
+    #         hn.draw_network_timestamp(gph = H, soil_nodes = soil_nodes, label_on = False)
+    #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
+    # dispersion = disp_g_list, outlet_level = outlet_level_list)
+    #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
+    # dispersion = disp_kg_list, outlet_level = outlet_level_list)
+    #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
+    # dispersion = var_path_length_list, outlet_level = outlet_level_list)
 
             ## Properties and Performance of the network 
             #print("Run", k,"of", soil_nodes_combo_count, soil_nodes, "Network no.", network + 1, "|| node count", len(soil_nodes))
@@ -155,6 +152,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             k += 1
             kk += 2
         # four_subplots(days = days, simulation_timesteps = simulation_timesteps, depth = depth, disp_df = disp_df, outlet_level = outlet_level_list)
+        plt.show()
         print("Run time: ")
         hn.print_time(new_network_time)
         main_df = pd.concat([main_df, output_df], ignore_index=True)

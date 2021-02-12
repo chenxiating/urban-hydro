@@ -93,7 +93,7 @@ def draw_varying_size(gph, ax = None, attribute = 'storage', edge_attribute = No
     #print(dict(zip(["node", "node_colors", "node_colors_array"],[gph.nodes, node_colors, node_colors_array])))
     return node_colors_array
 
-def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_velocity', soil_nodes = None):
+def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_velocity', soil_nodes = None, label_on = True):
     """
     draw the network flow and the dispersion coefficients at a single timestep. 
     """
@@ -109,8 +109,9 @@ def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_velocity', soi
     edge_label = {m: str(round(gph.edges[m].get(edge_attribute), 2)) for m in gph.edges}
     cmap = plt.cm.Greys
     fig0, ax0 = plt.subplots(1,2, gridspec_kw={'width_ratios': [1, 4]})
-    nx.draw(gph, pos, ax0[1], node_color = node_color, edge_color = edge_color, labels = node_label, with_labels = True, edge_cmap = cmap)
-    nx.draw_networkx_edge_labels(gph, pos, edge_labels=edge_label)
+    nx.draw(gph, pos, ax0[1], node_color = node_color, node_size = 10, edge_color = edge_color, labels = node_label, with_labels = label_on, edge_cmap = cmap)
+    if label_on:
+        nx.draw_networkx_edge_labels(gph, pos, edge_labels=edge_label)
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin = 0, vmax=max(edge_color)))
     sm._A = []
     #fig = plt.gcf()
@@ -464,7 +465,7 @@ def rainfall_nodes_func(gph, s, dt, depth, soil_nodes, rain_nodes, nporo = 0.45,
     outlet_evaporation_func(gph, dt, evap_rate = 0.01)
     return h_new, soil_moisture_new
 
-def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, range_max = 20, range_count = 10 ):
+def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, range_max = 20, range_count = 10):
     """
     randomly generate water retentive nodes in the network
     """
