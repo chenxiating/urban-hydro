@@ -10,7 +10,7 @@ import time
 from statistics import mean
 import os
 
-def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moisture = 0.1, mean_rainfall_inch = 1):
+def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moisture = 0.1, mean_rainfall_inch = 1, days = 50, dt_str = None):
     ## Assign Network Properties ##
     # In this step we build the network based on different criteria
     np.random.seed(seed = 1358)
@@ -29,24 +29,25 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
     ## Precipitation
     # Rainfall generation. Units will be presented in foot. 
     dt = 0.1
-    days = 10
     simulation_timesteps = round(days/dt)
     #npad = round(simulation_timesteps/2)
     depth = hn.rainfall_func(size=simulation_timesteps,freq=0.1,meanDepth_inch=mean_rainfall_inch, dt = dt, is_pulse=True)
     #depth = np.pad([1], (npad, simulation_timesteps - npad - 1), 'constant', constant_values = (0))
     timesteps = np.linspace(0, simulation_timesteps*dt, num = simulation_timesteps)
 
-    today = date.datetime.today()
-    dt_str = today.strftime("%Y%m%d-%H%M")
+    if not dt_str:
+        today = date.datetime.today()
+        dt_str = today.strftime("%Y%m%d-%H%M")
+        print('Not dt_str')
 
     # Simulations
     for network in range(1):
         new_network_time = time.time()
         time_before_random_sample_soil_nodes = time.time()
-        soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 1, range_max = 100, range_count = 100, nodes_num = nodes_num)
+        soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 100, range_count = 100, nodes_num = nodes_num)
         print("Process core:", process_core_name, "antecedent soil moisture: ", antecedent_soil_moisture, "mean rainfall:", mean_rainfall_inch)
-        print("network:", network + 1, "Soil nodes count:", soil_nodes_combo_count)
-        time_after_random_sample_soil_nodes = hn.print_time(time_before_random_sample_soil_nodes)
+        print("network:", network + 1, "Soil nodes count:", soil_nodes_combo_count, "Time to sample: ")
+        # time_after_random_sample_soil_nodes = hn.print_time(time_before_random_sample_soil_nodes)
         # print("Time after random sample soil nodes:")
         # print(time_after_random_sample_soil_nodes)
         main_df = pd.DataFrame()
@@ -59,6 +60,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         k = 0
         kk = 0
         for soil_nodes in output_df['soil_nodes_list']:
+            time_to_create_network = time.time()
             H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, outlet_level = outlet_level, outlet_node_area = outlet_node_area)
             soil_nodes_total_upstream_area = hn.accumulate_downstream(H, soil_nodes = soil_nodes)
             # print(soil_nodes_total_upstream_area)
@@ -76,6 +78,8 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             disp_g_list = []
             disp_kg_list = []
             outlet_level_list = []
+            print('Time to create network: ')
+            time_before_simulation = hn.print_time(time_to_create_network)
             for i in range(0,simulation_timesteps):
                 # print("day = ", i*dt)
                 #time_openf = hn.print_time(start_time)
@@ -101,7 +105,9 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
                 flood_nodes = flood_nodes + sum(h_new[k]>= flood_level for k in H.nodes if k != 0)
                 flood_time = flood_time + (max(h_new.values()) >= flood_level)
                 ## count how many nodes were above flood level!!!!!!!
-                # edge_wl.loc[simulation_timesteps]=çedge_h
+                # edge_wl.loc[simulation_timesteps]=edge_h
+                print("Time to run a Manning's")
+                time_before_simulation = hn.print_time(time_before_simulation)
     #         hn.draw_network_timestamp(gph = H, soil_nodes = soil_nodes, label_on = False)
     #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
     # dispersion = disp_g_list, outlet_level = outlet_level_list)
@@ -112,8 +118,8 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
 
             ## Properties and Performance of the network 
             #print("Run", k,"of", soil_nodes_combo_count, soil_nodes, "Network no.", network + 1, "|| node count", len(soil_nodes))
-            #print("Time to run Manning & simulation: ")
-            #hn.print_time(time_soil_nodes)
+            print('Time to run', days, '-day Manning: ')
+            time_Manning = hn.print_time(time_before_simulation)
             degrees = dict(H.degree())
             mean_of_edges = sum(degrees.values())/len(degrees)
             flood_duration = dt*flood_time

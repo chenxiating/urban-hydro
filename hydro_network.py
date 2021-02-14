@@ -493,12 +493,13 @@ def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, r
     return soil_nodes_combo, soil_nodes_combo_count
 
 def ignore_zero_div(x,y):
+    np.seterr(all='ignore')
     if np.isnan(x*y):
         return 0
     else:
         try:
             return x/y
-        except ZeroDivisionError:
+        except ZeroDivisionError or FloatingPointError:
             return 0
 
 def print_time(earlier_time):
