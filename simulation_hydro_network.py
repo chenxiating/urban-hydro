@@ -106,8 +106,8 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
                 flood_time = flood_time + (max(h_new.values()) >= flood_level)
                 ## count how many nodes were above flood level!!!!!!!
                 # edge_wl.loc[simulation_timesteps]=edge_h
-                print("Time to run a Manning's")
-                time_before_simulation = hn.print_time(time_before_simulation)
+                # print("Time to run a Manning's")
+                # time_before_simulation = hn.print_time(time_before_simulation)
     #         hn.draw_network_timestamp(gph = H, soil_nodes = soil_nodes, label_on = False)
     #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
     # dispersion = disp_g_list, outlet_level = outlet_level_list)
@@ -119,7 +119,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             ## Properties and Performance of the network 
             #print("Run", k,"of", soil_nodes_combo_count, soil_nodes, "Network no.", network + 1, "|| node count", len(soil_nodes))
             print('Time to run', days, '-day Manning: ')
-            time_Manning = hn.print_time(time_before_simulation)
+            time_Manning = hn.print_time(time_to_create_network)
             degrees = dict(H.degree())
             mean_of_edges = sum(degrees.values())/len(degrees)
             flood_duration = dt*flood_time
