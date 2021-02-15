@@ -113,9 +113,8 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
     # dispersion = var_path_length_list, outlet_level = outlet_level_list)
 
             ## Properties and Performance of the network 
-            #print("Run", k,"of", soil_nodes_combo_count, soil_nodes, "Network no.", network + 1, "|| node count", len(soil_nodes))
-            print('Time to run', days, '-day Manning for soil node combo', k+1,'of', soil_nodes_combo_count, 'combos: ')
-            time_Manning = hn.print_time(time_to_create_network)
+            # print('Time to run', days, '-day Manning for soil node combo', k+1,'of', soil_nodes_combo_count, 'combos: ')
+            # time_Manning = hn.print_time(time_to_create_network)
             degrees = dict(H.degree())
             mean_of_edges = sum(degrees.values())/len(degrees)
             flood_duration = dt*flood_time
