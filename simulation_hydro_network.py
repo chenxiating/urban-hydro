@@ -22,10 +22,6 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
     flood_level = 1.5
     soil_moisture = antecedent_soil_moisture
 
-    G = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, 
-    outlet_level = outlet_level, outlet_node_area = outlet_node_area, kernel = lambda x: x**10)
-    rain_nodes = G.nodes
-
     ## Precipitation
     # Rainfall generation. Units will be presented in foot. 
     dt = 0.1
@@ -46,7 +42,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         time_before_random_sample_soil_nodes = time.time()
         soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 100, range_count = 100, nodes_num = nodes_num)
         print("Process core:", process_core_name, "antecedent soil moisture: ", antecedent_soil_moisture, "mean rainfall:", mean_rainfall_inch)
-        print("network:", network + 1, "Soil nodes count:", soil_nodes_combo_count, "Time to sample: ")
+        print("network:", network + 1, "Soil nodes count:", soil_nodes_combo_count)
         # time_after_random_sample_soil_nodes = hn.print_time(time_before_random_sample_soil_nodes)
         # print("Time after random sample soil nodes:")
         # print(time_after_random_sample_soil_nodes)
@@ -62,6 +58,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         for soil_nodes in output_df['soil_nodes_list']:
             time_to_create_network = time.time()
             H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, outlet_level = outlet_level, outlet_node_area = outlet_node_area)
+            rain_nodes = H.nodes
             soil_nodes_total_upstream_area = hn.accumulate_downstream(H, soil_nodes = soil_nodes)
             # print(soil_nodes_total_upstream_area)
             soil_nodes_length = len(soil_nodes)
@@ -78,8 +75,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             disp_g_list = []
             disp_kg_list = []
             outlet_level_list = []
-            print('Time to create network: ')
-            time_before_simulation = hn.print_time(time_to_create_network)
+            # time_before_simulation = time.time()
             for i in range(0,simulation_timesteps):
                 # print("day = ", i*dt)
                 #time_openf = hn.print_time(start_time)
@@ -118,7 +114,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
 
             ## Properties and Performance of the network 
             #print("Run", k,"of", soil_nodes_combo_count, soil_nodes, "Network no.", network + 1, "|| node count", len(soil_nodes))
-            print('Time to run', days, '-day Manning: ')
+            print('Time to run', days, '-day Manning for soil node combo', k+1,'of', soil_nodes_combo_count, 'combos: ')
             time_Manning = hn.print_time(time_to_create_network)
             degrees = dict(H.degree())
             mean_of_edges = sum(degrees.values())/len(degrees)
@@ -158,7 +154,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             k += 1
             kk += 2
         # four_subplots(days = days, simulation_timesteps = simulation_timesteps, depth = depth, disp_df = disp_df, outlet_level = outlet_level_list)
-        plt.show()
+        # plt.show()
         print("Run time: ")
         hn.print_time(new_network_time)
         main_df = pd.concat([main_df, output_df], ignore_index=True)

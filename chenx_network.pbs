@@ -1,5 +1,5 @@
 #!/bin/bash -l
-#PBS -l walltime=8:00:00,nodes=5:ppn=24,pmem=500mb
+#PBS -l walltime=24:00:00,nodes=5:ppn=24,pmem=500mb
 #PBS -m abe
 #PBS -M chen7090@umn.edu
 
@@ -8,11 +8,12 @@ module load intel
 module load ompi/intel 
 
 echo "module loaded"
-folder_str='./datafiles_'
+folder_str='./datafiles_pool_'
 dt_str=$(date +'%Y%m%d-%H%M')
 folder_name="${folder_str}${dt_str}"
 echo $folder_name
 mkdir $folder_name
+echo "walltime=8:00:00,nodes=5:ppn=24,pmem=500mb"
 echo "running multiprocessing now"
-mpirun -np 120 python3 run_multiprocessing_pool_single_instance.py
+mpirun -np 120 python3 run_multiprocessing_pool.py
 mv dataset* $folder_name

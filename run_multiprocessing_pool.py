@@ -11,24 +11,22 @@ try:
 except IndexError:
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
-print('Date string:', dt_str)
 
 def main(nodes_num, process_core_name, soil_moisture, mean_rainfall, days, dt_str):
     simulation_hydro_network.main(nodes_num, process_core_name, soil_moisture, mean_rainfall, days, dt_str)
     print('MP script:', nodes_num, process_core_name, soil_moisture, mean_rainfall, days, dt_str)
 
 start = time.perf_counter()
-soil_moisture_list = np.linspace(0, 1, 20)
+soil_moisture_list = np.linspace(0, 1, 10)
 mean_rainfall_set = np.linspace(5, 0, 10, endpoint=False)
 days = 10
 
 if __name__ == '__main__':
     pool = Pool()
-    for soil_moisture in soil_moisture_list:
-        for mean_rainfall in mean_rainfall_set:
-            for k in range(10):
-                pool.apply_async(func=main, args = (int(100), k, soil_moisture, mean_rainfall, days, dt_str),
-                callback=print('Loading script: ', k, round(soil_moisture,1), round(mean_rainfall,1)))
+    for k in range(10):
+        for soil_moisture in soil_moisture_list:
+            for mean_rainfall in mean_rainfall_set:
+                pool.apply_async(func=main, args = (int(100), k, soil_moisture, mean_rainfall, days, dt_str)))
     pool.close()
     pool.join()
 

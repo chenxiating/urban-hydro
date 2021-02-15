@@ -12,7 +12,7 @@ from compile_datasets import compile_datasets
 try: 
     folder_name = sys.argv[1]
 except IndexError:
-    folder_name = 'datafiles_20210210-0100'
+    folder_name = 'datafiles_no_mp20210214-1546'
 datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro_datasets-compiled'
 os.chdir(datafile_directory)
 
@@ -213,25 +213,19 @@ cmap_on = True, save_plot = True, cmap = plt.cm.Reds, datafile_name = datafile_n
         xaxis = df[xaxis_attribute]
     yaxis = df[yaxis_attribute]
 
-    ymax = max(yaxis)
-    color_dict = {'color': plt.cm.Greys(0.5), 'alpha': 0.4}
+    ymax = max(yaxis)    
+
+    fig = plt.figure()
+    ax_double_axes = fig.add_subplot(111)  
     
+    color_dict = {'alpha': 0.4}
     if cmap_on:
         color_dict['cmap'] = cmap
         color_dict['c'] = df[color_attribute]
+    else: 
+        color_dict['color'] = plt.cm.Greys(0.5)
 
-        fig.subplots_adjust(top = 0.8, left = 0.28)
-        cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
-        cbar = fig.colorbar(TI, cax=cbar_ax)
-        cbar_ax.get_xaxis().labelpad = 15
-        cbar_ax.yaxis.tick_left()
-        cbar_ax.xaxis.set_label_position('top')
-        cbar_ax.set_xlabel(label_dict[color_attribute])
-
-    fig = plt.figure()
-    ax_double_axes = fig.add_subplot(111)
-
-    TI = ax_double_axes.scatter(xaxiss, yaxis, s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
+    TI = ax_double_axes.scatter(xaxis, yaxis, s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_double_axes.set_xlabel(label_dict[xaxis_attribute])
     ax_double_axes.set_ylabel(label_dict[yaxis_attribute])
     ax_double_axes.set_ylim(bottom = -0.05, top = ymax)
@@ -239,7 +233,14 @@ cmap_on = True, save_plot = True, cmap = plt.cm.Reds, datafile_name = datafile_n
     ax_double_axes.yaxis.set_label_position('right')
         # fig.suptitle(graph_nodes_count_string + ylabel)
     plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
-
+    if cmap_on:
+        fig.subplots_adjust(top = 0.8, left = 0.28)
+        cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
+        cbar = fig.colorbar(TI, cax=cbar_ax)
+        cbar_ax.get_xaxis().labelpad = 15
+        cbar_ax.yaxis.tick_left()
+        cbar_ax.xaxis.set_label_position('top')
+        cbar_ax.set_xlabel(label_dict[color_attribute])
     if save_plot:
         fig_name = datafile_name.replace(".pickle","") + color_attribute + xaxis_attribute + yaxis_attribute
         plt.savefig(path + fig_name +'.png')
@@ -250,13 +251,15 @@ for i in mean_rainfall_set:
     print(i)
     is_rainfall = (df.mean_rainfall == i)
     df_plot = df.loc[is_rainfall]
-    # three_figure_plot(df = df_plot, yaxis_attribute='flood_duration_total_list', cmap_on = False, save_plot = False)
+    three_figure_plot(df = df_plot, yaxis_attribute='flood_duration_total_list', cmap_on = False, save_plot = False)
 
-    four_figure_plot(df = df_plot, yaxis_attribute='flood_duration_total_list', cmap_on = False, save_plot = True)
+    four_figure_plot(df = df_plot, yaxis_attribute='flood_duration_total_list', cmap_on = False, save_plot = False)
 
-    # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_list', save_plot = True)
-    # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_list', yaxis_attribute ='soil_node_degree_list', save_plot = True)
-    # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_list', xaxis_attribute = 'soil_node_degree_list', save_plot = True)
+    two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', save_plot = False)
+    two_axis_plot(df = df_plot, color_attribute = 'flood_duration_list', save_plot = False)
+
+    two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', yaxis_attribute ='soil_node_degree_list', save_plot = False)
+    two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', xaxis_attribute = 'soil_node_degree_list', save_plot = False)
 
     # two_axis_plot(df = df_plot, yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_elev_list', save_plot = True)
     # two_axis_plot(df = df_plot, yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_degree_list', save_plot = True)
