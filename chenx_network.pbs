@@ -15,5 +15,5 @@ echo $folder_name
 mkdir $folder_name
 echo "walltime=8:00:00,nodes=5:ppn=24,pmem=500mb"
 echo "running multiprocessing now"
-mpirun -np 120 python3 run_multiprocessing_pool.py
-mv dataset* $folder_name
+mpirun -np 120 python3 run_multiprocessing_pool.py $dt_str
+mv dataset*$dt_str* $folder_name
