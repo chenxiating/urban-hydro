@@ -26,7 +26,7 @@ if __name__ == '__main__':
     for k in range(10):
         for soil_moisture in soil_moisture_list:
             for mean_rainfall in mean_rainfall_set:
-                pool.apply_async(func=main, args = (int(100), k, soil_moisture, mean_rainfall, days, dt_str)))
+                pool.apply_async(func=main, args = (int(100), k, soil_moisture, mean_rainfall, days, dt_str))
     pool.close()
     pool.join()
 

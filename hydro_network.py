@@ -17,8 +17,8 @@ import sys
 
 ## Functions
 def create_networks(g_type = 'gn', nodes_num = 10, n = 0.01, diam = 1, changing_diam = True, diam_increment = 0.1, soil_depth = 0, 
-slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_area = 500, conductivity = 0.5,
-outlet_elev = None, outlet_level = None, outlet_node_area = None, seed = None, kernel = None):
+slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_drainage_area = 500, conductivity = 0.5,
+outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed = None, kernel = None):
     """
     create a random network with different properties. the slope has been defaulted to be the same in
     the entire network, and the diameter is defaulted to go up as the network is further away from the
@@ -31,7 +31,7 @@ outlet_elev = None, outlet_level = None, outlet_node_area = None, seed = None, k
     max_path_order = max(len(nx.shortest_path(gph, source = k, target = 0)) for k in gph.nodes)
     for k in gph.nodes:
         elev = elev_range[k]
-        a = dict(zip(["elev", "level", "node_area", "soil_depth"], [elev, level, node_area, soil_depth]))
+        a = dict(zip(["elev", "level", "node_drainage_area", "soil_depth"], [elev, level, node_drainage_area, soil_depth]))
         b = dict(zip([k], [a]))
         nx.set_node_attributes(gph, b)
     for k in gph.edges:
@@ -43,8 +43,8 @@ outlet_elev = None, outlet_level = None, outlet_node_area = None, seed = None, k
         nx.set_edge_attributes(gph, b)
     if outlet_level is not None: 
         nx.set_node_attributes(gph, outlet_level, "level")
-    if outlet_node_area is not None: 
-        nx.set_node_attributes(gph, outlet_node_area, "node_area")
+    if outlet_node_drainage_area is not None: 
+        nx.set_node_attributes(gph, outlet_node_drainage_area, "node_drainage_area")
     if outlet_elev is None: 
         try: 
             outlet_elev = elev_min - outlet_level
@@ -119,7 +119,7 @@ def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_velocity', soi
     plt.colorbar(sm, cax = ax0[0])
     ax0[0].set_xlabel('Edge dQ')
 
-def accumulate_downstream(gph, accum_attr='node_area', cumu_attr_name=None, soil_nodes=None):
+def accumulate_downstream(gph, accum_attr='node_drainage_area', cumu_attr_name=None, soil_nodes=None):
     """
     pass through the graph from upstream to downstream and accumulate the value
     an attribute found in nodes and edges, and assign the accumulated value
@@ -233,8 +233,8 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
     # initialize
     edge_list = []
     node_list = gph.nodes
-    node_area_dict = nx.get_node_attributes(gph, 'node_area')
-    node_area = np.array([node_area_dict[k] for k in gph.nodes])
+    node_drainage_area_dict = nx.get_node_attributes(gph, 'node_drainage_area')
+    node_drainage_area = np.array([node_drainage_area_dict[k] for k in gph.nodes])
     h_list = []
     t_list = []
     u_list = []
@@ -270,8 +270,8 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
                 #print("edge", m, "h", h, "d", d, sep = "\t")
         u = 1.49/n*R**(2/3)*s**(1/2)
         dq = np.sign(elevdiff)*u*A # Manning's Equation (Imperial Unit) for edges
-        if dq >= gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level) or gph.nodes[us_node].get(elev) > (gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level)):
-            dq = gph.nodes[us_node].get("node_area")*gph.nodes[us_node].get(level)
+        if dq >= gph.nodes[us_node].get("node_drainage_area")*gph.nodes[us_node].get(level) or gph.nodes[us_node].get(elev) > (gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level)):
+            dq = gph.nodes[us_node].get("node_drainage_area")*gph.nodes[us_node].get(level)
             u = abs(ignore_zero_div(dq, A))
             # print(m, 'dq has been capped.', 'dq', dq)
         if dq < 1e-4:
@@ -295,7 +295,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
     A = (nx.incidence_matrix(gph, oriented=True)).toarray()
     edge_cnt = len(gph.edges)
     J = np.ones(edge_cnt)
-    dhdt_list = np.divide(A@Q@J,node_area) # this is at the nodes
+    dhdt_list = np.divide(A@Q@J,node_drainage_area) # this is at the nodes
     
     # record results
     dict_dq = dict(zip(edge_list, dq_list))         # flow through edge
@@ -320,7 +320,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
     # for n in gph.nodes:
     #     inflow = 0
     #     outflow = 0
-    #     n_area = gph.nodes[n].get('node_area')
+    #     n_area = gph.nodes[n].get('node_drainage_area')
     #     for i in gph.in_edges(n):
     #         #print("node", n, "in_edge", i, "edge_dqdt", gph.edges[i].get('edge_dqdt'), sep = " ")
     #         inflow = inflow + gph.edges[i].get('edge_dqdt')
@@ -509,11 +509,6 @@ def print_time(earlier_time):
 
 
 if __name__ == '__main__':
-    a = np.nan
-    b = 0
-    c = 5
-    print('ignore_zero_div(b, a)', ignore_zero_div(b, a))
-    print('ignore_zero_div(a, b)', ignore_zero_div(a, b))
-    print('ignore_zero_div(c, a)', ignore_zero_div(c, a))
-    print('ignore_zero_div(c, b)', ignore_zero_div(c, b))
-    print('ignore_zero_div(a, c)', ignore_zero_div(8, c))
+    soil_nodes_combo, soil_nodes_combo_count = random_sample_soil_nodes(range_min = 0, 
+range_max = 100, range_count = 100, nodes_num = 100)
+    print(soil_nodes_combo)

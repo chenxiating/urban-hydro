@@ -16,7 +16,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
     np.random.seed(seed = 1358)
     #G = pickle.load(open('graph_10nodes', 'rb'))
     outlet_level = {0: 1}                  
-    outlet_node_area = {0: 10e8}             # set the river area to very large
+    outlet_node_drainage_area = {0: 10e8}             # set the river area to very large
     soil_depth = 6
     init_level = 0.0
     flood_level = 1.5
@@ -47,7 +47,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         # print("Time after random sample soil nodes:")
         # print(time_after_random_sample_soil_nodes)
         main_df = pd.DataFrame()
-        datafile_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'network_count-'+str(network)+'_'+str(process_core_name)+'.pickle'
+        datafile_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_'+str(process_core_name)+'.pickle'
         output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'outlet_water_level', 'mean_rainfall', 'antecedent_soil'
         "soil_node_degree_list", "soil_node_elev_list", 'soil_nodes_total_upstream_area','mean_disp_g','mean_disp_kg','max_disp_g',
         'max_disp_kg','mean_var_path_length', 'max_var_path_length']
@@ -57,7 +57,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         kk = 0
         for soil_nodes in output_df['soil_nodes_list']:
             time_to_create_network = time.time()
-            H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_area = 500, outlet_level = outlet_level, outlet_node_area = outlet_node_area)
+            H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = 500, outlet_level = outlet_level, outlet_node_drainage_area = outlet_node_drainage_area)
             rain_nodes = H.nodes
             soil_nodes_total_upstream_area = hn.accumulate_downstream(H, soil_nodes = soil_nodes)
             # print(soil_nodes_total_upstream_area)
