@@ -8,24 +8,25 @@ import os
 import sys
 from compile_datasets import compile_datasets
 
-# datafile_name = sys.argv[1]
-try: 
-    folder_name = sys.argv[1]
-except IndexError:
-    # folder_name = 'datafiles_pool_20210216-1949_969279'
-    folder_name = 'datafiles_pool_20210218-0817_993644'
-datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro_datasets-compiled'
-os.chdir(datafile_directory)
 
-datafile_name = compile_datasets(folder_name)
-print("sys.argv is", sys.argv)
-print("datafile_name is", datafile_name)
-# datafile_name = 'dataset_3.5-inch_20-nodes_20201231-1320'
+# try: 
+#     folder_name = sys.argv[1]
+# except IndexError:
+#     # folder_name = 'datafiles_pool_20210216-1949_969279'
+#     folder_name = 'datafiles_pool_20210218-0817_993644'
+# datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro_datasets-compiled'
+# os.chdir(datafile_directory)
+
+# datafile_name = compile_datasets(folder_name)
+# print("sys.argv is", sys.argv)
+# print("datafile_name is", datafile_name)
+datafile_name = 'dataset_5-inch_100-nodes_3-day_20210223-1603soil_moisture-0.2_None.pickle'
 pos0 = datafile_name.find('dataset_') + len('dataset_')
 pos1 = datafile_name.find('-inch') + len('-inch')
 pos2 = pos1 + len('_')
 pos3 = datafile_name.find('-nodes')
-nodes_num = int(datafile_name[0:pos3])
+# nodes_num = int(datafile_name[0:pos3])
+nodes_num = 100
 # graph_nodes_count_string = datafile_name[pos2:pos3] + '-Nodes Graph with Mean Rainfall Intensity of ' + datafile_name[pos0:pos1] + '\n'
 
 path="/Users/xchen/Documents/UMN_PhD/urban_stormwater_analysis/figures/models/"+ datafile_name.replace(".pickle","/")
@@ -37,10 +38,12 @@ df.flood_duration_total_list = df.flood_duration_total_list * nodes_num
 # print(df.head)
 
 label_dict = {'flood_duration_list':'Days with Flooding', 'flood_duration_total_list': 'Flooded Node-Day',
-    'outlet_water_level':'Water Level at Outlet (ft)', 'soil_nodes_count':'% Permeable', 'soil_node_elev_list': "Topography Index", 
+    'max_outlet_water_level':'Highest Water Level at Outlet (ft)', 'soil_nodes_count':'% Permeable', 'soil_node_elev_list': "Topography Index", 
     'soil_node_degree_list':'Neighbor Index', 'soil_nodes_total_upstream_area':'Cumulative Area','mean_rainfall': 'Mean Rainfall Intensity',
     'antecedent_soil':'Antecedent Soil Moisture', 'mean_disp_g':'Mean DG', 'mean_disp_kg': 'Mean DKG', 'max_disp_g':'Max DG', 
-    'max_disp_kg':'Max DKG', 'mean_var_path_length':'Time Ensemble <L>', 'max_var_path_length': 'L max'} 
+    'max_disp_kg':'Max DKG', 'mean_var_path_length':'Time Ensemble <L>', 'max_var_path_length': 'L max', 'max_flood_nodes':'Highest Number of Flooded Nodes',
+    'max_flood_node_degree':'Neighbor Index when Highest Number of Nodes Flooded','max_flood_node_elev':'Topography Index when Highest Number of Nodes Flooded',
+    'flood_node_degree':'Neighbor Index of any Flood Node','flood_node_elev':'Topography Index of any Flood Node','mean_flood_nodes_TI':'Mean Topography Index of Flood Node (at All Times)'} 
 
 def two_figure_plot(df = df, y1_attribute = 'soil_node_elev_list', y2_attribute = 'soil_node_degree_list',
 xaxis_attribute = 'flood_duration_list', cmap_on = False, save_plot = True, cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
@@ -431,8 +434,6 @@ cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
             if cmap_on:
                 color_dict = {'c': c, 'alpha': 0.4}
             scatter_fig = axes[k].scatter(df_plot[xaxis_attribute], df_plot[yaxis_attribute], s = 5, marker = 's', vmin = 0, vmax = 100, **color_dict)
-        
-
         k += 1
 
         
@@ -442,7 +443,8 @@ cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
         cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
         cbar = fig.colorbar(scatter_fig, cax=cbar_ax)
         cbar_ax.get_yaxis().labelpad = 15
-        cbar_ax.set_xlabel(label_dict[color_attribute], rotation=0)
+        cbar_ax.set_ylabel(label_dict[color_attribute], rotation=90)
+        cbar_ax.yaxis.set_label_position('left')
         cbar_ax.yaxis.tick_left()
     if title:
         fig.suptitle(title)
@@ -461,8 +463,9 @@ cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
         print('Plot is saved as', fig_name +'.png')
 
 if __name__ == '__main__':
-    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, cmap_on = True, save_plot=False)
-    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, xaxis_attribute = 'max_disp_g', cmap_on = True, save_plot=False)
-    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, xaxis_attribute = 'mean_disp_kg', cmap_on = True, save_plot=False)
+    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', cmap_on = True, save_plot=False)
+    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'max_flood_nodes', cmap_on = True, save_plot=False)
+    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'max_disp_g', cmap_on = True, save_plot=False)
+    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'mean_disp_kg', cmap_on = True, save_plot=False)
 
     plt.show()

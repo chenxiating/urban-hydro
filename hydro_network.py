@@ -103,6 +103,8 @@ def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_velocity', soi
     for node in gph: 
         if node in set(soil_nodes):
             node_color.append('C2')
+        elif node == 0:
+            node_color.append('C1')
         else:
             node_color.append('C0')
     node_label = {n: str(n) + ':' + str(round(gph.nodes[n].get('level') + gph.nodes[n].get('elev') ,1)) for n in gph.nodes}
@@ -200,9 +202,53 @@ def bioretention(gph, depth, dt, soil_nodes = [], old_s = 0.3, nporo = 0.45, zr 
     s = soil_moisture_func(s = old_s, dt = dt, depth = depth, nporo = nporo, zr = zr, emax = emax)
     soil_array = np.ones(len(soil_nodes))*s
     soil_moisture = dict(zip(soil_nodes, soil_array))
-    soil_moisture = fill_numbers(soil_moisture, gph.nodes)
+    soil_moisture = fill_numbers(soil_moisture, gph.nodes, number = 1) # Soil moisture is assumed "saturated" if impervious
+    # print("soil moisture", soil_moisture)
     nx.set_node_attributes(gph, soil_moisture, 'soil_moisture')
     return s
+
+def rainfall_nodes_func(gph, s, dt, depth, soil_nodes, rain_nodes, nporo = 0.45, zr = 10, emax = 0.05): 
+    """  
+    This function calculates the runoff on nodes after a result of bioretention activities. 
+    Runoff is the amount of rainfall that is unable to be absorbed by the soil, and needs to
+    be received by the stormwater pipes. 
+    """
+    # print('s:',s)
+    rain_nodes_count = len(rain_nodes)
+    precip = fill_numbers(dict(zip(rain_nodes, np.ones(rain_nodes_count)*depth)), gph.nodes) # precipitation at the highest node, exponential distribution like in the project
+    # print("precip", precip)
+    nx.set_node_attributes(gph, precip, 'precip')
+    soil_depth = nx.get_node_attributes(gph,'soil_depth')
+    soil_moisture = nx.get_node_attributes(gph, 'soil_moisture')
+    runoff = {k: (precip[k]>(1-soil_moisture[k])*soil_depth[k])*(precip[k]-(1-soil_moisture[k])*soil_depth[k]) for k in precip} # check this part
+    # print("runoff", runoff)
+    # nx.set_node_attributes(gph, runoff, 'runoff')
+    # h0 = attr_array_func('level', gph = gph, elem = 'node', ignore_outlet = True, ignore_attr=outlet_level)
+    h0 = nx.get_node_attributes(gph,'level')
+    # runoff0 = attr_array_func('runoff', gph = gph, elem = 'node')
+    # dh = attr_array_func('dhdt', gph = gph, elem = 'node') * dt
+    dhdt = nx.get_node_attributes(gph, 'dhdt')
+    #what happens if h0 + dh < 0?
+    # h_new = dict(zip(gph.nodes, h0 + dh + runoff0))
+    ##test here
+    dhdt = nx.get_node_attributes(gph, 'dhdt')
+    h_new = {k: (h0[k] + dhdt[k]*dt + runoff[k]) for k in gph.nodes}
+    # if max(runoff0_test.values())>0:
+    #     print("new node level: ", h_new)
+    #     print("new node level_TEST: ", h_new_test)
+    #     print(h0)
+    #     print(h0_test)
+    #print(h_new)
+    nx.set_node_attributes(gph, h_new, 'level')
+    outlet_evaporation_func(gph, dt, evap_rate = 0.01)
+    
+    if soil_nodes:
+        soil_moisture_new = bioretention(gph = gph, dt = dt, depth = depth, soil_nodes = soil_nodes, old_s = s)
+    else:
+        soil_moisture_new = s
+    # print('s_new:', soil_moisture_new)
+
+    return h_new, soil_moisture_new
 
 def outlet_evaporation_func(gph, dt, outlet_node = 0, evap_rate = 0.01, level_name = 'level'):
     """
@@ -429,41 +475,8 @@ def dispersion_func(gph, l_name = 'length', t_name = 'edge_time'):
 
     return var_path_length, disp_g, disp_kg
 
-
-def rainfall_nodes_func(gph, s, dt, depth, soil_nodes, rain_nodes, nporo = 0.45, zr = 10, emax = 0.05): 
-    """  
-    This function calculates the runoff on nodes after a result of bioretention activities. 
-    Runoff is the amount of rainfall that is unable to be absorbed by the soil, and needs to
-    be received by the stormwater pipes. 
-    """
-    soil_moisture_new = bioretention(gph = gph, dt = dt, depth = depth, soil_nodes = soil_nodes, old_s = s)
-    #bioretention(gph, soil_nodes = [])
-    rain_nodes_count = len(rain_nodes)
-    precip = fill_numbers(dict(zip(rain_nodes, np.ones(rain_nodes_count)*depth)), gph.nodes) # precipitation at the highest node, exponential distribution like in the project
-    nx.set_node_attributes(gph, precip, 'precip')
-    soil_depth = nx.get_node_attributes(gph,'soil_depth')
-    soil_moisture = nx.get_node_attributes(gph, 'soil_moisture')
-    runoff = {k: (precip[k]>(1-soil_moisture[k])*soil_depth[k])*(precip[k]-(1-soil_moisture[k])*soil_depth[k]) for k in precip} # check this part
-    # nx.set_node_attributes(gph, runoff, 'runoff')
-    # h0 = attr_array_func('level', gph = gph, elem = 'node', ignore_outlet = True, ignore_attr=outlet_level)
-    h0 = nx.get_node_attributes(gph,'level')
-    # runoff0 = attr_array_func('runoff', gph = gph, elem = 'node')
-    # dh = attr_array_func('dhdt', gph = gph, elem = 'node') * dt
-    dhdt = nx.get_node_attributes(gph, 'dhdt')
-    #what happens if h0 + dh < 0?
-    # h_new = dict(zip(gph.nodes, h0 + dh + runoff0))
-    ##test here
-    dhdt = nx.get_node_attributes(gph, 'dhdt')
-    h_new = {k: (h0[k] + dhdt[k]*dt + runoff[k]) for k in gph.nodes}
-    # if max(runoff0_test.values())>0:
-    #     print("new node level: ", h_new)
-    #     print("new node level_TEST: ", h_new_test)
-    #     print(h0)
-    #     print(h0_test)
-    #print(h_new)
-    nx.set_node_attributes(gph, h_new, 'level')
-    outlet_evaporation_func(gph, dt, evap_rate = 0.01)
-    return h_new, soil_moisture_new
+def neighbor_index_calc():
+    pass
 
 def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, range_max = 20, range_count = 10):
     """

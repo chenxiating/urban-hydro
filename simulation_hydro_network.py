@@ -48,9 +48,10 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         # print(time_after_random_sample_soil_nodes)
         main_df = pd.DataFrame()
         datafile_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_'+str(process_core_name)+'.pickle'
-        output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'outlet_water_level', 'mean_rainfall', 'antecedent_soil'
+        output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'max_outlet_water_level', 'mean_rainfall', 'antecedent_soil'
         "soil_node_degree_list", "soil_node_elev_list", 'soil_nodes_total_upstream_area','mean_disp_g','mean_disp_kg','max_disp_g',
-        'max_disp_kg','mean_var_path_length', 'max_var_path_length']
+        'max_disp_kg','mean_var_path_length', 'max_var_path_length','max_flood_nodes','max_flood_node_degree','max_flood_node_elev',
+        'flood_node_degree','flood_node_elev','mean_flood_nodes_TI']
         output_df = pd.DataFrame(np.nan, index=range(soil_nodes_combo_count), columns=output_columns)
         output_df.loc[:,'soil_nodes_list'] = soil_nodes_combo
         k = 0
@@ -59,16 +60,26 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             time_to_create_network = time.time()
             H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = 500, outlet_level = outlet_level, outlet_node_drainage_area = outlet_node_drainage_area)
             rain_nodes = H.nodes
+            degrees = dict(H.degree())
+            mean_of_edges = sum(degrees.values())/len(degrees)
+            soil_nodes_length = len(soil_nodes)
             soil_nodes_total_upstream_area = hn.accumulate_downstream(H, soil_nodes = soil_nodes)
             # print(soil_nodes_total_upstream_area)
-            soil_nodes_length = len(soil_nodes)
-            soil_nodes_depth = dict(zip(soil_nodes, np.ones(soil_nodes_length)*soil_depth))
-            nx.set_node_attributes(H, soil_nodes_depth, "soil_depth")
+            soil_nodes_init = {k: {'soil_depth': soil_depth, 'soil_moisture': antecedent_soil_moisture} for k in soil_nodes}
+            nx.set_node_attributes(H, soil_nodes_init)
+            non_soil_nodes_init = hn.fill_numbers(nx.get_node_attributes(H, 'soil_moisture'), H.nodes, number = 1)
+            nx.set_node_attributes(H, non_soil_nodes_init, 'soil_moisture')
+            # nx.set_node_attributes(H, soil_nodes_depth, "soil_depth")
             # sl = pd.DataFrame(np.nan, index=range(0,simulation_timesteps+1), columns=G.nodes)
             # water_level = []
             # wl = pd.DataFrame(np.nan, index=range(0,simulation_timesteps+1), columns=G.nodes)
             # edge_wl = pd.DataFrame(np.nan, index=range(0,simulation_timesteps+1), columns=G.edges)
+            flood_nodes_list = []
+            max_flood_nodes_list = []
+            max_flood_nodes = 0
+            max_outlet_water_level = H.nodes[0]['level']
             flood_nodes = 0
+            flood_nodes_TI_list = [0]
             flood_time = 0
             disp_df = pd.DataFrame()
             var_path_length_list = []
@@ -84,10 +95,10 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
                 hn.Manning_func(gph = H)    # calculate hydraulic radius and calculate flow rate
                 h_new, soil_moisture = hn.rainfall_nodes_func(gph = H, dt = dt, s = soil_moisture, zr = soil_depth, soil_nodes = soil_nodes, 
                 rain_nodes = rain_nodes, depth = depth[i])
-                # if depth[i] > 0:
-                    # print('Network =', network,'soil_nodes', soil_nodes, 'day = ', i*dt, '. It rained!')
                 var_path_length, disp_g, disp_kg = hn.dispersion_func(gph = H)
-                # print(disp_g, disp_kg)
+                # if depth[i] > 0:
+                #     print('Network =', network,'soil_nodes', soil_nodes, 'day =', i*dt, 'It rained!')
+                #     print(disp_g, disp_kg)
                 var_path_length_list.append(var_path_length)
                 disp_g_list.append(disp_g)
                 disp_kg_list.append(disp_kg)
@@ -97,7 +108,19 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
                 # water_level.append(max(h_new.values()))
                 # sl.loc[simulation_timesteps] = s
                 # wl.loc[simulation_timesteps] = h_new
-                # flood_nodes = flood_nodes + len([v for k, v in h_new.items() if (k >0 and v>= flood_level)])
+
+                if H.nodes[0]['level'] > max_outlet_water_level:
+                    max_outlet_water_level = H.nodes[0]['level']
+                flood_nodes_this_round = [k for k in H.nodes if (k != 0) & (h_new[k]>= flood_level)]
+                if len(flood_nodes_this_round) > max_flood_nodes:
+                    max_flood_nodes_list = flood_nodes_this_round
+                    max_flood_nodes = len(flood_nodes_this_round)
+                    print("day = ", i*dt, max_flood_nodes)
+                flood_nodes_list.extend(flood_nodes_this_round) 
+                flood_nodes_list = list(set(flood_nodes_list))
+                if flood_nodes_this_round:
+                    flood_nodes_TI_list.append(hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
+            for k in flood_nodes_list),len(flood_nodes_list)))
                 flood_nodes = flood_nodes + sum(h_new[k]>= flood_level for k in H.nodes if k != 0)
                 flood_time = flood_time + (max(h_new.values()) >= flood_level)
                 ## count how many nodes were above flood level!!!!!!!
@@ -111,21 +134,25 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
     # dispersion = disp_kg_list, outlet_level = outlet_level_list)
     #         plotstuff(gph = H, x = np.array(range(i+1))*dt, depth = depth[0:i+1], 
     # dispersion = var_path_length_list, outlet_level = outlet_level_list)
+    #         plt.show()
 
             ## Properties and Performance of the network 
             # print('Time to run', days, '-day Manning for soil node combo', k+1,'of', soil_nodes_combo_count, 'combos: ')
             # time_Manning = hn.print_time(time_to_create_network)
-            degrees = dict(H.degree())
-            mean_of_edges = sum(degrees.values())/len(degrees)
+            
+            # print('max outlet water', max_outlet_water_level)
             flood_duration = dt*flood_time
             flood_duration_total = dt*flood_nodes/nodes_num
-            outlet_water_level = H.nodes[0]['level']
-            # soil_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),len(H.nodes))
             soil_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
-            # soil_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1
-            # for k in soil_nodes),len(H.nodes))
             soil_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
             for k in soil_nodes),soil_nodes_length)
+            max_flood_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in max_flood_nodes_list),len(max_flood_nodes_list))
+            max_flood_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
+            for k in max_flood_nodes_list),len(max_flood_nodes_list))
+            flood_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in flood_nodes_list),len(flood_nodes_list))
+            flood_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
+            for k in flood_nodes_list),len(flood_nodes_list))
+            mean_flood_nodes_TI = mean(flood_nodes_TI_list)
             # out_edges = H.in_edges(0, data = False)
             # out_edge_wl = [0]
             # for i in out_edges:
@@ -136,7 +163,10 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             output_df.loc[k,'soil_node_degree_list'] = soil_node_degree
             output_df.loc[k,'soil_node_elev_list'] = soil_node_elev
             output_df.loc[k,'soil_nodes_combo_count'] = soil_nodes_length
-            output_df.loc[k,'outlet_water_level'] = outlet_water_level
+            # print(output_df)
+            # print(k)
+            # print('max_outlet_water_level', max_outlet_water_level)
+            output_df.loc[k,'max_outlet_water_level'] = max_outlet_water_level
             output_df.loc[k,'soil_nodes_total_upstream_area'] = soil_nodes_total_upstream_area
             output_df.loc[k,'mean_disp_g'] = mean(disp_g_list)
             output_df.loc[k,'mean_disp_kg'] = mean(disp_kg_list)
@@ -144,6 +174,12 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             output_df.loc[k,'max_disp_kg'] = max(disp_kg_list)
             output_df.loc[k,'mean_rainfall'] = mean_rainfall_inch
             output_df.loc[k,'antecedent_soil'] = antecedent_soil_moisture
+            output_df.loc[k,'max_flood_nodes'] = max_flood_nodes
+            output_df.loc[k,'max_flood_node_degree'] = max_flood_node_degree
+            output_df.loc[k,'max_flood_node_elev'] = max_flood_node_elev
+            output_df.loc[k,'flood_node_degree'] = flood_node_degree
+            output_df.loc[k,'flood_node_elev'] = flood_node_elev
+            output_df.loc[k,'mean_flood_nodes_TI'] = mean_flood_nodes_TI
 
             # print(output_df)
             #output_df['outlet_max_list'].loc[k] = max(out_edge_wl)
@@ -234,4 +270,4 @@ def plotstuff(gph, x, depth, dispersion, outlet_level):
 #     plt.legend()
 
 if __name__ == '__main__':
-    main()
+    main(nodes_num = int(100), antecedent_soil_moisture=0.2,mean_rainfall_inch=5, days = 3)
