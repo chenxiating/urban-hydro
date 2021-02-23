@@ -23,7 +23,7 @@ days = 10
 
 if __name__ == '__main__':
     pool = Pool()
-    for k in range(5):
+    for k in range(10):
         for soil_moisture in soil_moisture_list:
             for mean_rainfall in mean_rainfall_set:
                 pool.apply_async(func=main, args = (int(100), k, soil_moisture, mean_rainfall, days, dt_str))
