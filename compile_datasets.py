@@ -7,8 +7,9 @@ def compile_datasets(folder_name):
     os.chdir('/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/'+folder_name)
     all_files = os.listdir()
     some_datafile_name = all_files[0]
-    pos0 = some_datafile_name.find('network_count')
-    filename = some_datafile_name[0:pos0]+'.pickle'
+    pos0 = some_datafile_name.find('-inch_') + len('-inch_')
+    pos1 = some_datafile_name.find('soil')
+    filename = some_datafile_name[pos0:pos1]+'.pickle'
 
     if os.path.exists(filename): 
         return filename
