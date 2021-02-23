@@ -21,6 +21,7 @@ folder_name="${folder_str}${dt_str}_${SLURM_JOBID}"
 echo $folder_name
 mkdir $folder_name
 echo "walltime=24:00:00,nodes=1:ppn=24,pmem=500mb,np -1"
+echo "flood level 4"
 echo "running multiprocessing now"
 mpirun -np 1 python3 run_multiprocessing_pool.py $dt_str
 mv dataset*$dt_str* $folder_name

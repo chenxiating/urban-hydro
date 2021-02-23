@@ -19,7 +19,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
     outlet_node_drainage_area = {0: 10e8}             # set the river area to very large
     soil_depth = 6
     init_level = 0.0
-    flood_level = 1.5
+    flood_level = 4
     soil_moisture = antecedent_soil_moisture
 
     ## Precipitation
