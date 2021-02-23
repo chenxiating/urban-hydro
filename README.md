@@ -1,6 +1,7 @@
 # urban-hydro 
 Feb 9, 2021
 - Varying different antecedent soil moisture and rainfall intensity
+- Cleaned up multiprocessing script and Slurm script to allow for faster performance
 
 Feb 6, 2021
 - Added dispersion and path length/transport time calculations to the hydro_network. 
