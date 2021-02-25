@@ -6,27 +6,29 @@ import pandas as pd
 import pickle
 import os
 import sys
+from statistics import StatisticsError
+from statistics import mean
 from compile_datasets import compile_datasets
 
 
-# try: 
-#     folder_name = sys.argv[1]
-# except IndexError:
-#     # folder_name = 'datafiles_pool_20210216-1949_969279'
-#     folder_name = 'datafiles_pool_20210218-0817_993644'
-# datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro_datasets-compiled'
-# os.chdir(datafile_directory)
+try: 
+    folder_name = sys.argv[1]
+except IndexError:
+    # folder_name = 'datafiles_pool_20210216-1949_969279'
+    folder_name = 'datafiles_pool_20210223-1647_1082749'
+datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro_datasets-compiled'
+os.chdir(datafile_directory)
 
-# datafile_name = compile_datasets(folder_name)
-# print("sys.argv is", sys.argv)
-# print("datafile_name is", datafile_name)
-datafile_name = 'dataset_5-inch_100-nodes_3-day_20210223-1603soil_moisture-0.2_None.pickle'
+datafile_name = compile_datasets(folder_name)
+print("sys.argv is", sys.argv)
+print("datafile_name is", datafile_name)
+# datafile_name = 'dataset_5-inch_100-nodes_3-day_20210223-1603soil_moisture-0.2_None.pickle'
 pos0 = datafile_name.find('dataset_') + len('dataset_')
 pos1 = datafile_name.find('-inch') + len('-inch')
 pos2 = pos1 + len('_')
 pos3 = datafile_name.find('-nodes')
-# nodes_num = int(datafile_name[0:pos3])
-nodes_num = 100
+nodes_num = int(datafile_name[0:pos3])
+# nodes_num = 100
 # graph_nodes_count_string = datafile_name[pos2:pos3] + '-Nodes Graph with Mean Rainfall Intensity of ' + datafile_name[pos0:pos1] + '\n'
 
 path="/Users/xchen/Documents/UMN_PhD/urban_stormwater_analysis/figures/models/"+ datafile_name.replace(".pickle","/")
@@ -224,7 +226,7 @@ cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
         print('Plot is saved as', fig_name +'.png')
 
 def two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_count', yaxis_attribute = 'soil_node_elev_list', color_attribute = 'flood_duration_list', 
-s = 5, cmap_on = True, save_plot = True, cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
+size_attribute = None, cmap_on = True, save_plot = True, cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
     if xaxis_attribute == 'soil_nodes_count':
         xaxis = df[xaxis_attribute]/nodes_num*100
     else: 
@@ -243,6 +245,10 @@ s = 5, cmap_on = True, save_plot = True, cmap = plt.cm.Reds, datafile_name = dat
     else: 
         color_dict['color'] = plt.cm.Greys(0.5)
 
+    if not size_attribute:
+        s = 5
+    else: 
+        s = df[size_attribute]
     TI = ax_double_axes.scatter(xaxis, yaxis, s = s, marker = 's', **color_dict)#, edgecolor = 'k')
     ax_double_axes.set_xlabel(label_dict[xaxis_attribute])
     ax_double_axes.set_ylabel(label_dict[yaxis_attribute])
@@ -349,7 +355,7 @@ for i in mean_rainfall_set:
 
     # four_figure_plot(df = df_plot, yaxis_attribute='flood_duration_total_list', save_plot = True, title = title_name, cmap = plt.cm.Greys)
 
-    # two_axis_plot(df = df_plot, xaxis_attribute='antecedent_soil', color_attribute = 'flood_duration_total_list', save_plot = False, title = title_name)
+    two_axis_plot(df = df_plot, xaxis_attribute='soil_node_degree_list', yaxis_attribute = 'flood_node_degree', color_attribute = 'soil_nodes_count', size_attribute = 'flood_duration_total_list', cmap = plt.cm.Blues, save_plot = False, title = title_name)
     # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_list', save_plot = False, title = title_name)
 
     # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', yaxis_attribute ='soil_node_degree_list', save_plot = False, title = title_name)
@@ -420,52 +426,153 @@ cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
     fig.suptitle(label_dict[xaxis_attribute])
     mean_rainfall_set = set(df.mean_rainfall) - set([0])
     k = 0
-    permeable = np.linspace(0, 100, 10, endpoint=False)
+    vmin = min(df[color_attribute])
+    vmax = max(df[color_attribute])
+    color_iteration = np.linspace(vmin, vmax, max(ncols, nrows), endpoint=False)
     for i in mean_rainfall_set:
         x_label = str(i) + ' in'
         axes[k].set_xlabel(x_label)
         axes[k].xaxis.tick_top()
-        axes[k].grid(which = 'both', axis = 'both', alpha = 0.21)
+        axes[k].grid(which = 'both', axis = 'both', alpha = 0.2)
         axes[k].set_ylim([0, ymax])
-        for j in permeable:
+        x_centroid_list = []
+        y_centroid_list = []
+        centroid_color = []
+        for j in color_iteration:
             is_set = (df.mean_rainfall == i) & ((df.soil_nodes_count >= j) & (df.soil_nodes_count < j+10))
             df_plot = df.loc[is_set]
             c = round(df_plot[color_attribute], -1)
             if cmap_on:
                 color_dict = {'c': c, 'alpha': 0.4}
-            scatter_fig = axes[k].scatter(df_plot[xaxis_attribute], df_plot[yaxis_attribute], s = 5, marker = 's', vmin = 0, vmax = 100, **color_dict)
+            scatter_fig = axes[k].scatter(df_plot[xaxis_attribute], df_plot[yaxis_attribute], s = 5, marker = 's', vmin = vmin, vmax = vmax, **color_dict)
+            # scatter_fig = axes[k].scatte(df_plot[xaxis_attribute], df_plot[yaxis_attribute], vmin = 0, vmax = 100, **color_dict)
+            
+            # if max(df_plot[yaxis_attribute])>0:    
+            #     try:
+            #         x_centroid_list.append(mean(df_plot[xaxis_attribute][df_plot[xaxis_attribute]>0]))
+            #     except StatisticsError:
+            #         x_centroid_list.append(0)
+            #     y_centroid_list.append(mean(df_plot[yaxis_attribute][df_plot[yaxis_attribute]>0]))
+            #     centroid_color.append(j)
+            try:
+                x_centroid_list.append(mean(df_plot[xaxis_attribute][df_plot[xaxis_attribute]>0]))
+            except StatisticsError:
+                x_centroid_list.append(0)
+            try: 
+                y_centroid_list.append(mean(df_plot[yaxis_attribute][df_plot[yaxis_attribute]>0]))
+            except StatisticsError:
+                y_centroid_list.append(0)
+            centroid_color.append(j)
+        axes[k].scatter(x_centroid_list, y_centroid_list, c = centroid_color, s = 80, marker = 'o',edgecolor = 'k', vmin = 0, vmax = 100)
         k += 1
 
         
     plt.tight_layout()
     if cmap_on:
-        fig.subplots_adjust(left = 0.25)
-        cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
+        fig.subplots_adjust(right = 0.8)
+        cbar_ax = fig.add_axes([0.85, 0.25, 0.05, 0.35])
         cbar = fig.colorbar(scatter_fig, cax=cbar_ax)
-        cbar_ax.get_yaxis().labelpad = 15
-        cbar_ax.set_ylabel(label_dict[color_attribute], rotation=90)
-        cbar_ax.yaxis.set_label_position('left')
-        cbar_ax.yaxis.tick_left()
+        # cbar_ax.get_yaxis().labelpad = 15
+        cbar_ax.set_ylabel(label_dict[color_attribute], rotation=270)
+        # cbar_ax.yaxis.set_label_position('left')
+        # cbar_ax.yaxis.tick_left()
     if title:
         fig.suptitle(title)
 
-    # ax.spines['top'].set_color('none')
-    # ax.spines['bottom'].set_color('none')
-    # ax.spines['left'].set_color('none')
-    # ax.spines['right'].set_color('none')
-    # ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
-    # ax.set_ylabel(ylabel)
+    fig_name = datafile_name.replace(".pickle","") + xaxis_attribute + yaxis_attribute
+    plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
+    if save_plot:
+        plt.savefig(path + fig_name +'.png')
+        print('Plot is saved as', fig_name +'.png')
 
-    fig_name = datafile_name.replace(".pickle","") + yaxis_attribute
+def multi_rainfall_horizontal_figure_plot(df = df, ncols = 5, nrows = 1, xaxis_attribute = 'flood_duration_total_list', yaxis_attribute = 'soil_node_elev_list', color_attribute = 'soil_nodes_count', cmap_on = False, save_plot = True,
+cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
+    yaxis = df[yaxis_attribute]
+    ymax = max(yaxis)
+    cmap0 = cm.get_cmap(cmap)
+    color_dict = {'color': cmap0(0.8), 'alpha': 0.3}
+    if not color_attribute:
+        c = yaxis_attribute
+    else: 
+        c = round(df[color_attribute], -1)
+    if cmap_on:
+        color_dict = {'c': c, 'alpha': 0.4, 'cmap': cmap}
+    ylabel = label_dict[yaxis_attribute]
+    
+    fig, axes = plt.subplots(ncols=ncols, nrows=nrows, sharey=True, sharex=True)
+    axes[0].set_ylabel(ylabel)
+    fig.suptitle(label_dict[xaxis_attribute])
+    mean_rainfall_set = set(df.mean_rainfall) - set([0])
+    k = 0
+    vmin = min(df[color_attribute])
+    vmax = max(df[color_attribute])
+    color_iteration = np.linspace(vmin, vmax, max(ncols, nrows), endpoint=False)
+    for i in mean_rainfall_set:
+        x_label = str(i) + ' in'
+        axes[k].set_xlabel(x_label)
+        axes[k].xaxis.tick_top()
+        axes[k].grid(which = 'both', axis = 'both', alpha = 0.2)
+        axes[k].set_ylim([0, ymax])
+        x_centroid_list = []
+        y_centroid_list = []
+        centroid_color = []
+        for j in color_iteration:
+            is_set = (df.mean_rainfall == i) & ((df.soil_nodes_count >= j) & (df.soil_nodes_count < j+10))
+            df_plot = df.loc[is_set]
+            c = round(df_plot[color_attribute], -1)
+            if cmap_on:
+                color_dict = {'c': c, 'alpha': 0.4}
+            scatter_fig = axes[k].scatter(df_plot[xaxis_attribute], df_plot[yaxis_attribute], s = 5, marker = 's', vmin = vmin, vmax = vmax, **color_dict)
+            # scatter_fig = axes[k].scatte(df_plot[xaxis_attribute], df_plot[yaxis_attribute], vmin = 0, vmax = 100, **color_dict)
+            
+            # if max(df_plot[yaxis_attribute])>0:    
+            #     try:
+            #         x_centroid_list.append(mean(df_plot[xaxis_attribute][df_plot[xaxis_attribute]>0]))
+            #     except StatisticsError:
+            #         x_centroid_list.append(0)
+            #     y_centroid_list.append(mean(df_plot[yaxis_attribute][df_plot[yaxis_attribute]>0]))
+            #     centroid_color.append(j)
+            try:
+                x_centroid_list.append(mean(df_plot[xaxis_attribute][df_plot[xaxis_attribute]>0]))
+            except StatisticsError:
+                x_centroid_list.append(0)
+            try: 
+                y_centroid_list.append(mean(df_plot[yaxis_attribute][df_plot[yaxis_attribute]>0]))
+            except StatisticsError:
+                y_centroid_list.append(0)
+            centroid_color.append(j)
+        axes[k].scatter(x_centroid_list, y_centroid_list, c = centroid_color, s = 80, marker = 'o',edgecolor = 'k', vmin = 0, vmax = 100)
+        k += 1
+
+    plt.tight_layout()
+    if cmap_on:
+        fig.subplots_adjust(right = 0.8)
+        cbar_ax = fig.add_axes([0.85, 0.25, 0.05, 0.35])
+        cbar = fig.colorbar(scatter_fig, cax=cbar_ax)
+        # cbar_ax.get_yaxis().labelpad = 15
+        cbar_ax.set_ylabel(label_dict[color_attribute], rotation=270)
+        # cbar_ax.yaxis.set_label_position('left')
+        # cbar_ax.yaxis.tick_left()
+    if title:
+        fig.suptitle(title)
+
+    fig_name = datafile_name.replace(".pickle","") + xaxis_attribute + yaxis_attribute
     plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
     if save_plot:
         plt.savefig(path + fig_name +'.png')
         print('Plot is saved as', fig_name +'.png')
 
 if __name__ == '__main__':
-    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', cmap_on = True, save_plot=False)
-    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'max_flood_nodes', cmap_on = True, save_plot=False)
-    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'max_disp_g', cmap_on = True, save_plot=False)
-    multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'mean_disp_kg', cmap_on = True, save_plot=False)
+    # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, xaxis_attribute = 'max_outlet_water_level', cmap_on = True, save_plot=True)
+    # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, xaxis_attribute = 'max_outlet_water_level', yaxis_attribute = 'soil_node_degree_list', cmap_on = True, save_plot=True)
+    # # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', cmap_on = True, save_plot=True)
+    # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, xaxis_attribute = 'max_outlet_water_level', yaxis_attribute = 'max_flood_node_elev', cmap_on = True, save_plot=True)
+    # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, xaxis_attribute = 'max_outlet_water_level', yaxis_attribute = 'max_flood_node_degree', cmap_on = True, save_plot=True)
+    # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'max_disp_kg', cmap_on = True, save_plot=True)
+    # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'max_flood_node_elev', xaxis_attribute = 'mean_var_path_length', cmap_on = True, save_plot=True)
+    # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'max_flood_node_degree', xaxis_attribute = 'mean_var_path_length', cmap_on = True, save_plot=True)
+    # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'mean_disp_g', cmap_on = True, save_plot=True)
+    # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'mean_disp_kg', cmap_on = True, save_plot=True)
+    # multi_rainfall_horizontal_figure_plot(df, ncols = 1, nrows = 5, color_attribute= 'max_flood_node_degree', xaxis_attribute = 'soil_nodes_count', yaxis_attribute = 'max_flood_node_elev', cmap_on = True, save_plot=False)
 
     plt.show()

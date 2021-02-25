@@ -147,10 +147,12 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             soil_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
             for k in soil_nodes),soil_nodes_length)
             max_flood_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in max_flood_nodes_list),len(max_flood_nodes_list))
+            print(max_flood_node_degree)
+            print(max_flood_nodes_list)
             max_flood_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
             for k in max_flood_nodes_list),len(max_flood_nodes_list))
-            flood_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in flood_nodes_list),len(flood_nodes_list))
-            flood_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
+            # flood_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in flood_nodes_list),len(flood_nodes_list))
+            # flood_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
             for k in flood_nodes_list),len(flood_nodes_list))
             mean_flood_nodes_TI = mean(flood_nodes_TI_list)
             # out_edges = H.in_edges(0, data = False)
@@ -177,8 +179,11 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             output_df.loc[k,'max_flood_nodes'] = max_flood_nodes
             output_df.loc[k,'max_flood_node_degree'] = max_flood_node_degree
             output_df.loc[k,'max_flood_node_elev'] = max_flood_node_elev
-            output_df.loc[k,'flood_node_degree'] = flood_node_degree
-            output_df.loc[k,'flood_node_elev'] = flood_node_elev
+            output_df.loc[k,'mean_var_path_length'] = mean(var_path_length_list)
+            output_df.loc[k,'max_var_path_length'] = max(var_path_length_list)
+            
+            # output_df.loc[k,'flood_node_degree'] = flood_node_degree
+            # output_df.loc[k,'flood_node_elev'] = flood_node_elev
             output_df.loc[k,'mean_flood_nodes_TI'] = mean_flood_nodes_TI
 
             # print(output_df)
