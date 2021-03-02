@@ -34,7 +34,7 @@ def apply_async(dt_str):
     soil_moisture_list = np.linspace(0, 1, 10)
     mean_rainfall_set = np.linspace(10, 0, 10, endpoint=False)
     pool = mp.Pool()
-    for _ in range(2):
+    for _ in range(10):
         for soil_moisture in soil_moisture_list:
             for mean_rainfall in mean_rainfall_set:
                 mu = np.random.uniform(low=1.6, high=2.2)
