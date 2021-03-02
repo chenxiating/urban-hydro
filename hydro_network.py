@@ -1,8 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.colors as colors
 import pandas as pd
 import networkx as nx
+from networkx.drawing.nx_agraph import graphviz_layout
 import pickle
 import itertools
 import datetime as date
@@ -11,6 +13,7 @@ import time
 from random import sample
 from math import comb
 from math import log10
+from scipy.special import factorial
 import statistics
 import os
 import sys
@@ -41,16 +44,17 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
         a = dict(zip(["n", "length", "diam",'conductivity'], [n, length, diam0, conductivity]))
         b = dict(zip([k], [a]))
         nx.set_edge_attributes(gph, b)
-    if outlet_level is not None: 
+    if outlet_level: 
         nx.set_node_attributes(gph, outlet_level, "level")
-    if outlet_node_drainage_area is not None: 
+    else:
+        outlet_level = gph.nodes[0]['level']
+    if outlet_node_drainage_area: 
         nx.set_node_attributes(gph, outlet_node_drainage_area, "node_drainage_area")
-    if outlet_elev is None: 
-        try: 
-            outlet_elev = elev_min - outlet_level
-            nx.set_node_attributes(gph, outlet_elev, 'elev')
-        except TypeError: 
-            pass
+    if outlet_elev: 
+        nx.set_node_attributes(gph, outlet_elev, 'elev')
+    else:
+        outlet_elev = elev_min - outlet_level
+        nx.set_node_attributes(gph, outlet_elev, 'elev')
     return gph
 
 def fill_numbers(dictionary, full_list, number = 0):
@@ -93,11 +97,14 @@ def draw_varying_size(gph, ax = None, attribute = 'storage', edge_attribute = No
     #print(dict(zip(["node", "node_colors", "node_colors_array"],[gph.nodes, node_colors, node_colors_array])))
     return node_colors_array
 
-def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_velocity', soil_nodes = None, label_on = True):
+def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_dq', soil_nodes = None, label_on = True):
     """
     draw the network flow and the dispersion coefficients at a single timestep. 
     """
-    pos = nx.spring_layout(gph)
+    # pos = nx.spring_layout(gph)
+    # pos = nx.planar_layout(gph, scale = 100)
+    # print(edge_attribute)
+    pos = graphviz_layout(gph, prog = 'dot')
     edge_color = [gph.edges[m].get(edge_attribute) for m in gph.edges]
     node_color = []
     for node in gph: 
@@ -112,14 +119,39 @@ def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_velocity', soi
     cmap = plt.cm.Greys
     fig0, ax0 = plt.subplots(1,2, gridspec_kw={'width_ratios': [1, 4]})
     nx.draw(gph, pos, ax0[1], node_color = node_color, node_size = 10, edge_color = edge_color, labels = node_label, with_labels = label_on, edge_cmap = cmap)
+    # nx.draw_planar(gph, pos, ax0[1], node_color = node_color, node_size = 10, edge_color = edge_color, labels = node_label, with_labels = label_on, edge_cmap = cmap)
     if label_on:
         nx.draw_networkx_edge_labels(gph, pos, edge_labels=edge_label)
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin = 0, vmax=max(edge_color)))
+    divnorm = colors.TwoSlopeNorm(vmin = min(-1, min(edge_color)), vcenter=0, vmax=max(edge_color))
+    norm = plt.Normalize(vmin = min(-1, min(edge_color)), vmax=max(edge_color))
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=divnorm)
     sm._A = []
     #fig = plt.gcf()
     #cbar_ax = fig0.add_axes([0.1, 0.25, 0.05, 0.35])
     plt.colorbar(sm, cax = ax0[0])
     ax0[0].set_xlabel('Edge dQ')
+
+def graph_histogram(gph, kernel=None):
+    degrees = dict(gph.degree())
+    degrees_list = degrees.values()
+    mean_degrees = sum(degrees_list)/len(degrees)
+    bin_list = np.linspace(min(degrees_list)-1, max(degrees_list), max(degrees_list) - min(degrees_list) + 2)
+    plt.figure()
+    ax0 = plt.gca()
+    ax0.hist(degrees_list, bins=bin_list, label='Histogram',density=True)
+    plt.xticks(bin_list)
+    if not kernel:
+        kernel = lambda x: mean_degrees**x*np.exp(-mean_degrees)/factorial(x)
+    # x = np.linspace(1, 20, 20, dtype=int)
+    # x = np.asarray([2, 3])
+    # print(x)
+    # print(factorial(x))
+    # ax1 = ax0.twinx()
+    # ax1.set_ylim(bottom = 0)
+    ax0.plot(bin_list, kernel(bin_list), 'k-o', label='Poisson Distribution')
+    fig = plt.gcf()
+    fig.legend()
+
 
 def accumulate_downstream(gph, accum_attr='node_drainage_area', cumu_attr_name=None, soil_nodes=None):
     """
@@ -167,7 +199,7 @@ def rainfall_func(size = 10, freq= 0.1, meanDepth_inch = 2, dt = 0.1, is_pulse =
     depth = np.zeros(size)
     # generate one single pulse rainfall event
     if is_pulse: 
-        depth[10] = meanDepth
+        depth[2] = meanDepth
     
     else: 
         # generate uniform and exponentially distributed random variables 
@@ -294,7 +326,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
         us_node = m[0]
         ds_node = m[1]
         # h = 0.5*(gph.nodes[us_node].get(level) + gph.nodes[ds_node].get(level))
-        h = gph.nodes[ds_node].get(level)
+        h = gph.nodes[us_node].get(level)
         elevdiff = gph.nodes[us_node].get(elev) + gph.nodes[us_node].get(level) - gph.nodes[ds_node].get(elev) - gph.nodes[ds_node].get(level)
         d = gph.edges[m].get(width)
         n = gph.edges[m].get(n_name)
@@ -316,13 +348,18 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
                 #print("edge", m, "h", h, "d", d, sep = "\t")
         u = 1.49/n*R**(2/3)*s**(1/2)
         dq = np.sign(elevdiff)*u*A # Manning's Equation (Imperial Unit) for edges
-        if dq >= gph.nodes[us_node].get("node_drainage_area")*gph.nodes[us_node].get(level) or gph.nodes[us_node].get(elev) > (gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level)):
+        # print('edge', m, 'dq', dq, 'elevdiff', elevdiff)
+        if dq > gph.nodes[us_node].get("node_drainage_area")*gph.nodes[us_node].get(level): # or (gph.nodes[us_node].get(elev) > (gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level))):
             dq = gph.nodes[us_node].get("node_drainage_area")*gph.nodes[us_node].get(level)
             u = abs(ignore_zero_div(dq, A))
             # print(m, 'dq has been capped.', 'dq', dq)
-        if dq < 1e-4:
+            # print('term 1', gph.nodes[us_node].get("node_drainage_area")*gph.nodes[us_node].get(level))
+            # print('term 2 us elev', gph.nodes[us_node].get(elev) )
+            # print('term 2 ds elev + dh', ((gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level))))
+        if (dq < 1e-4) and (dq > 0):
             dq = 0
             u = 0
+        # print('edge', m, 'dq', dq)
         t = ignore_zero_div(l,u)
         # if np.sign(elevdiff) < 0: 
         #     print("us node", us_node, "ds node", ds_node, "us flow", gph.nodes[us_node].get(elev) + gph.nodes[us_node].get(level), 
@@ -522,6 +559,7 @@ def print_time(earlier_time):
 
 
 if __name__ == '__main__':
-    soil_nodes_combo, soil_nodes_combo_count = random_sample_soil_nodes(range_min = 0, 
-range_max = 100, range_count = 100, nodes_num = 100)
-    print(soil_nodes_combo)
+    H = create_networks(nodes_num=100)
+    # nx.draw(H)
+    # graph_histogram(H)
+    plt.show()

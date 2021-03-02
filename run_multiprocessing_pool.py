@@ -6,29 +6,47 @@ import numpy as np
 import os
 import sys
 
-try: 
-    dt_str = sys.argv[1]
-except IndexError:
-    today = date.datetime.today()
-    dt_str = today.strftime("%Y%m%d-%H%M")
+import simulation_hydro_network
+import multiprocessing as mp
+import time
+import datetime as date
+import numpy as np
+import os
+import sys
+from scipy.special import factorial
 
-def main(nodes_num, process_core_name, soil_moisture, mean_rainfall, days, dt_str):
-    simulation_hydro_network.main(nodes_num, process_core_name, soil_moisture, mean_rainfall, days, dt_str)
-    print('MP script:', nodes_num, process_core_name, soil_moisture, mean_rainfall, days, dt_str)
+def dt_str_gen():
+    try: 
+        dt_str = sys.argv[1]
+    except IndexError:
+        today = date.datetime.today()
+        dt_str = today.strftime("%Y%m%d-%H%M")
+    return dt_str
 
-start = time.perf_counter()
-soil_moisture_list = np.linspace(0, 1, 5)
-mean_rainfall_set = np.linspace(10, 0, 10, endpoint=False)
-days = 10
+def simulation(soil_moisture, mean_rainfall, dt_str, soil_nodes_range, mu):
+    kernel = lambda x: np.exp(-mu)*mu**x/factorial(x)
+    simulation_hydro_network.main(antecedent_soil_moisture=soil_moisture, mean_rainfall_inch=mean_rainfall, process_core_name=os.getpid(),dt_str=dt_str,soil_nodes_range=soil_nodes_range, kernel=kernel)
+    return os.getpid()
 
-if __name__ == '__main__':
-    pool = Pool()
-    for k in range(10):
+
+def apply_async(dt_str):
+    soil_nodes_range=[0, 100, 100]
+    soil_moisture_list = np.linspace(0, 1, 10)
+    mean_rainfall_set = np.linspace(10, 0, 10, endpoint=False)
+    pool = mp.Pool()
+    for _ in range(2):
         for soil_moisture in soil_moisture_list:
             for mean_rainfall in mean_rainfall_set:
-                pool.apply_async(func=main, args = (int(100), k, soil_moisture, mean_rainfall, days, dt_str))
+                mu = np.random.uniform(low=1.6, high=2.2)
+                pool.apply_async(simulation, args = (soil_moisture, mean_rainfall, dt_str, soil_nodes_range, mu, ))
+                # print(soil_moisture)
+                # print(mean_rainfall)
     pool.close()
     pool.join()
 
-finish = time.perf_counter()
-print(f'Finished in {round(finish-start,2)} seconds(s)')
+if __name__ == '__main__':
+    start = time.perf_counter()
+    dt_str = dt_str_gen()
+    apply_async(dt_str)
+    finish = time.perf_counter()
+    print(f'Finished in {round(finish-start,2)} seconds(s)')

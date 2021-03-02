@@ -1,4 +1,9 @@
 # urban-hydro 
+March 1, 2021
+- Added Poisson distribution to the kernel for generating graphs
+- Cleaned up run_multiprocessing_pool.py
+- Manning's: now assuming that the water level in a pipe = water level upstream at the node. 
+
 Feb 9, 2021
 - Varying different antecedent soil moisture and rainfall intensity
 - Cleaned up multiprocessing script and Slurm script to allow for faster performance
