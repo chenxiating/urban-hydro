@@ -20,7 +20,7 @@ import sys
 
 ## Functions
 def create_networks(g_type = 'gn', nodes_num = 10, n = 0.01, diam = 1, changing_diam = True, diam_increment = 0.1, soil_depth = 0, 
-slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_drainage_area = 500, conductivity = 0.5,
+slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_drainage_area = 500, node_manhole_area = 50, conductivity = 0.5,
 outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed = None, kernel = None):
     """
     create a random network with different properties. the slope has been defaulted to be the same in
@@ -34,7 +34,8 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
     max_path_order = max(len(nx.shortest_path(gph, source = k, target = 0)) for k in gph.nodes)
     for k in gph.nodes:
         elev = elev_range[k]
-        a = dict(zip(["elev", "level", "node_drainage_area", "soil_depth"], [elev, level, node_drainage_area, soil_depth]))
+        downstream_degree_to_outlet = len(nx.shortest_path(gph, source = k, target = 0)) 
+        a = dict(zip(["elev", "level", "node_drainage_area", "node_manhole_area", "soil_depth"], [elev, level, node_drainage_area, node_manhole_area, soil_depth]))
         b = dict(zip([k], [a]))
         nx.set_node_attributes(gph, b)
     for k in gph.edges:
@@ -50,11 +51,13 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
         outlet_level = gph.nodes[0]['level']
     if outlet_node_drainage_area: 
         nx.set_node_attributes(gph, outlet_node_drainage_area, "node_drainage_area")
+        nx.set_node_attributes(gph, outlet_node_drainage_area, "node_manhole_area")
     if outlet_elev: 
         nx.set_node_attributes(gph, outlet_elev, 'elev')
     else:
         outlet_elev = elev_min - outlet_level
         nx.set_node_attributes(gph, outlet_elev, 'elev')
+    Manning_func(gph) 
     return gph
 
 def fill_numbers(dictionary, full_list, number = 0):
@@ -97,7 +100,7 @@ def draw_varying_size(gph, ax = None, attribute = 'storage', edge_attribute = No
     #print(dict(zip(["node", "node_colors", "node_colors_array"],[gph.nodes, node_colors, node_colors_array])))
     return node_colors_array
 
-def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_dq', soil_nodes = None, label_on = True):
+def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_dq', soil_nodes = None, label_on = False, flood_level = 10, title = None):
     """
     draw the network flow and the dispersion coefficients at a single timestep. 
     """
@@ -105,31 +108,44 @@ def draw_network_timestamp(gph, ax = None, edge_attribute = 'edge_dq', soil_node
     # pos = nx.planar_layout(gph, scale = 100)
     # print(edge_attribute)
     pos = graphviz_layout(gph, prog = 'dot')
-    edge_color = [gph.edges[m].get(edge_attribute) for m in gph.edges]
+    edge_color = {m: gph.edges[m].get(edge_attribute) for m in gph.edges}
     node_color = []
+    node_size_og = 10
+    node_size = []
     for node in gph: 
-        if node in set(soil_nodes):
-            node_color.append('C2')
-        elif node == 0:
+        if node == 0:
             node_color.append('C1')
+            node_size.append(node_size_og)
+        elif gph.nodes[node]['level']>=flood_level:
+            node_color.append('C3')
+            node_size.append(node_size_og*4)
+        elif node in set(soil_nodes):
+            node_color.append('C2')
+            node_size.append(node_size_og*2)
         else:
             node_color.append('C0')
+            node_size.append(node_size_og)
     node_label = {n: str(n) + ':' + str(round(gph.nodes[n].get('level') + gph.nodes[n].get('elev') ,1)) for n in gph.nodes}
     edge_label = {m: str(round(gph.edges[m].get(edge_attribute), 2)) for m in gph.edges}
-    cmap = plt.cm.Greys
-    fig0, ax0 = plt.subplots(1,2, gridspec_kw={'width_ratios': [1, 4]})
-    nx.draw(gph, pos, ax0[1], node_color = node_color, node_size = 10, edge_color = edge_color, labels = node_label, with_labels = label_on, edge_cmap = cmap)
-    # nx.draw_planar(gph, pos, ax0[1], node_color = node_color, node_size = 10, edge_color = edge_color, labels = node_label, with_labels = label_on, edge_cmap = cmap)
+    cmap = plt.cm.RdBu
+    vmin = min(min(edge_color.values()),-max(edge_color.values()))
+    vcenter = 0
+    vmax = max(max(edge_color.values()),-min(edge_color.values()))
+    # print(vmin, vcenter, vmax)
+    norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm._A = []
+    fig0, ax0 = plt.subplots(1,2, gridspec_kw={'width_ratios': [1, 5]})
+    nx.draw(gph, pos, ax0[1], node_color = node_color, node_size = node_size, edge_color = [sm.to_rgba(i) for i in edge_color.values()], labels = node_label, with_labels = label_on, edge_cmap = cmap)
     if label_on:
         nx.draw_networkx_edge_labels(gph, pos, edge_labels=edge_label)
-    divnorm = colors.TwoSlopeNorm(vmin = min(-1, min(edge_color)), vcenter=0, vmax=max(edge_color))
-    norm = plt.Normalize(vmin = min(-1, min(edge_color)), vmax=max(edge_color))
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=divnorm)
-    sm._A = []
     #fig = plt.gcf()
     #cbar_ax = fig0.add_axes([0.1, 0.25, 0.05, 0.35])
     plt.colorbar(sm, cax = ax0[0])
     ax0[0].set_xlabel('Edge dQ')
+    ax0[0].set_ylim(bottom = vmin,top=vmax)
+    if title:
+        plt.suptitle(title)
 
 def graph_histogram(gph, kernel=None):
     degrees = dict(gph.degree())
@@ -239,13 +255,15 @@ def bioretention(gph, depth, dt, soil_nodes = [], old_s = 0.3, nporo = 0.45, zr 
     nx.set_node_attributes(gph, soil_moisture, 'soil_moisture')
     return s
 
-def rainfall_nodes_func(gph, s, dt, depth, soil_nodes, rain_nodes, nporo = 0.45, zr = 10, emax = 0.05): 
+def rainfall_nodes_func(gph, s, dt, depth, soil_nodes, rain_nodes, nporo = 0.45, zr = 10, emax = 0.05, flood_level = 10): 
     """  
     This function calculates the runoff on nodes after a result of bioretention activities. 
     Runoff is the amount of rainfall that is unable to be absorbed by the soil, and needs to
-    be received by the stormwater pipes. 
+    be received by the stormwater pipes. (Saturation excess)
+    Overflow is not being returned to the system.
     """
-    # print('s:',s)
+    node_drainage_area = nx.get_node_attributes(gph,'node_drainage_area')
+    node_manhole_area = nx.get_node_attributes(gph,'node_manhole_area')
     rain_nodes_count = len(rain_nodes)
     precip = fill_numbers(dict(zip(rain_nodes, np.ones(rain_nodes_count)*depth)), gph.nodes) # precipitation at the highest node, exponential distribution like in the project
     # print("precip", precip)
@@ -262,16 +280,22 @@ def rainfall_nodes_func(gph, s, dt, depth, soil_nodes, rain_nodes, nporo = 0.45,
     dhdt = nx.get_node_attributes(gph, 'dhdt')
     #what happens if h0 + dh < 0?
     # h_new = dict(zip(gph.nodes, h0 + dh + runoff0))
-    ##test here
-    dhdt = nx.get_node_attributes(gph, 'dhdt')
-    h_new = {k: (h0[k] + dhdt[k]*dt + runoff[k]) for k in gph.nodes}
-    # if max(runoff0_test.values())>0:
-    #     print("new node level: ", h_new)
-    #     print("new node level_TEST: ", h_new_test)
-    #     print(h0)
-    #     print(h0_test)
-    #print(h_new)
+    # print('h0',h0)
+    # print('dhdt*dt',[dhdt[k]*dt for k in gph.nodes])
+    h_new = {k: (h0[k] + dhdt[k]*dt + runoff[k]*node_drainage_area[k]/node_manhole_area[k]) for k in gph.nodes}
+    # if min(gph.edges[m]['edge_dq'] for m in gph.edges)<0:
+    #     # print(nx.get_node_attributes(gph, 'dhdt'))
+    #     print(nx.get_edge_attributes(gph, 'edge_dq'))
+    #     draw_network_timestamp(gph,soil_nodes=soil_nodes, title = 'backflowing')
+    #     plt.show()
+    # print("h_new before of:",h_new)
+    overflow = {k: (h_new[k]>flood_level)*(h_new[k]-flood_level) for k in gph.nodes}
+    h_new_in_manhole = {k: 10 for k in overflow if overflow[k] > 0}
+    h_new.update(h_new_in_manhole)
     nx.set_node_attributes(gph, h_new, 'level')
+    nx.set_node_attributes(gph, overflow, 'overflow')
+    # print('overflow:',overflow)
+    # print("h_new after of:",h_new)
     outlet_evaporation_func(gph, dt, evap_rate = 0.01)
     
     if soil_nodes:
@@ -288,6 +312,7 @@ def outlet_evaporation_func(gph, dt, outlet_node = 0, evap_rate = 0.01, level_na
     which is nearly 3 mm per day. This is a linear function. 
     """
     new_level = gph.nodes[outlet_node].get(level_name) - evap_rate*dt
+    # new_level = (1-evap_rate)*gph.nodes[outlet_node].get(level_name)
     gph.nodes[outlet_node][level_name] = new_level
 
 # def attr_array_func(attr_name, gph, elem = 'edge', column = 1, ignore_outlet = False, ignore_attr = None):
@@ -304,15 +329,15 @@ def outlet_evaporation_func(gph, dt, outlet_node = 0, evap_rate = 0.01, level_na
 #     array = data[:,column]
 #     return array 
 
-def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = 'n', l_name = 'length', shape = 'circular'):
+def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = 'n', l_name = 'length', shape = 'circular', flood_level = 10):
     """
     Manning's equation to calculate open channel flow in pipes.
     """
     # initialize
     edge_list = []
     node_list = gph.nodes
-    node_drainage_area_dict = nx.get_node_attributes(gph, 'node_drainage_area')
-    node_drainage_area = np.array([node_drainage_area_dict[k] for k in gph.nodes])
+    node_manhole_area_dict = nx.get_node_attributes(gph, 'node_manhole_area')
+    node_manhole_area = np.array([node_manhole_area_dict[k] for k in gph.nodes])
     h_list = []
     t_list = []
     u_list = []
@@ -327,6 +352,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
         ds_node = m[1]
         # h = 0.5*(gph.nodes[us_node].get(level) + gph.nodes[ds_node].get(level))
         h = gph.nodes[us_node].get(level)
+        # h = gph.nodes[ds_node].get(level)
         elevdiff = gph.nodes[us_node].get(elev) + gph.nodes[us_node].get(level) - gph.nodes[ds_node].get(elev) - gph.nodes[ds_node].get(level)
         d = gph.edges[m].get(width)
         n = gph.edges[m].get(n_name)
@@ -335,6 +361,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
         if shape == 'circular':
             if h > d: 
                 h = d
+                # print(m,"h=d","elev diff", elevdiff)
             if h <= 0: 
                 h = 0
                 R = 0
@@ -349,18 +376,31 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
         u = 1.49/n*R**(2/3)*s**(1/2)
         dq = np.sign(elevdiff)*u*A # Manning's Equation (Imperial Unit) for edges
         # print('edge', m, 'dq', dq, 'elevdiff', elevdiff)
-        if dq > gph.nodes[us_node].get("node_drainage_area")*gph.nodes[us_node].get(level): # or (gph.nodes[us_node].get(elev) > (gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level))):
-            dq = gph.nodes[us_node].get("node_drainage_area")*gph.nodes[us_node].get(level)
+        # dq_usds_check =  (dq <> 0 and ((gph.nodes[us_node].get(elev) > (gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level))))
+        if dq > gph.nodes[us_node].get("node_manhole_area")*gph.nodes[us_node].get(level):
+            # This is to compare volumetric flow rate in pipe with volume of water in upstream manhole
+            dq = gph.nodes[us_node].get("node_manhole_area")*gph.nodes[us_node].get(level)
             u = abs(ignore_zero_div(dq, A))
-            # print(m, 'dq has been capped.', 'dq', dq)
+            print('dq after cap', dq)
             # print('term 1', gph.nodes[us_node].get("node_drainage_area")*gph.nodes[us_node].get(level))
             # print('term 2 us elev', gph.nodes[us_node].get(elev) )
+            # print('term 2 us dh', gph.nodes[us_node].get(level) )
             # print('term 2 ds elev + dh', ((gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level))))
-        if (dq < 1e-4) and (dq > 0):
+        
+        # if (gph.nodes[us_node].get(elev) + gph.nodes[us_node].get(level)) < (gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level)):
+        #     draw_network_timestamp(gph,soil_nodes=())
+        #     plt.show()
+        #     print(m, 'dq has been floored', dq)
+        #     print('term 2 us elev', gph.nodes[us_node].get(elev) )
+        #     print('term 2 us dh', gph.nodes[us_node].get(level) )
+        #     print('term 2 ds elev + dh', ((gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level))))
+        #     print('upstream is lower than downstream')
+
+        if (abs(dq) < 1e-4):
             dq = 0
             u = 0
         # print('edge', m, 'dq', dq)
-        t = ignore_zero_div(l,u)
+        t = ignore_zero_div(l,abs(u))
         # if np.sign(elevdiff) < 0: 
         #     print("us node", us_node, "ds node", ds_node, "us flow", gph.nodes[us_node].get(elev) + gph.nodes[us_node].get(level), 
         #     "ds flow", gph.nodes[ds_node].get(elev) + gph.nodes[ds_node].get(level), "edge", m, "hydraulic radius", R, "area", A, 
@@ -378,12 +418,15 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
     A = (nx.incidence_matrix(gph, oriented=True)).toarray()
     edge_cnt = len(gph.edges)
     J = np.ones(edge_cnt)
-    dhdt_list = np.divide(A@Q@J,node_drainage_area) # this is at the nodes
+    dhdt_list = np.divide(A@Q@J,node_manhole_area) # this is at the nodes
+    # print('Q',dq_list)
+    # print(Q)
+    # print('dhdt_list',dhdt_list)
     
     # record results
     dict_dq = dict(zip(edge_list, dq_list))         # flow through edge
-    dict_h0 = dict(zip(edge_list, h_list))          # water level 
-    dict_rad = dict(zip(edge_list, h_radius_list))
+    dict_h0 = dict(zip(edge_list, h_list))          # water level in pipes
+    dict_rad = dict(zip(edge_list, h_radius_list))  # hydraulic radius
     dict_t = dict(zip(edge_list, t_list))
     dict_u = dict(zip(edge_list, u_list))
     dict_dhdt = dict(zip(node_list, dhdt_list))
@@ -560,6 +603,7 @@ def print_time(earlier_time):
 
 if __name__ == '__main__':
     H = create_networks(nodes_num=100)
+    draw_network_timestamp(H)
     # nx.draw(H)
     # graph_histogram(H)
     plt.show()
