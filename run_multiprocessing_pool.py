@@ -1,11 +1,3 @@
-from multiprocessing import Pool
-import simulation_hydro_network
-import time
-import datetime as date
-import numpy as np
-import os
-import sys
-
 import simulation_hydro_network
 import multiprocessing as mp
 import time
@@ -25,12 +17,13 @@ def dt_str_gen():
 
 def simulation(soil_moisture, mean_rainfall, dt_str, soil_nodes_range, mu):
     kernel = lambda x: np.exp(-mu)*mu**x/factorial(x)
-    simulation_hydro_network.main(antecedent_soil_moisture=soil_moisture, mean_rainfall_inch=mean_rainfall, process_core_name=os.getpid(),dt_str=dt_str,soil_nodes_range=soil_nodes_range, kernel=kernel)
+    simulation_hydro_network.main(days=10,antecedent_soil_moisture=soil_moisture, mean_rainfall_inch=mean_rainfall, process_core_name=os.getpid(),dt_str=dt_str,soil_nodes_range=soil_nodes_range, kernel=kernel)
     return os.getpid()
 
 
 def apply_async(dt_str):
-    soil_nodes_range=[0, 100, 100]
+    soil_nodes_range1=[0, 99,100]
+    soil_nodes_range2=[50,99,50]
     soil_moisture_list = np.linspace(0, 1, 10)
     mean_rainfall_set = np.linspace(10, 0, 10, endpoint=False)
     pool = mp.Pool()
@@ -38,7 +31,9 @@ def apply_async(dt_str):
         for soil_moisture in soil_moisture_list:
             for mean_rainfall in mean_rainfall_set:
                 mu = np.random.uniform(low=1.6, high=2.2)
-                pool.apply_async(simulation, args = (soil_moisture, mean_rainfall, dt_str, soil_nodes_range, mu, ))
+                pool.apply_async(simulation, args = (soil_moisture, mean_rainfall, dt_str, soil_nodes_range1, mu, ))
+                # print(soil_moisture)
+                # pool.apply_async(simulation, args = (soil_moisture, mean_rainfall, dt_str, soil_nodes_range2, mu, ))
                 # print(soil_moisture)
                 # print(mean_rainfall)
     pool.close()

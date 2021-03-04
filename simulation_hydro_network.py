@@ -46,7 +46,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
         time_before_random_sample_soil_nodes = time.time()
         soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = soil_nodes_range[0], range_max = soil_nodes_range[1], range_count = soil_nodes_range[2], nodes_num = nodes_num)
         main_df = pd.DataFrame()
-        datafile_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_'+str(process_core_name)+'.pickle'
+        datafile_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(nodes_num)+'-nodes_'+str(days)+'-day_'+dt_str+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_'+str(process_core_name)+'_'+str(soil_nodes_range[1])+'.pickle'
         # output_columns =['soil_nodes_list', "flood_duration_list", "flood_duration_total_list", 'max_outlet_water_level', 'mean_rainfall', 'antecedent_soil'
         # "soil_node_degree_list", "soil_node_elev_list", 'soil_nodes_total_upstream_area','mean_disp_g','mean_disp_kg','max_disp_g',
         # 'max_disp_kg','mean_var_path_length', 'max_var_path_length','max_flood_nodes','max_flood_node_degree','max_flood_node_elev',
@@ -129,7 +129,7 @@ def main(nodes_num = int(100), process_core_name = None, antecedent_soil_moistur
             # # hn.graph_histogram(gph=H,kernel=kernel)
             # plotstuff(gph=H, x = np.array(range(i+1))*dt, depth=depth[0:i+1], dispersion = [],outlet_level=outlet_level_list)
 
-            plt.show()
+            # plt.show()
             flood_duration = dt*flood_time
             flood_duration_total = dt*flood_nodes
             soil_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
@@ -254,10 +254,3 @@ def plotstuff(gph, x, depth, dispersion, outlet_level):
 #     # hn.draw_varying_size(gph, ax = ax3, attribute='level', edge_attribute = 'length', node_drawing_ratio=0)
 #     plt.legend()
 
-if __name__ == '__main__':
-    for k in np.linspace(1.6, 2.2, 2):
-        print('kernel:',k)
-        kernel = lambda x: np.exp(-k)*k**x/factorial(x)
-        # kernel = None
-        # kernel = lambda x: gamma.pdf(x, a=4.7, scale = 1/2.5)
-        main(nodes_num = int(100), antecedent_soil_moisture=0.2,mean_rainfall_inch=5, days = 10, kernel = kernel, soil_nodes_range = [20, 75, 3])

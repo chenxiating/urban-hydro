@@ -381,7 +381,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
             # This is to compare volumetric flow rate in pipe with volume of water in upstream manhole
             dq = gph.nodes[us_node].get("node_manhole_area")*gph.nodes[us_node].get(level)
             u = abs(ignore_zero_div(dq, A))
-            print('dq after cap', dq)
+            # print('dq after cap', dq)
             # print('term 1', gph.nodes[us_node].get("node_drainage_area")*gph.nodes[us_node].get(level))
             # print('term 2 us elev', gph.nodes[us_node].get(elev) )
             # print('term 2 us dh', gph.nodes[us_node].get(level) )
