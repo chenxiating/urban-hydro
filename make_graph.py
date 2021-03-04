@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.ticker as mtick
+import matplotlib
 import pandas as pd
 import pickle
 import os
@@ -11,11 +12,11 @@ from statistics import mean
 from matplotlib.colors import PowerNorm
 from compile_datasets import compile_datasets
 
-
+matplotlib.rcParams['figure.figsize'] = (12, 6)
 try: 
     folder_name = sys.argv[1]
 except IndexError:
-    folder_name = 'datafiles_pool_20210301-2228_1216367'
+    folder_name = 'datafiles_pool_20210303-2012_1242945'
     # folder_name = 'datafiles_pool_20210223-1647_1082749'
 datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro_datasets-compiled'
 os.chdir(datafile_directory)
@@ -36,20 +37,16 @@ path="/Users/xchen/Documents/UMN_PhD/urban_stormwater_analysis/figures/models/"+
 if not os.path.exists(path):
     os.makedirs(path)
 df = pickle.load(open(datafile_name, 'rb'))
-print(df.head)
 
-# df.rename(columns={'soil_nodes_combo_count':'soil_nodes_count'})
-df['soil_nodes_count'] = df['soil_nodes_combo_count']
-# df.flood_duration_total_list = df.flood_duration_total_list * nodes_num
-print(df.head)
+# print(df.head)
 
 label_dict = {'flood_duration_list':'Days with Flooding', 'flood_duration_total_list': 'Flooded Node-Day',
     'max_outlet_water_level':'Highest Water Level at Outlet (ft)', 'soil_nodes_count':'% Permeable', 'soil_node_elev_list': "Topography Index", 
     'soil_node_degree_list':'Neighbor Index', 'soil_nodes_total_upstream_area':'Cumulative Area','mean_rainfall': 'Mean Rainfall Intensity',
     'antecedent_soil':'Antecedent Soil Moisture', 'mean_disp_g':'Mean DG', 'mean_disp_kg': 'Mean DKG', 'max_disp_g':'Max DG', 
     'max_disp_kg':'Max DKG', 'mean_var_path_length':'Time Ensemble <L>', 'max_var_path_length': 'L max', 'max_flood_nodes':'Highest Number of Flooded Nodes',
-    'max_flood_node_degree':'Neighbor Index when Highest Number of Nodes Flooded','max_flood_node_elev':'Topography Index when Highest Number of Nodes Flooded',
-    'flood_node_degree':'Neighbor Index of any Flood Node','flood_node_elev':'Topography Index of any Flood Node','mean_flood_nodes_TI':'Mean Topography Index of Flood Node (at All Times)'} 
+    'max_flood_node_degree':'Average Connectedness when Highest Number of Nodes Flooded','max_flood_node_elev':'Average Distance to Outlet when Highest Number of Nodes Flooded',
+    'mean_flood_nodes_TI':'Average Distance to Outlet of Flood Node (at All Times)'} 
 
 def two_figure_plot(df = df, y1_attribute = 'soil_node_elev_list', y2_attribute = 'soil_node_degree_list',
 xaxis_attribute = 'flood_duration_list', cmap_on = False, save_plot = True, cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
@@ -318,99 +315,30 @@ color = 'C0', datafile_name = datafile_name, title = None):
     else: 
         fig.suptitle('Box Plot')
 
+def soil_box_plot():
+    mean_rainfall_set = list(set(df.mean_rainfall) - set([0]))
+    mean_rainfall_set.sort()
+    mean_soil_set = list(set(df.antecedent_soil))
+    mean_soil_set
+    A = []
+    label = []
+    k = 0
+    for i in mean_rainfall_set:
+        for j in mean_soil_set:
+            title_name = 'Rainfall '+ str(i) + ' in; Antecedent soil moisture '+ str(j)
+            print(title_name)
+            is_set = (df.mean_rainfall == i) & (df.antecedent_soil == j)
+            df_plot = df.loc[is_set]
+            B = df_plot.flood_duration_total_list
+            label.append(str(i)+'-'+str(j))
+            A.append(B)
+    plt.figure()
+    ax = plt.gca()
+    ax.boxplot(A)
+    ax.set_xticklabels(label,rotation=45, fontsize=6)
+    ax.set_xlabel(label_dict['antecedent_soil'])
+    ax.set_ylabel(label_dict['flood_duration_total_list'])
 
-mean_rainfall_set = set(df.mean_rainfall) - set([0])
-mean_soil_set = set(df.antecedent_soil)
-# A = []
-# label = []
-# k = 0
-# for i in mean_rainfall_set:
-#     for j in mean_soil_set:
-#         title_name = 'Rainfall '+ str(i) + ' in; Antecedent soil moisture '+ str(j)
-#         print(title_name)
-#         is_set = (df.mean_rainfall == i) & (df.antecedent_soil == j)
-#         df_plot = df.loc[is_set]
-#         B = df_plot.flood_duration_total_list
-#         label.append(str(i)+'-'+str(j))
-#         A.append(B)
-
-# plt.boxplot(A)
-# ax = plt.gca()
-# ax.set_xticklabels(label,rotation=45, fontsize=6)
-# ax.set_xlabel(label_dict['antecedent_soil'])
-# ax.set_ylabel(label_dict['flood_duration_total_list'])
-
-        # three_figure_plot(df = df_plot, yaxis_attribute='flood_duration_total_list', cmap_on = False, save_plot = False)
-
-        # four_figure_plot(df = df_plot, yaxis_attribute='flood_duration_total_list', cmap_on = False, save_plot = False, title = title_name)
-
-        # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', save_plot = False, title = title_name)
-        # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_list', save_plot = False, title = title_name)
-
-        # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', yaxis_attribute ='soil_node_degree_list', save_plot = False, title = title_name)
-        # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', xaxis_attribute = 'soil_node_degree_list', save_plot = False, title = title_name)
-        # plt.show()
-    
-for i in mean_rainfall_set:
-    title_name = 'Rainfall '+ str(i) + ' in'
-    print(title_name)
-    is_set = (df.mean_rainfall == i)
-    df_plot = df.loc[is_set]
-    # three_figure_plot(df = df_plot, yaxis_attribute='flood_duration_total_list', cmap_on = False, save_plot = False)
-
-    # four_figure_plot(df = df_plot, yaxis_attribute='flood_duration_total_list', save_plot = True, title = title_name, cmap = plt.cm.Greys)
-
-    # two_axis_plot(df = df_plot, xaxis_attribute='soil_node_degree_list', yaxis_attribute = 'flood_node_degree', color_attribute = 'soil_nodes_count', size_attribute = 'flood_duration_total_list', cmap = plt.cm.Blues, save_plot = False, title = title_name)
-    # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_list', save_plot = False, title = title_name)
-
-    # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', yaxis_attribute ='soil_node_degree_list', save_plot = False, title = title_name)
-    # two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', xaxis_attribute = 'soil_node_degree_list', save_plot = False, title = title_name)
-
-    # two_axis_plot(df = df_plot, xaxis_attribute = 'soil_nodes_count',yaxis_attribute = 'mean_disp_g', color_attribute = 'flood_duration_total_list', save_plot = True, title = title_name)
-    # two_axis_plot(df = df_plot, xaxis_attribute = 'soil_nodes_count',yaxis_attribute = 'max_disp_g', color_attribute = 'flood_duration_total_list', save_plot = True, title = title_name)
-    # two_axis_plot(df = df_plot, xaxis_attribute = 'soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_elev_list', save_plot = True)
-    # two_axis_plot(df = df_plot, xaxis_attribute = 'soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_degree_list', save_plot = True)
-
-    # two_axis_plot(df = df_plot, xaxis_attribute = 'soil_node_degree_list', yaxis_attribute = 'flood_duration_total_list',color_attribute = 'soil_nodes_count', cmap =  plt.cm.Greys, save_plot = True, title = title_name)
-    # two_axis_plot(df = df_plot, xaxis_attribute = 'soil_node_elev_list', yaxis_attribute = 'flood_duration_total_list',color_attribute = 'soil_nodes_count', cmap =  plt.cm.Greys, save_plot = True, title = title_name)
-
-    # two_figure_plot(df = df_plot, y1_attribute = 'mean_disp_g', y2_attribute = 'mean_disp_kg', xaxis_attribute='soil_nodes_count', cmap_on = False, save_plot = True, title = title_name)
-    # two_figure_plot(df = df_plot, y1_attribute = 'max_disp_g', y2_attribute = 'max_disp_kg', xaxis_attribute='soil_nodes_count', cmap_on = False, save_plot = True, title = title_name)
-
-## This is for changing intensity at different permeability 
-# for i in [20, 50, 70]:
-#     is_set = (df.soil_nodes_count >=i) & (df.soil_nodes_count <=i+10)
-#     df_plot = df.loc[is_set]
-#     title_name = str(i) + '-' + str(i + 10) + '% Permeable'
-#     two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', xaxis_attribute = 'mean_rainfall', s = 10, save_plot = True, title = title_name)
-#     two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', xaxis_attribute = 'mean_rainfall', yaxis_attribute = 'mean_disp_g', s = 10, save_plot = True, title = title_name)
-#     two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', xaxis_attribute = 'mean_rainfall', yaxis_attribute = 'mean_disp_kg', s = 10, save_plot = True, title = title_name)
-#     two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', xaxis_attribute = 'mean_rainfall', yaxis_attribute = 'max_disp_g', s = 10, save_plot = True, title = title_name)
-#     two_axis_plot(df = df_plot, color_attribute = 'flood_duration_total_list', xaxis_attribute = 'mean_rainfall', yaxis_attribute = 'max_disp_kg', s = 10, save_plot = True, title = title_name)
-
-plt.show()
-
-
-# three_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = False, save_plot = False)
-# three_figure_plot(df = df, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = False, save_plot = True)
-
-# four_figure_plot(df = df, yaxis_attribute='flood_duration_list', cmap_on = False, save_plot = True)
-# four_figure_plot(df = df, yaxis_attribute='outlet_water_level',cmap = plt.cm.Greys, cmap_on = False, save_plot = True)
-
-# two_axis_plot(df = df, color_attribute = 'flood_duration_list', save_plot = True)
-# two_axis_plot(df = df, color_attribute = 'flood_duration_list', yaxis_attribute ='soil_node_degree_list', save_plot = True)
-# two_axis_plot(df = df, color_attribute = 'flood_duration_list', xaxis_attribute = 'soil_node_degree_list', save_plot = True)
-
-# two_axis_plot(df = df, color_attribute = 'outlet_water_level', cmap =  plt.cm.Greys, save_plot = True)
-# two_axis_plot(df = df, color_attribute = 'outlet_water_level', yaxis_attribute ='soil_node_degree_list', cmap =  plt.cm.Greys, save_plot = True)
-# two_axis_plot(df = df, color_attribute = 'outlet_water_level', xaxis_attribute = 'soil_node_degree_list', cmap =  plt.cm.Greys, save_plot = True)
-
-# two_axis_plot(df = df, yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_elev_list', save_plot = True)
-# two_axis_plot(df = df, yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_degree_list', save_plot = True)
-# two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_elev_list', save_plot = True)
-# two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_list', color_attribute = 'soil_node_degree_list', save_plot = True)
-
-# two_axis_plot(df = df, xaxis_attribute = 'soil_node_degree_list', yaxis_attribute = 'soil_node_elev_list',color_attribute = 'soil_nodes_count', cmap =  plt.cm.Greys, save_plot = True)
 
 def multi_rainfall_figure_plot(df = df, ncols = 5, nrows = 1, xaxis_attribute = 'flood_duration_total_list', yaxis_attribute = 'soil_node_elev_list', color_attribute = 'soil_nodes_count', cmap_on = False, save_plot = True,
 cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
@@ -429,15 +357,16 @@ cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
     
     fig, axes = plt.subplots(ncols=ncols, nrows=nrows, sharey=True, sharex=True)
     axes[0].set_ylabel(ylabel)
+    axes[0].get_yaxis().labelpad = 10
     fig.suptitle(label_dict[xaxis_attribute])
-    mean_rainfall_set = set(df.mean_rainfall) - set([0])
-    # mean_rainfall_set = set(df.antecedent_soil)
+    mean_rainfall_set = list(set(df.mean_rainfall) - set([0]))
+    mean_rainfall_set.sort()
     k = 0
     vmin = min(df[color_attribute])
     vmax = max(df[color_attribute])
     color_iteration = np.linspace(vmin, vmax, max(ncols, nrows), endpoint=False)
     for i in mean_rainfall_set:
-        x_label = str(i) + ' in'
+        x_label = str(round(i,1)) + '"'
         axes[k].set_xlabel(x_label)
         axes[k].grid(which = 'both', axis = 'both', alpha = 0.2)
         axes[k].xaxis.tick_top()
@@ -479,10 +408,10 @@ cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
         
     plt.tight_layout(w_pad= 0.0)
     if cmap_on:
-        fig.subplots_adjust(right = 0.8)
+        fig.subplots_adjust(left = 0.1, right = 0.8)
         cbar_ax = fig.add_axes([0.85, 0.25, 0.05, 0.35])
         cbar = fig.colorbar(scatter_fig, cax=cbar_ax)
-        # cbar_ax.get_yaxis().labelpad = 15
+        cbar_ax.get_yaxis().labelpad = 15
         cbar_ax.set_ylabel(label_dict[color_attribute], rotation=270)
         # cbar_ax.yaxis.set_label_position('left')
         # cbar_ax.yaxis.tick_left()
@@ -512,13 +441,14 @@ cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
     fig, axes = plt.subplots(ncols=ncols, nrows=nrows, sharey=True, sharex=True)
     axes[0].set_ylabel(ylabel)
     fig.suptitle(label_dict[xaxis_attribute])
-    mean_rainfall_set = set(df.mean_rainfall) - set([0])
+    mean_rainfall_set = list(set(df.mean_rainfall) - set([0]))
+    mean_rainfall_set.sort()
     k = 0
     vmin = min(df[color_attribute])
     vmax = max(df[color_attribute])
-    color_iteration = np.linspace(vmin, vmax, max(ncols, nrows), endpoint=False)
+    color_iteration = np.linspace(vmin, vmax, 5, endpoint=False)
     for i in mean_rainfall_set:
-        x_label = str(i) + ' in'
+        x_label = str(round(i,1)) + '"'
         axes[k].set_xlabel(x_label)
         axes[k].xaxis.tick_top()
         axes[k].grid(which = 'both', axis = 'both', alpha = 0.2)
@@ -527,7 +457,7 @@ cmap = plt.cm.Reds, datafile_name = datafile_name, title = None):
         y_centroid_list = []
         centroid_color = []
         for j in color_iteration:
-            is_set = (df.mean_rainfall == i) & ((df.soil_nodes_count >= j) & (df.soil_nodes_count < j+10))
+            is_set = (df.mean_rainfall == i) & ((df[color_attribute] >= j) & (df[color_attribute] < j+20))
             df_plot = df.loc[is_set]
             c = round(df_plot[color_attribute], -1)
             if cmap_on:
@@ -578,7 +508,10 @@ if __name__ == '__main__':
     # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', cmap_on = True, save_plot=True)
     # multi_rainfall_figure_plot(df, ncols = 10, nrows = 1, xaxis_attribute = 'max_outlet_water_level', yaxis_attribute = 'max_flood_node_elev', cmap_on = True, save_plot=False)
     # multi_rainfall_figure_plot(df, ncols = 10, nrows = 1, xaxis_attribute = 'max_outlet_water_level', yaxis_attribute = 'max_flood_node_degree', cmap_on = True, save_plot=False)
-    multi_rainfall_figure_plot(df, ncols = 10, nrows = 1, yaxis_attribute = 'soil_node_degree_list', xaxis_attribute = 'flood_duration_total_list', color_attribute= 'soil_nodes_count', cmap_on = True, save_plot=False)
+    multi_rainfall_figure_plot(df, ncols = 10, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'flood_duration_total_list', color_attribute= 'soil_nodes_count', cmap_on = True, save_plot=False)
+    multi_rainfall_figure_plot(df, ncols = 10, nrows = 1, yaxis_attribute = 'max_flood_node_elev', xaxis_attribute = 'flood_duration_total_list', color_attribute= 'soil_nodes_count', cmap_on = True, save_plot=False)
+    multi_rainfall_figure_plot(df, ncols = 10, nrows = 1, yaxis_attribute = 'max_flood_node_degree', xaxis_attribute = 'flood_duration_total_list', color_attribute= 'soil_nodes_count', cmap_on = True, save_plot=False)
+
     # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'max_flood_node_elev', xaxis_attribute = 'mean_var_path_length', cmap_on = True, save_plot=False)
     # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'max_flood_node_degree', xaxis_attribute = 'mean_var_path_length', cmap_on = True, save_plot=True)
     # multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, yaxis_attribute = 'mean_flood_nodes_TI', xaxis_attribute = 'mean_disp_g', cmap_on = True, save_plot=True)
