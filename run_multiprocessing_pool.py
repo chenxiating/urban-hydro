@@ -24,7 +24,7 @@ def simulation(soil_moisture, mean_rainfall, dt_str, soil_nodes_range, mu):
 def apply_async(dt_str):
     soil_nodes_range1=[0, 49,50]
     soil_moisture_list = np.linspace(0, 1, 5)
-    mean_rainfall_set = np.linspace(10, 0, 10, endpoint=False)
+    mean_rainfall_set = np.linspace(13, 3, 10, endpoint=False)
     pool = mp.Pool()
     for _ in range(10):
         for soil_moisture in soil_moisture_list:
