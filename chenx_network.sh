@@ -14,7 +14,7 @@ hostname
 module load python3/3.8.3_anaconda2020.07_mamba
 module load intel 
 
-echo "module loaded"
+echo "Module loaded. This is after diameter changes are implemented."
 folder_str='./datafiles_pool_'
 dt_str=$(date +'%Y%m%d-%H%M')
 folder_name="${folder_str}${dt_str}_${SLURM_JOBID}"
