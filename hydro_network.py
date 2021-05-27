@@ -387,6 +387,7 @@ def runoff_func(gph, s, dt, depth, soil_nodes, rain_nodes, flood_level = 10):
     # h_new = dict(zip(gph.nodes, h0 + dh + runoff0))
     # print('h0',h0)
     # print('dq at nodes',{k:node_dq[k]*dt for k in gph.nodes})
+    # print(node_dq[0])#, runoff[0], node_manhole_area[0])
     h_new = {k: max(0,(s0[k] + (node_dq[k] + runoff[k])*dt)/node_manhole_area[k]) for k in gph.nodes}
     # if min(gph.edges[m]['edge_dq'] for m in gph.edges)<0:
     #     # print(nx.get_node_attributes(gph, 'dhdt'))
@@ -467,9 +468,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
         # s = 0.008
         if h > d:   # This should be where pressured pipes are included
             print(m,"h=d","elev diff", elevdiff,'h',h,'d',d)
-            # h = d
-            return True
-            break
+            h = d
         if shape == 'circular':
             if h <= 0: 
                 # print(m, 'h', h,'h<=0', (h <= 0))
@@ -550,6 +549,7 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
         dict_t = dict(zip(edge_list, t_list))
         dict_u = dict(zip(edge_list, u_list))
         dict_node_dq = dict(zip(node_list, dq_node_list))
+        # print(dict_node_dq)
         # dict_dhdt = dict(zip(node_list, dhdt_list))
 
         # assign results in map
@@ -581,7 +581,6 @@ def Manning_func(gph, elev = 'elev', level = 'level', width = 'diam', n_name = '
         #     dhdt1_list.append(dhdt1)
         calculate_flow_path(gph = gph)
         calculate_flow_path(gph = gph, accum_attr='edge_time')
-        return False
 
 def Darcy_func(gph, elev = 'elev', level = 'level', width = 'diam', l_name = 'length'):
     """
@@ -723,6 +722,20 @@ def print_time(earlier_time):
     print("--- %s seconds ---" % round((time.time() - earlier_time),5))
     return now_time
 
+def calc_soil_node_degree(gph, soil_nodes):
+    soil_nodes_length = len(soil_nodes)
+    degrees = dict(gph.degree())
+    # soil_node_degree = ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
+    soil_node_degree_sum = sum(degrees.get(k,0)*degrees.get(k,0) for k in soil_nodes)
+    # print(soil_node_degree_sum)
+    soil_node_degree = ignore_zero_div(soil_node_degree_sum,soil_nodes_length)
+    return soil_node_degree
+
+def calc_soil_node_elev(gph, soil_nodes):
+    soil_nodes_length = len(soil_nodes)
+    soil_node_elev = ignore_zero_div(sum(len(nx.shortest_path(gph, source=k, target = 0)) - 1 
+    for k in soil_nodes),soil_nodes_length)
+    return soil_node_elev
 
 if __name__ == '__main__':
     kernel = lambda x: np.exp(-2)*2**x/factorial(x)

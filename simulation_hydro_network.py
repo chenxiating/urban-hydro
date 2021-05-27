@@ -55,13 +55,11 @@ kernel=None, soil_nodes_range = [0, 100, 100],plot_iter=False,dt=0.001,seed=None
         output_df = pd.DataFrame()#, columns=output_columns)
         output_df.loc[:,'soil_nodes_list'] = soil_nodes_combo
         k = 0
-        kk = 0
         for soil_nodes in output_df['soil_nodes_list']:
             time_to_create_network = time.time()
             H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
             outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, kernel=kernel,seed = seed)
             upstream_diam = {u: data['diam'] for u, v, data in H.edges.data()}
-            # print(upstream_diam)
             rain_nodes = list(H.nodes)
             rain_nodes.remove(0)
             degrees = dict(H.degree())
@@ -101,8 +99,8 @@ kernel=None, soil_nodes_range = [0, 100, 100],plot_iter=False,dt=0.001,seed=None
                 # hn.Manning_func(gph = H, flood_level = flood_level)
                 h_new, soil_moisture = hn.runoff_func(gph = H, dt = dt, s = soil_moisture, soil_nodes = soil_nodes, 
                 rain_nodes = rain_nodes, depth = depth[i])
-                if hn.Manning_func(gph = H): 
-                    break    # calculate hydraulic radius and calculate flow rate
+                hn.Manning_func(gph = H)
+                    # break    # calculate hydraulic radius and calculate flow rate
                 var_path_length, disp_g, disp_kg = hn.dispersion_func(gph = H)
                 # if depth[i] > 0:
                     # print(depth[i])
@@ -135,16 +133,17 @@ kernel=None, soil_nodes_range = [0, 100, 100],plot_iter=False,dt=0.001,seed=None
                 # flood_time = flood_time + (max(h_new.values()) >= flood_level)
                 
                 if flood_nodes_this_round:
+                    print(flood_nodes_this_round)
                     flood_nodes_TI_list.append(hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
             for k in flood_nodes_list),len(flood_nodes_list)))
                     overflow_list.append(sum(H.nodes[k]['overflow'] for k in flood_nodes_this_round))
                     flood_nodes_downstream_dq = {(u, v): data['edge_dq'] for u, v, data in H.out_edges(flood_nodes_this_round, data = True)}
-                    
                     # print('flood_nodes_downstream_dq',flood_nodes_downstream_dq)
                     # print('water level at flood nodes:',{k: H.nodes[k]['level'] for k in flood_nodes_this_round})
                     # print('overflow at flood nodes:',{k:H.nodes[k]['overflow'] for k in flood_nodes_this_round})
-                    # hn.draw_network_timestamp(gph = H, soil_nodes = soil_nodes, edge_attribute = 'edge_dq', label_on = True, flood_level = flood_level)
-                    # plt.show()
+                    hn.draw_network_timestamp(gph = H, soil_nodes = soil_nodes, edge_attribute = 'edge_dq', label_on = True, flood_level = flood_level)
+                    plt.show()
+                    break
                 # if plot_iter and i >=2:
             # print("Hour = ", i*dt)
             # print('edge_dq',nx.get_edge_attributes(H,'edge_dq'))
@@ -162,9 +161,11 @@ kernel=None, soil_nodes_range = [0, 100, 100],plot_iter=False,dt=0.001,seed=None
             # flood_duration = dt*flood_time
             flood_duration_total = dt*flood_nodes
             # print(flood_duration_total)
-            soil_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
-            soil_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
-            for k in soil_nodes),soil_nodes_length)
+            # soil_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
+            soil_node_degree = hn.calc_soil_node_degree(H,soil_nodes)
+            # soil_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
+                        # for k in soil_nodes),soil_nodes_length)
+            soil_node_elev = hn.calc_soil_node_elev(H,soil_nodes)
             max_flood_node_degree = hn.ignore_zero_div(sum(degrees.get(k,0) for k in max_flood_nodes_list),len(max_flood_nodes_list))
             max_flood_node_elev = hn.ignore_zero_div(sum(len(nx.shortest_path(H, source=k, target = 0)) - 1 
             for k in max_flood_nodes_list),len(max_flood_nodes_list))
@@ -198,7 +199,7 @@ kernel=None, soil_nodes_range = [0, 100, 100],plot_iter=False,dt=0.001,seed=None
             output_df.loc[k,'max_var_path_length'] = max(var_path_length_list)
             # output_df.loc[k,'max_outlet_flow_rate'] = max_outlet_flow_rate
             output_df.loc[k,'total_overflow']=total_overflow
-            output_df.loc[k,'first_surcharge']=i
+            output_df.loc[k,'first_surcharge']=i*dt*(i-1 == simulation_timesteps)
             
             # output_df.loc[k,'flood_node_degree'] = flood_node_degree
             # output_df.loc[k,'flood_node_elev'] = flood_node_elev
@@ -206,8 +207,9 @@ kernel=None, soil_nodes_range = [0, 100, 100],plot_iter=False,dt=0.001,seed=None
             # print(k)
             # print('max_outlet_water_level', max_outlet_water_level)
             k += 1
-            kk += 2
         print(output_df)
+        print({k: h_new[k]- upstream_diam[k] for k in H.nodes if k>0})
+
         print("Process core:", process_core_name, "| Antecedent soil moisture: ", antecedent_soil_moisture, "| Mean rainfall:", mean_rainfall_inch)
         print("Run time: ")
         hn.print_time(new_network_time)
@@ -292,5 +294,5 @@ def plotstuff(gph, x, depth, dispersion, outlet_level):
 if __name__ == '__main__':
     kernel = lambda x: np.exp(-k)*k**x/factorial(x)
     k = 2
-    main(nodes_num=int(100),mean_rainfall_inch=6,antecedent_soil_moisture=0.1,hours=8,
-    kernel=kernel,soil_nodes_range=[5,5,1])
+    main(nodes_num=int(50),mean_rainfall_inch=15,antecedent_soil_moisture=0.1,hours=4,
+    kernel=kernel,soil_nodes_range=[0,5,1])

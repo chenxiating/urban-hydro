@@ -17,12 +17,12 @@ def dt_str_gen():
 
 def simulation(soil_moisture, mean_rainfall, dt_str, soil_nodes_range, mu):
     kernel = lambda x: np.exp(-mu)*mu**x/factorial(x)
-    simulation_hydro_network.main(days=10,antecedent_soil_moisture=soil_moisture, mean_rainfall_inch=mean_rainfall, process_core_name=os.getpid(),dt_str=dt_str,soil_nodes_range=soil_nodes_range, kernel=kernel)
+    simulation_hydro_network.main(hours=8,antecedent_soil_moisture=soil_moisture, mean_rainfall_inch=mean_rainfall, process_core_name=os.getpid(),dt_str=dt_str,soil_nodes_range=soil_nodes_range, kernel=kernel)
     return os.getpid()
 
 
 def apply_async(dt_str):
-    soil_nodes_range1=[0, 49,50]
+    soil_nodes_range=[0, 49,50]
     soil_moisture_list = np.linspace(0, 1, 5)
     mean_rainfall_set = np.linspace(13, 3, 10, endpoint=False)
     pool = mp.Pool()
