@@ -17,6 +17,8 @@ def make_inp(soil_nodes):
     info_subcatchments(f=new_file,graph=H,raingage=1,soil_nodes=soil_nodes)
     info_subareas(f=new_file,graph=H)
     info_infiltration(f=new_file,infiltration=infiltration,graph=H)
+    info_lid_controls(f=new_file)
+    info_lid_usage(f=new_file,graph=H,soil_nodes=soil_nodes,initsat=antecedent_soil_moisture)
     info_snowpacks(f=new_file)
     info_junctions(f=new_file,graph=H,flood_level=flood_level)
     info_outfalls(f=new_file,graph=H)
@@ -178,7 +180,8 @@ def info_infiltration(f,infiltration,graph):
                 add_whitespace(drytime,11,'') + add_whitespace(maxinfil,10,'') + '\n'
             infiltration.append(infil_line)  
         lines = ['[INFILTRATION]',
-';;Subcatchment   MaxRate    MinRate    Decay      DryTime    MaxInfil  ',
+# ';;Subcatchment   MaxRate    MinRate    Decay      DryTime    MaxInfil  ',
+';;Subcatchment   Param1     Param2     Param3     Param4     Param5    ',
 ';;-------------- ---------- ---------- ---------- ---------- ----------',
 infiltration]
     elif infiltration == 'GREEN-AMPT':
@@ -201,6 +204,84 @@ infiltration]
         f.writelines(line)
         f.writelines('\n')
     f.writelines('\n')
+
+def info_lid_controls(f, name = 'bioret_cell', surf_height = 12, surf_veg = 0.8, surf_n = 0.1, 
+surf_slope = 1.0, soil_height = 6, soil_n = 0.5, soil_fc = 0.2, soil_wp = 0.1,
+soil_k = 0.5, soil_kslope = 10, soil_psi = 3.5, stor_height = 6, stor_voidratio = 0.75,
+stor_seepage = 0.5, stor_clog = 0, drain_coef = 0, drain_exp = 0.5, drain_offset = 6,
+drain_open = 0, drain_close = 0):
+    """
+    This is for the LID module, specifically for the bio-retention cell. 
+        surf_height: Berm Height (in. or mm)
+        surf_veg: Vegetation Volume Fraction
+        surf_n: Surface Roughness (Mannings n)
+        surf_slope: Surface Slope (percent)
+        soil_height: Soil Thickness (in. or mm)
+        soil_n: Porosity (volume fraction)
+        soil_fc: Field Capacity (volume fraction)
+        soil_wp: Wilting Point (volume fraction)
+        soil_k: Conductivity (in/hr or mm/hr)
+        soil_kslope: Conductivity Slope
+        soil_psi: Suction Head (in. or mm)
+        stor_height: Storage Thickness (in. or mm)
+        stor_voidratio: Void Ratio (Voids/Solids)
+        stor_seepage: Seepage Rate (in/hr or mm/hr)
+        stor_clog: Clogging Factor
+        drain_coef: Flow Coefficient
+        drain_exp: Flow Exponent
+        drain_offset: Offset (in. or mm)
+        drain_open: Open Level (in. or mm)
+        drain_close: Closed Level (in. or mm)
+    """
+    type = 'BC'
+    lid_type = add_whitespace(name,17,'') + add_whitespace(type,11,'')
+    lid_surface = add_whitespace(name,17,'') + add_whitespace('SURFACE',11,'') + \
+        add_whitespace(surf_height,11,'') + add_whitespace(surf_veg,11,'') + \
+        add_whitespace(surf_n,11,'') + add_whitespace(surf_slope,11,'') + \
+        add_whitespace('5',11,'')
+    lid_soil = add_whitespace(name,17,'') + add_whitespace('SOIL',11,'') + \
+        add_whitespace(soil_height,11,'') + add_whitespace(soil_n,11,'') + \
+        add_whitespace(soil_fc,11,'') + add_whitespace(soil_wp,11,'') + \
+        add_whitespace(soil_k,11,'') + add_whitespace(soil_kslope,11,'') + \
+        add_whitespace(soil_psi,11,'')
+    lid_storage = add_whitespace(name,17,'') + add_whitespace('STORAGE',11,'') + \
+        add_whitespace(stor_height,11,'') + add_whitespace(stor_voidratio,11,'') + \
+        add_whitespace(stor_seepage,11,'') + add_whitespace(stor_clog,11,'') 
+    lid_drain = add_whitespace(name,17,'') + add_whitespace('DRAIN',11,'') + \
+        add_whitespace(drain_coef,11,'') + add_whitespace(drain_exp,11,'') + \
+        add_whitespace(drain_offset,11,'') + add_whitespace(drain_offset,11,'') + \
+        add_whitespace(drain_open,11,'') + add_whitespace(drain_close,11,'')
+    lines = ['[LID_CONTROLS]',
+';;Name           Type/Layer Parameters',
+';;-------------- ---------- ----------']
+    if type == 'BC':
+        for one_line in [lid_type, lid_surface, lid_soil, lid_storage, lid_drain]:
+            lines.append(one_line)
+    for line in lines:
+        f.writelines(line)
+        f.writelines('\n')
+    f.writelines('\n')
+
+def info_lid_usage(f, graph, soil_nodes, initsat, name = 'bioret_cell', surf_width = 200):
+    lid_usages = []
+    for node in soil_nodes:
+        sc_name = 'SC'+str(node)
+        number = 1
+        area = graph.nodes[node].get('node_drainage_area') * 43560
+        from_imp = 100
+        to_perv = 100
+        from_perv = 100
+        lid_usage = add_whitespace(sc_name,17,'') + add_whitespace(name,17,'') + \
+            add_whitespace(number,8,'') + add_whitespace(area,11,'') + \
+            add_whitespace(surf_width,11,'') + add_whitespace(initsat,11,'') + \
+            add_whitespace(from_imp,11,'') + add_whitespace(to_perv,11,'') + \
+            add_whitespace('*',25,'') + add_whitespace('*',17,'') + \
+            add_whitespace(from_perv,10,'')
+        lid_usages.append(lid_usage)
+    lines = ['[LID_USAGE]',
+';;Subcatchment   LID Process      Number  Area       Width      InitSat    FromImp    ToPerv     RptFile                  DrainTo          FromPerv  ',
+';;-------------- ---------------- ------- ---------- ---------- ---------- ---------- ---------- ------------------------ ---------------- ----------',
+lid_usages]
 
 def info_snowpacks(f):
     lines = ['[SNOWPACKS]',
@@ -275,9 +356,12 @@ def info_xsections(f,graph):
     for edge in graph.edges():
         from_node = edge[0]
         to_node = edge[1]
+        diameter = graph.edges[edge].get('diam')
         name = str(from_node)+'_'+str(to_node)
-        edge_xsect = add_whitespace(name,17,'') + \
-            'CIRCULAR     1                0          0          0          1                    \n'
+        shape = 'CIRCULAR'
+        edge_xsect = add_whitespace(name,17,'') + add_whitespace(shape,13,'') + \
+            add_whitespace(diameter,17,'') + \
+            '0          0          0          1                    \n'
         xsections.append(edge_xsect)
     lines = ['[XSECTIONS]',
 ';;Link           Shape        Geom1            Geom2      Geom3      Geom4      Barrels    Culvert   ',
@@ -375,7 +459,11 @@ def add_whitespace(phrase, white_space_count, value):
         str_value = str(value)
     else: 
         str_value = value   
-    output = phrase + (white_space_count-len(phrase))*' ' + str_value
+    if len(phrase) >= white_space_count:
+        white_space_to_add = 2
+    else: 
+        white_space_to_add = white_space_count-len(phrase)
+    output = phrase + white_space_to_add*' ' + str_value
     return output
 
 def rep_node_flooding_summary(rep_file_name):
@@ -457,7 +545,7 @@ soil_depth = 6
 nodes_num = 100
 init_level = 0.0
 flood_level = 10
-soil_moisture_list = np.linspace(0, 1, 5)
+soil_moisture_list = np.linspace(0, 1, 10)
 mean_rainfall_set = np.linspace(13, 3, 10, endpoint=False)
 report_file_list = []
 
@@ -472,10 +560,10 @@ os.chdir(folder_name)
 datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
 
 main_df = pd.DataFrame()
-for i in range(1):
+for i in range(2):
     for antecedent_soil_moisture in soil_moisture_list:
         for mean_rainfall_inch in mean_rainfall_set:
-            soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 50, range_count = 50, count_to_sample= 1, nodes_num = nodes_num)
+            soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 50, range_count = 50, nodes_num = nodes_num)
             output_df = pd.DataFrame()#, columns=output_columns)
             output_df.loc[:,'soil_nodes_list'] = soil_nodes_combo
             k = 0

@@ -24,7 +24,7 @@ matplotlib.rcParams['figure.figsize'] = (12, 6)
 # datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/datasets-compiled'
 # os.chdir(datafile_directory)
 
-datafile_name = r'./SWMM_20210526-0900/20210526-0900_full_dataset_100-nodes.pickle'
+datafile_name = r'./SWMM_20210529-0852/20210529-0852_full_dataset_100-nodes.pickle'
 # datafile_name = '100-nodes_10-day_20210303-2012.pickle'
 print("sys.argv is", sys.argv)
 print("datafile_name is", datafile_name)
@@ -58,7 +58,7 @@ label_dict = {'flood_duration_list':'Days with Flooding', 'flood_duration_total_
     'mean_flood_nodes_TI':'Average Distance to Outlet of Flood Node (at All Times)','total_flooded_vol_MG':'Total Flood Volume (MG)','total_outflow_vol_MG':'Total Outflow Volume (MG)'} 
 
 def two_figure_plot(df = df, y1_attribute = 'soil_node_elev_list', y2_attribute = 'soil_node_degree_list',
-xaxis_attribute = 'flood_duration_list', cmap_on = False, save_plot = True, cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
+xaxis_attribute = 'flood_duration_total_list', cmap_on = False, save_plot = True, cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
     xaxis = df[xaxis_attribute]
     xmax = max(xaxis) + 1
     cmap0 = cm.get_cmap(cmap)
@@ -113,7 +113,7 @@ xaxis_attribute = 'flood_duration_list', cmap_on = False, save_plot = True, cmap
         print('Plot is saved as', fig_name +'.png')
 
 def three_figure_plot(df = df, x1_attribute = 'soil_node_elev_list', x2_attribute = 'soil_node_degree_list', x3_attribute = 'soil_nodes_count', 
-yaxis_attribute = 'flood_duration_list', cmap_on = False, save_plot = True, cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
+yaxis_attribute = 'flood_duration_total_list', cmap_on = False, save_plot = True, cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
     yaxis = df[yaxis_attribute]
     ymax = max(yaxis)
     cmap0 = cm.get_cmap(cmap)
@@ -170,7 +170,7 @@ yaxis_attribute = 'flood_duration_list', cmap_on = False, save_plot = True, cmap
         print('Plot is saved as', fig_name +'.png')
 
 def four_figure_plot(df = df, x1_attribute = 'soil_node_elev_list', x2_attribute = 'soil_node_degree_list', x3_attribute = 'soil_nodes_count', 
-x4_attribute ='soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_list', color_attribute = None, cmap_on = False, save_plot = True,
+x4_attribute ='soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_total_list', color_attribute = None, cmap_on = False, save_plot = True,
 cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
     yaxis = df[yaxis_attribute]
     ymax = max(yaxis)
@@ -235,7 +235,7 @@ cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
         plt.savefig(path + fig_name +'.png')
         print('Plot is saved as', fig_name +'.png')
 
-def two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_count', yaxis_attribute = 'soil_node_elev_list', color_attribute = 'flood_duration_list', 
+def two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_count', yaxis_attribute = 'soil_node_elev_list', color_attribute = 'flood_duration_total_list', 
 size_attribute = None, cmap_on = True, save_plot = True, cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
     if xaxis_attribute == 'soil_nodes_count':
         xaxis = df[xaxis_attribute]/nodes_num*100
@@ -500,7 +500,8 @@ cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
             is_set = (df.mean_rainfall == i) & ((df[color_attribute] >= j) & (df[color_attribute] < j+color_iteration[1]-color_iteration[0]))
             df_plot = df.loc[is_set]
 
-            c = plt.cm.viridis(j/(max(color_iteration)-min(color_iteration)))
+            # c = plt.cm.viridis(j/(max(color_iteration)-min(color_iteration)))
+            c = plt.cm.viridis(j/(vmax-vmin))
             if cmap_on:
                 color_dict = {'histtype':'step', 'color': c,'density':True,'bins':5}
             # print('var',np.var(df_plot[yaxis_attribute]))
@@ -542,8 +543,10 @@ cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
         plt.savefig(path + fig_name +'.png')
         print('Plot is saved as', fig_name +'.png')
 if __name__ == '__main__':
-    for y in ['flood_duration_total_list','max_flood_nodes','total_flooded_vol_MG','max_flow_cfs','total_outflow_vol_MG']:#, 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g']:
-        for x in ['soil_node_degree_list','soil_node_elev_list']:#,'mean_flood_nodes_TI']:
-            multi_rainfall_figure_plot(df, ncols = 9, nrows = 1, xaxis_attribute = x, yaxis_attribute = y, cmap_on = True, save_plot=True)
-            multi_rainfall_histogram(df, ncols = 9, nrows = 1,yaxis_attribute = y,color_attribute='soil_nodes_count',cmap_on = True, save_plot=True)
+    # for y in ['flood_duration_total_list','max_flood_nodes','total_flooded_vol_MG','max_flow_cfs','total_outflow_vol_MG']:#, 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g']:
+    #     for x in ['soil_node_degree_list','soil_node_elev_list']:#,'mean_flood_nodes_TI']:
+            # multi_rainfall_figure_plot(df, ncols = 10, nrows = 1, xaxis_attribute = x, yaxis_attribute = y, cmap_on = True, save_plot=False)
+            # multi_rainfall_histogram(df, ncols = 10, nrows = 1,yaxis_attribute = y,color_attribute='soil_nodes_count',cmap_on = True, save_plot=False)
+    # two_axis_plot(xaxis_attribute='soil_node_degree_list',yaxis_attribute='flood_duration_total_list',save_plot=False)
+    soil_box_plot()
     plt.show()
