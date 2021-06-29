@@ -9,30 +9,30 @@ import pickle
 import subprocess
 import os
 
-def make_inp(soil_nodes):
-    info_header(f=new_file,simulation_date=simulation_date,infiltration=infiltration,flowrouting=flowrouting)
-    info_evaporations(f=new_file,et_rate=5)
-    info_temperature(f=new_file)
-    info_raingages(f=new_file,precip_name=precip_name,raingage=1)
-    info_subcatchments(f=new_file,graph=H,raingage=1,soil_nodes=soil_nodes)
-    info_subareas(f=new_file,graph=H)
-    info_infiltration(f=new_file,infiltration=infiltration,graph=H)
-    info_lid_controls(f=new_file)
-    info_lid_usage(f=new_file,graph=H,soil_nodes=soil_nodes,initsat=antecedent_soil_moisture)
-    info_snowpacks(f=new_file)
-    info_junctions(f=new_file,graph=H,flood_level=flood_level)
-    info_outfalls(f=new_file,graph=H)
-    info_conduits(f=new_file,graph=H)
-    info_xsections(f=new_file,graph=H)
-    info_timeseries(f=new_file,simulation_date=simulation_date,precip_name=precip_name,two_hour_precip=mean_rainfall_inch,precip_interval=15)
-    info_report(f=new_file)
-    info_tag(f=new_file)
-    info_map(f=new_file)
-    info_coordinates(f=new_file)
-    info_vertices(f=new_file)
-    info_polygons(f=new_file)
-    info_symbols(f=new_file)
-    info_backdrop(f=new_file)
+def make_inp(f,soil_nodes,simulation_date,infiltration,flowrouting,precip_name,graph,flood_level):
+    info_header(f=f,simulation_date=simulation_date,infiltration=infiltration,flowrouting=flowrouting)
+    info_evaporations(f=f,et_rate=5)
+    info_temperature(f=f)
+    info_raingages(f=f,precip_name=precip_name,raingage=1)
+    info_subcatchments(f=f,graph=graph,raingage=1,soil_nodes=soil_nodes)
+    info_subareas(f=f,graph=graph)
+    info_infiltration(f=f,infiltration=infiltration,graph=graph)
+    info_lid_controls(f=f)
+    info_lid_usage(f=f,graph=graph,soil_nodes=soil_nodes,initsat=antecedent_soil_moisture)
+    info_snowpacks(f=f)
+    info_junctions(f=f,graph=graph,flood_level=flood_level)
+    info_outfalls(f=f,graph=graph)
+    info_conduits(f=f,graph=graph)
+    info_xsections(f=f,graph=graph)
+    info_timeseries(f=f,simulation_date=simulation_date,precip_name=precip_name,two_hour_precip=mean_rainfall_inch,precip_interval=15)
+    info_report(f=f)
+    info_tag(f=f)
+    info_map(f=f)
+    info_coordinates(f=f)
+    info_vertices(f=f)
+    info_polygons(f=f)
+    info_symbols(f=f)
+    info_backdrop(f=f)
 
 def info_header(f,simulation_date,infiltration='HORTON',flowrouting='KINWAVE'):
     lines = ['[TITLE]', 
@@ -205,13 +205,14 @@ infiltration]
         f.writelines('\n')
     f.writelines('\n')
 
-def info_lid_controls(f, name = 'bioret_cell', surf_height = 12, surf_veg = 0.8, surf_n = 0.1, 
-surf_slope = 1.0, soil_height = 6, soil_n = 0.5, soil_fc = 0.2, soil_wp = 0.1,
-soil_k = 0.5, soil_kslope = 10, soil_psi = 3.5, stor_height = 6, stor_voidratio = 0.75,
-stor_seepage = 0.5, stor_clog = 0, drain_coef = 0, drain_exp = 0.5, drain_offset = 6,
+def info_lid_controls(f, name = 'bioret_cell', surf_height = 8, surf_veg = 0.1, surf_n = 0.1, 
+surf_slope = 1.0, soil_height = 18, soil_n = 0.43, soil_fc = 0.2, soil_wp = 0.1,
+soil_k = 1.3, soil_kslope = 40, soil_psi = 3.5, stor_height = 0, stor_voidratio = 0.25,
+stor_seepage = 1.5, stor_clog = 0, drain_coef = 0, drain_exp = 0.5, drain_offset = 6,
 drain_open = 0, drain_close = 0):
     """
-    This is for the LID module, specifically for the bio-retention cell. 
+    This is for the LID module, specifically for the bio-retention cell or a rain garden. 
+    The soil properties for sandy loam soil are used here for reference. 
         surf_height: Berm Height (in. or mm)
         surf_veg: Vegetation Volume Fraction
         surf_n: Surface Roughness (Mannings n)
@@ -276,12 +277,16 @@ def info_lid_usage(f, graph, soil_nodes, initsat, name = 'bioret_cell', surf_wid
             add_whitespace(surf_width,11,'') + add_whitespace(initsat,11,'') + \
             add_whitespace(from_imp,11,'') + add_whitespace(to_perv,11,'') + \
             add_whitespace('*',25,'') + add_whitespace('*',17,'') + \
-            add_whitespace(from_perv,10,'')
+            add_whitespace(from_perv,10,'') + '\n'
         lid_usages.append(lid_usage)
     lines = ['[LID_USAGE]',
 ';;Subcatchment   LID Process      Number  Area       Width      InitSat    FromImp    ToPerv     RptFile                  DrainTo          FromPerv  ',
 ';;-------------- ---------------- ------- ---------- ---------- ---------- ---------- ---------- ------------------------ ---------------- ----------',
 lid_usages]
+    for line in lines:
+        f.writelines(line)
+        f.writelines('\n')
+    f.writelines('\n')
 
 def info_snowpacks(f):
     lines = ['[SNOWPACKS]',
@@ -471,9 +476,16 @@ def rep_node_flooding_summary(rep_file_name):
     rep_file.seek(0)
     line_number = 0
     for line in rep_file.read().split("\n"):
+        if "  No nodes were flooded." in line:
+            node_flooding_summary_number = 0
+            end_number = 0
+            break
         if " Flooding refers to all water that overflows a node, whether it ponds or not." in line:
             # print(line_number)
             node_flooding_summary_number = line_number + 7
+        # if "  Node Flooding Summary" in line:
+        #     # print(line_number)
+        #     node_flooding_summary_number = line_number + 10
         try: 
             if (line_number > node_flooding_summary_number) and ("*****" in line):
                 end_number = line_number
@@ -482,23 +494,25 @@ def rep_node_flooding_summary(rep_file_name):
         except UnboundLocalError:
             pass
         line_number+=1
-
+    # print('node_flooding_summary_number', node_flooding_summary_number,'end_number',end_number)
     rep_file.seek(0)
 
     lines = rep_file.read().splitlines()
     max_flood_nodes = 0
     node_hours_flooded = float(0)
     node_flood_vol_MG = float(0)
-    for i in range(node_flooding_summary_number, end_number):
-        try: 
-            max_flood_nodes += 1
-            # print('max_flood_nodes',max_flood_nodes)
-            node_hours_flooded += float(lines[i].split()[1])
-            # print('node_hours_flooded',node_hours_flooded)
-            node_flood_vol_MG += float(lines[i].split()[5])
-            # print('node_flood_vol_MG',node_flood_vol_MG)
-        except IndexError or UnboundLocalError:
-            pass
+    if node_flooding_summary_number > 0:
+        for i in range(node_flooding_summary_number, end_number):
+            try: 
+                max_flood_nodes += 1
+                # print('max_flood_nodes',max_flood_nodes)
+                # print(lines[i])
+                node_hours_flooded += float(lines[i].split()[1])
+                # print('node_hours_flooded',node_hours_flooded)
+                node_flood_vol_MG += float(lines[i].split()[5])
+                # print('node_flood_vol_MG',node_flood_vol_MG)
+            except IndexError or UnboundLocalError:
+                pass
     return max_flood_nodes, node_hours_flooded, node_flood_vol_MG
 
 def rep_outflow_sumary(rep_file_name):
@@ -535,74 +549,87 @@ def rep_outflow_sumary(rep_file_name):
             pass
     return max_flow_cfs, total_vol_MG
 
-simulation_date = '06/01/2021'
-precip_name = 'hydrograph'
-node_drainage_area = 2           # acres
-outlet_level = {0: 1} 
-outlet_elev = {0: 85}                 
-outlet_node_drainage_area = {0: node_drainage_area*10e5}             # set the river area to very large
-soil_depth = 6
-nodes_num = 100
-init_level = 0.0
-flood_level = 10
-soil_moisture_list = np.linspace(0, 1, 10)
-mean_rainfall_set = np.linspace(13, 3, 10, endpoint=False)
-report_file_list = []
+def main(main_df,antecedent_soil_moisture,mean_rainfall_inch):
+    simulation_date = '06/01/2021'
+    precip_name = 'hydrograph'
+    node_drainage_area = 2           # acres
+    outlet_level = {0: 1} 
+    outlet_elev = {0: 85}                 
+    outlet_node_drainage_area = {0: node_drainage_area*10e5}             # set the river area to very large
+    soil_depth = 6
+    nodes_num = 100
+    init_level = 0.0
+    flood_level = 10
+    report_file_list = []
 
-today = date.datetime.today()
-dt_str = today.strftime("%Y%m%d-%H%M")
-folder_name='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_'+dt_str
-try:
-    os.mkdir(folder_name)
-except FileExistsError:
-    pass    
-os.chdir(folder_name)
-datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
+    for i in range(10):
+        soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 50, range_count = 50, nodes_num = nodes_num)
+        output_df = pd.DataFrame()#, columns=output_columns)
+        output_df.loc[:,'soil_nodes_list'] = soil_nodes_combo
+        k = 0
 
-main_df = pd.DataFrame()
-for i in range(2):
+        for soil_nodes in soil_nodes_combo:
+            # kernel = lambda x: np.exp(-mu)*mu**x/factorial(x)
+            H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
+        outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, kernel=None,seed = 100)
+            soil_node_degree = hn.calc_soil_node_degree(H,soil_nodes)
+            soil_node_elev = hn.calc_soil_node_elev(H,soil_nodes)
+            input_file_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(len(soil_nodes))+'-soil-nodes_'+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_'+str(i)+'_'+str(k)+'.inp'
+            print('Permeable nodes count: ', len(soil_nodes), soil_nodes, 'Rainfall intensity: ', mean_rainfall_inch, 'Soil moisture: ', antecedent_soil_moisture)
+            infiltration='HORTON'
+            flowrouting='KINWAVE'
+            new_file=open(input_file_name,'w')
+            make_inp(f=new_file,soil_nodes=soil_nodes,simulation_date=simulation_date,infiltration=infiltration,flowrouting=flowrouting,precip_name=precip_name,graph=H,flood_level=flood_level)
+            new_file.close()
+            report_file_name='rep_'+input_file_name
+            output_file_name='op_'+input_file_name
+            report_file_list.append(report_file_name)
+            subprocess.run(['/Users/xchen/Applications/swmm5/build/runswmm5',input_file_name, report_file_name, output_file_name])
+            
+            max_flood_nodes, node_hours_flooded, node_flood_vol_MG = rep_node_flooding_summary(report_file_name)
+            max_flow_cfs, total_outflow_vol_MG = rep_outflow_sumary(report_file_name)
+            output_df.loc[k,'soil_node_degree_list'] = soil_node_degree
+            output_df.loc[k,'soil_node_elev_list'] = soil_node_elev
+            output_df.loc[k,'soil_nodes_count'] = len(soil_nodes)/nodes_num*100
+            output_df.loc[k,'max_flood_nodes'] = max_flood_nodes
+            output_df.loc[k,'flood_duration_total_list'] = node_hours_flooded
+            output_df.loc[k,'total_flooded_vol_MG'] = node_flood_vol_MG
+            output_df.loc[k,'max_flow_cfs'] = max_flow_cfs
+            output_df.loc[k,'total_outflow_vol_MG'] = total_outflow_vol_MG
+            output_df.loc[k,'mean_rainfall'] = mean_rainfall_inch
+            output_df.loc[k,'antecedent_soil'] = antecedent_soil_moisture
+            # 'mean_flood_nodes_TI'
+            # 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g'
+            k += 1
+        print(output_df)
+
+    main_df = pd.concat([main_df, output_df], ignore_index=True)
+    return main_df
+        # main_df = pd.concat([main_df, output_df], ignore_index=True)        
+        # f = open(datafile_name,'wb')
+        # pickle.dump(main_df, f)
+        # f.close()
+
+if __name__ == '__main__':
+    soil_moisture_list = np.linspace(0.0, 1.0, 10)
+    mean_rainfall_set = np.linspace(13, 3, 10, endpoint=False)
+
+    today = date.datetime.today()
+    dt_str = today.strftime("%Y%m%d-%H%M")
+    folder_name='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_'+dt_str
+    try:
+        os.mkdir(folder_name)
+    except FileExistsError:
+        pass    
+    os.chdir(folder_name)
+    datafile_name = dt_str + '_full_dataset_'+str(100)+'-nodes'+'.pickle'
+
+    main_df = pd.DataFrame()
     for antecedent_soil_moisture in soil_moisture_list:
         for mean_rainfall_inch in mean_rainfall_set:
-            soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 50, range_count = 50, nodes_num = nodes_num)
-            output_df = pd.DataFrame()#, columns=output_columns)
-            output_df.loc[:,'soil_nodes_list'] = soil_nodes_combo
-            k = 0
-
-            for soil_nodes in soil_nodes_combo:
-                H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
-            outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, kernel=None,seed = 100)
-                soil_node_degree = hn.calc_soil_node_degree(H,soil_nodes)
-                soil_node_elev = hn.calc_soil_node_elev(H,soil_nodes)
-                input_file_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(len(soil_nodes))+'-soil-nodes_'+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_'+str(i)+'.inp'
-                print('Permeable nodes count: ', len(soil_nodes), soil_nodes)
-                infiltration='HORTON'
-                flowrouting='KINWAVE'
-                new_file=open(input_file_name,'w')
-                make_inp(soil_nodes=soil_nodes)
-                new_file.close()
-                
-                report_file_name='rep_'+input_file_name
-                output_file_name='op_'+input_file_name
-                report_file_list.append(report_file_name)
-                subprocess.run(['/Users/xchen/Applications/swmm5/build/runswmm5',input_file_name, report_file_name, output_file_name])
-                
-                max_flood_nodes, node_hours_flooded, node_flood_vol_MG = rep_node_flooding_summary(report_file_name)
-                max_flow_cfs, total_outflow_vol_MG = rep_outflow_sumary(report_file_name)
-                output_df.loc[k,'soil_node_degree_list'] = soil_node_degree
-                output_df.loc[k,'soil_node_elev_list'] = soil_node_elev
-                output_df.loc[k,'soil_nodes_count'] = len(soil_nodes)/nodes_num*100
-                output_df.loc[k,'max_flood_nodes'] = max_flood_nodes
-                output_df.loc[k,'flood_duration_total_list'] = node_hours_flooded
-                output_df.loc[k,'total_flooded_vol_MG'] = node_flood_vol_MG
-                output_df.loc[k,'max_flow_cfs'] = max_flow_cfs
-                output_df.loc[k,'total_outflow_vol_MG'] = total_outflow_vol_MG
-                output_df.loc[k,'mean_rainfall'] = mean_rainfall_inch
-                output_df.loc[k,'antecedent_soil'] = antecedent_soil_moisture
-                # 'mean_flood_nodes_TI'
-                # 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g'
-                k += 1
-            print(output_df)
-            main_df = pd.concat([main_df, output_df], ignore_index=True)        
-            f = open(datafile_name,'wb')
-            pickle.dump(main_df, f)
-            f.close()
+            main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch)
+    f = open(datafile_name,'wb')
+    pickle.dump(main_df, f)
+    f.close()
+    print(main_df)
+    print(datafile_name)

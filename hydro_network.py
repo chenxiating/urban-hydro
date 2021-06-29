@@ -19,21 +19,54 @@ import os
 import sys
 
 ## Functions
-def diameter_change(gph):
-    accumulate_downstream(gph)
-    for k in nx.topological_sort(gph):
-        print('node', k)
-        # print('node cumulative area (ft2)', gph.nodes[k]['cumulative_node_drainage_area'])
-        print('node cumulative area (acre)', gph.nodes[k]['cumulative_node_drainage_area']*2.3e-5)
-        acre = gph.nodes[k]['cumulative_node_drainage_area']*2.3e-5
-        Qd = 0.8*6*acre
-        print('rational Q (c=0.8, i=5.6):', Qd)
-        Dr = (2.16*Qd*0.01/np.sqrt(0.008))**(3/8)
-        print('diameter for outflowing pipe', gph.out_edges(k,data='diam'))
-        print('diameter calculated', Dr)
+# def diameter_change(gph):
+#     accumulate_downstream(gph)
+#     for k in nx.topological_sort(gph):
+#         print('node', k)
+#         # print('node cumulative area (ft2)', gph.nodes[k]['cumulative_node_drainage_area'])
+#         print('node cumulative area (acre)', gph.nodes[k]['cumulative_node_drainage_area']*2.3e-5)
+#         acre = gph.nodes[k]['cumulative_node_drainage_area']*2.3e-5
+#         Qd = 0.8*6*acre
+#         print('rational Q (c=0.8, i=5.6):', Qd)
+#         Dr = (2.16*Qd*0.01/np.sqrt(0.008))**(3/8)
+#         print('diameter for outflowing pipe', gph.out_edges(k,data='diam'))
+#         print('diameter calculated', Dr)
 
-        
-    # outlet_flow_rate = sum(data['edge_dq'] for u, v, data in H.in_edges(0, data = True))
+def round_pipe_diam(old_diam):
+    old_inch = old_diam * 12
+    if old_inch <= 12: 
+        new_diam = 12
+    elif old_inch <= 15:
+        new_diam = 15
+    elif old_inch <= 18:
+        new_diam = 18
+    elif old_inch <= 21:
+        new_diam = 21
+    elif old_inch <= 24:
+        new_diam = 24
+    elif old_inch <= 30:
+        new_diam = 30
+    elif old_inch <= 33:
+        new_diam = 33
+    elif old_inch <= 36:
+        new_diam = 36
+    elif old_inch <= 42:
+        new_diam = 42
+    elif old_inch <= 48: 
+        new_diam = 48
+    elif old_inch <= 54:
+        new_diam = 54
+    elif old_inch <= 60:
+        new_diam = 60
+    elif old_inch <= 66:
+        new_diam = 66
+    elif old_inch <= 72:
+        new_diam = 72
+    elif old_inch <= 78:
+        new_diam = 78
+    else:
+        new_diam = round(old_inch)
+    return new_diam/12
 
 def create_networks(g_type = 'gn', nodes_num = 10, n = 0.01, diam = 1, changing_diam = True, diam_increment = 0.5, soil_depth = 0, 
 slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_drainage_area = 1.5, node_manhole_area = 50, conductivity = 0.5,
@@ -49,6 +82,7 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
     nx.topological_sort(gph)
     max_path_order = max(len(nx.shortest_path(gph, source = k, target = 0)) for k in gph.nodes)
     elev_range = np.linspace(elev_min, elev_max, num=max_path_order)
+    print(elev_range)
 
     for k in nx.topological_sort(gph):
         downstream_degree_to_outlet = len(nx.shortest_path(gph, source = k, target = 0))-1
@@ -58,8 +92,15 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
         # print(k, 'elevation',elev)
         nx.set_node_attributes(gph, b)
     accumulate_downstream(gph)
+    if outlet_elev: 
+        nx.set_node_attributes(gph, outlet_elev, 'elev')
+    else:
+        outlet_elev = elev_min - outlet_level
+        nx.set_node_attributes(gph, outlet_elev, 'elev')
     for k in gph.edges:
-        length = abs(k[0] - k[1])/slope
+        elev_us = gph.nodes[k[0]].get('elev')
+        elev_ds = gph.nodes[k[1]].get('elev')
+        length = abs(elev_us-elev_ds)/slope
         downstream_degree_to_outlet = len(nx.shortest_path(gph, source = k[0], target = 0))
         diam0 = ((max_path_order - downstream_degree_to_outlet) * diam * diam_increment)*changing_diam + diam
         # print(k,'diameter in create network',diam0)
@@ -76,12 +117,12 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
                 # print('node cumulative area (acre)', gph.nodes[k]['cumulative_node_drainage_area']*2.3e-5)
                 acre = gph.nodes[k]['cumulative_node_drainage_area']
                 Qd = 0.8*6*acre         # cfs
-                # print('rational Q (c=0.8, i=5.6):', Qd)
+                # print('rational Q (K=1, c=0.8, i=5.6):', Qd)
                 # print('diameter for outflowing pipe', gph.out_edges(k,data='diam'))
                 Dr = (2.16*Qd*n/np.sqrt(slope))**(3/8)
                 ds_node = [u for k, u in gph.out_edges(k,data=False)]
                 # print('ds node',ds_node[0])
-                gph[k][ds_node[0]]['diam']=round(Dr,1)
+                gph[k][ds_node[0]]['diam']=round_pipe_diam(Dr)
                 # print('node',k,'diameter for outflowing pipe', gph.out_edges(k,data='diam'))
                 # print('diameter calculated', Dr)
     if outlet_level: 
@@ -91,11 +132,6 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
     if outlet_node_drainage_area: 
         nx.set_node_attributes(gph, outlet_node_drainage_area, "node_drainage_area")
         nx.set_node_attributes(gph, outlet_node_drainage_area, "node_manhole_area")
-    if outlet_elev: 
-        nx.set_node_attributes(gph, outlet_elev, 'elev')
-    else:
-        outlet_elev = elev_min - outlet_level
-        nx.set_node_attributes(gph, outlet_elev, 'elev')
    
     Manning_func(gph) 
     return gph
@@ -740,7 +776,7 @@ def calc_soil_node_elev(gph, soil_nodes):
 if __name__ == '__main__':
     kernel = lambda x: np.exp(-2)*2**x/factorial(x)
     G = create_networks(nodes_num=10,kernel=kernel,node_drainage_area=87120)
-    depth = rainfall_func(dt=0.25,freq=0.8,is_pulse=False)
-    print(depth)
+    # depth = rainfall_func(dt=0.25,freq=0.8,is_pulse=False)
+    # print(depth)
     # draw_varying_size(G,edge_attribute='diam')
     # plt.show()

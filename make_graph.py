@@ -24,7 +24,8 @@ matplotlib.rcParams['figure.figsize'] = (12, 6)
 # datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/datasets-compiled'
 # os.chdir(datafile_directory)
 
-datafile_name = r'./SWMM_20210529-0852/20210529-0852_full_dataset_100-nodes.pickle'
+datafile_name = r'./SWMM_20210617-1230/20210617-1230_full_dataset_100-nodes.pickle'
+# datafile_name = r'./SWMM_20210601-1754/20210601-1754_full_dataset_100-nodes.pickle'
 # datafile_name = '100-nodes_10-day_20210303-2012.pickle'
 print("sys.argv is", sys.argv)
 print("datafile_name is", datafile_name)
@@ -543,10 +544,10 @@ cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
         plt.savefig(path + fig_name +'.png')
         print('Plot is saved as', fig_name +'.png')
 if __name__ == '__main__':
-    # for y in ['flood_duration_total_list','max_flood_nodes','total_flooded_vol_MG','max_flow_cfs','total_outflow_vol_MG']:#, 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g']:
-    #     for x in ['soil_node_degree_list','soil_node_elev_list']:#,'mean_flood_nodes_TI']:
-            # multi_rainfall_figure_plot(df, ncols = 10, nrows = 1, xaxis_attribute = x, yaxis_attribute = y, cmap_on = True, save_plot=False)
-            # multi_rainfall_histogram(df, ncols = 10, nrows = 1,yaxis_attribute = y,color_attribute='soil_nodes_count',cmap_on = True, save_plot=False)
+    for y in ['flood_duration_total_list','max_flood_nodes','total_flooded_vol_MG','max_flow_cfs','total_outflow_vol_MG']:#, 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g']:
+        for x in ['soil_node_degree_list','soil_node_elev_list']:#,'mean_flood_nodes_TI']:
+            multi_rainfall_figure_plot(df, ncols = 10, nrows = 1, xaxis_attribute = x, yaxis_attribute = y, cmap_on = True, save_plot=False)
+            multi_rainfall_histogram(df, ncols = 10, nrows = 1,yaxis_attribute = y,color_attribute='soil_nodes_count',cmap_on = True, save_plot=False)
     # two_axis_plot(xaxis_attribute='soil_node_degree_list',yaxis_attribute='flood_duration_total_list',save_plot=False)
-    soil_box_plot()
+    # soil_box_plot()
     plt.show()
