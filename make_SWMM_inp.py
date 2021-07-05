@@ -206,7 +206,7 @@ infiltration]
     f.writelines('\n')
 
 def info_lid_controls(f, name = 'bioret_cell', type = 'BC', surf_height = 8, surf_veg = 0.1, surf_n = 0.1, 
-surf_slope = 1.0, soil_height = 18, soil_n = 0.43, soil_fc = 0.56, soil_wp = 0.18,
+surf_slope = 1.0, soil_height = 18, soil_n = 0.43, soil_fc = 0.4, soil_wp = 0.18,
 soil_k = 1.3, soil_kslope = 40, soil_psi = 3.5, stor_height = 0, stor_voidratio = 0.25,
 stor_seepage = 1.5, stor_clog = 0, drain_coef = 0, drain_exp = 0.5, drain_offset = 6,
 drain_open = 0, drain_close = 0):
@@ -494,9 +494,10 @@ def rep_node_flooding_summary(rep_file_name):
                 # print(end_number)
                 break
         except UnboundLocalError:
-            pass
+                # node_flooding_summary_number = 0
+                pass
         line_number+=1
-    # print('node_flooding_summary_number', node_flooding_summary_number,'end_number',end_number)
+    print('node_flooding_summary_number', node_flooding_summary_number,'end_number',end_number)
     rep_file.seek(0)
 
     lines = rep_file.read().splitlines()
@@ -531,6 +532,7 @@ def rep_outflow_sumary(rep_file_name):
                 # print(end_number)
                 break
         except UnboundLocalError:
+            # outflow_summary_number = 0 
             pass
         line_number+=1
 
@@ -572,7 +574,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,i):
     for soil_nodes in soil_nodes_combo:
         # kernel = lambda x: np.exp(-mu)*mu**x/factorial(x)
         H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
-    outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, kernel=None,seed = 100)
+    outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, kernel=None,seed = None)
         soil_node_degree = hn.calc_soil_node_degree(H,soil_nodes)
         soil_node_elev = hn.calc_soil_node_elev(H,soil_nodes)
         input_file_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(len(soil_nodes))+'-soil-nodes_'+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_'+str(i)+'_'+str(k)+'.inp'
@@ -586,7 +588,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,i):
         output_file_name='op_'+input_file_name
         report_file_list.append(report_file_name)
         # subprocess.run(['/Users/xchen/Applications/swmm5/build/runswmm5',input_file_name, report_file_name, output_file_name])
-        subprocess.run(['../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name])
+        subprocess.run(['../../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name])
         
         max_flood_nodes, node_hours_flooded, node_flood_vol_MG = rep_node_flooding_summary(report_file_name)
         max_flow_cfs, total_outflow_vol_MG = rep_outflow_sumary(report_file_name)
@@ -602,6 +604,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,i):
         output_df.loc[k,'antecedent_soil'] = antecedent_soil_moisture
         # 'mean_flood_nodes_TI'
         # 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g'
+        subprocess.run(['rm',input_file_name, report_file_name, output_file_name])
         k += 1
     print(output_df)
 
@@ -618,7 +621,7 @@ if __name__ == '__main__':
 
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
-    folder_name='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_'+dt_str
+    folder_name='./SWMM_'+dt_str
     try:
         os.mkdir(folder_name)
     except FileExistsError:
