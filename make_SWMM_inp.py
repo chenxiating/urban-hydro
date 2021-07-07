@@ -553,7 +553,7 @@ def rep_outflow_sumary(rep_file_name):
             pass
     return max_flow_cfs, total_vol_MG
 
-def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i):
+def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,mp=True):
     simulation_date = '06/01/2021'
     precip_name = 'hydrograph'
     node_drainage_area = 2           # acres
@@ -585,7 +585,6 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i):
         new_file.close()
         report_file_name='rep_'+input_file_name
         output_file_name='op_'+input_file_name
-        report_file_list.append(report_file_name)
         # subprocess.run(['/Users/xchen/Applications/swmm5/build/runswmm5',input_file_name, report_file_name, output_file_name])
         subprocess.run(['../../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name])
         
@@ -607,16 +606,18 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i):
         k += 1
     print(output_df)
 
-    main_df = pd.concat([main_df, output_df], ignore_index=True)
-    return main_df
-        # main_df = pd.concat([main_df, output_df], ignore_index=True)        
-        # f = open(datafile_name,'wb')
-        # pickle.dump(main_df, f)
-        # f.close()
+    if mp:
+        pickle_file_name = str(antecedent_soil_moisture)+'_'+str(mean_rainfall_inch)+'_'+str(i)+'.pickle'
+        f = open(pickle_file_name,'wb')
+        pickle.dump(output_df, f)
+        f.close()
+    else:
+        main_df = pd.concat([main_df, output_df], ignore_index=True)
+        return main_df
 
 if __name__ == '__main__':
-    soil_moisture_list = np.linspace(0.0, 1.0, 4)
-    mean_rainfall_set = np.linspace(13, 3, 4, endpoint=False)
+    soil_moisture_list = np.linspace(0.0, 1.0, 2)
+    mean_rainfall_set = np.linspace(13, 3, 2, endpoint=False)
     nodes_num = 20
 
     today = date.datetime.today()
@@ -630,10 +631,10 @@ if __name__ == '__main__':
     datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
 
     main_df = pd.DataFrame()
-    for i in range(10):
+    for i in range(3):
         for antecedent_soil_moisture in soil_moisture_list:
             for mean_rainfall_inch in mean_rainfall_set:
-                main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, nodes_num=nodes_num,i=i)
+                main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, nodes_num=nodes_num,i=i,mp=False)
     f = open(datafile_name,'wb')
     pickle.dump(main_df, f)
     f.close()
