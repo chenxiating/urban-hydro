@@ -9,7 +9,7 @@ import pickle
 import subprocess
 import os
 
-def make_inp(f,soil_nodes,simulation_date,infiltration,flowrouting,precip_name,graph,flood_level):
+def make_inp(f,soil_nodes,simulation_date,infiltration,flowrouting,precip_name,graph,flood_level,antecedent_soil_moisture,mean_rainfall_inch):
     info_header(f=f,simulation_date=simulation_date,infiltration=infiltration,flowrouting=flowrouting)
     info_evaporations(f=f,et_rate=5)
     info_temperature(f=f)
@@ -27,7 +27,7 @@ def make_inp(f,soil_nodes,simulation_date,infiltration,flowrouting,precip_name,g
     info_timeseries(f=f,simulation_date=simulation_date,precip_name=precip_name,two_hour_precip=mean_rainfall_inch,precip_interval=15)
     info_report(f=f)
     info_tag(f=f)
-    info_map(f=f)
+    info_map(f=f) 
     info_coordinates(f=f)
     info_vertices(f=f)
     info_polygons(f=f)
@@ -553,7 +553,7 @@ def rep_outflow_sumary(rep_file_name):
             pass
     return max_flow_cfs, total_vol_MG
 
-def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,i):
+def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i):
     simulation_date = '06/01/2021'
     precip_name = 'hydrograph'
     node_drainage_area = 2           # acres
@@ -561,12 +561,11 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,i):
     outlet_elev = {0: 85}                 
     outlet_node_drainage_area = {0: node_drainage_area*10e5}             # set the river area to very large
     soil_depth = 6
-    nodes_num = 100
     init_level = 0.0
     flood_level = 10
     report_file_list = []
 
-    soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 50, range_count = 50, nodes_num = nodes_num)
+    soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 5, range_count = 5, nodes_num = nodes_num)
     output_df = pd.DataFrame()#, columns=output_columns)
     output_df.loc[:,'soil_nodes_list'] = soil_nodes_combo
     k = 0
@@ -582,7 +581,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,i):
         infiltration='HORTON'
         flowrouting='KINWAVE'
         new_file=open(input_file_name,'w')
-        make_inp(f=new_file,soil_nodes=soil_nodes,simulation_date=simulation_date,infiltration=infiltration,flowrouting=flowrouting,precip_name=precip_name,graph=H,flood_level=flood_level)
+        make_inp(f=new_file,soil_nodes=soil_nodes,simulation_date=simulation_date,infiltration=infiltration,flowrouting=flowrouting,precip_name=precip_name,graph=H,flood_level=flood_level,antecedent_soil_moisture = antecedent_soil_moisture, mean_rainfall_inch = mean_rainfall_inch)
         new_file.close()
         report_file_name='rep_'+input_file_name
         output_file_name='op_'+input_file_name
@@ -616,8 +615,9 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,i):
         # f.close()
 
 if __name__ == '__main__':
-    soil_moisture_list = np.linspace(0.0, 1.0, 10)
-    mean_rainfall_set = np.linspace(13, 3, 10, endpoint=False)
+    soil_moisture_list = np.linspace(0.0, 1.0, 4)
+    mean_rainfall_set = np.linspace(13, 3, 4, endpoint=False)
+    nodes_num = 20
 
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
@@ -627,13 +627,13 @@ if __name__ == '__main__':
     except FileExistsError:
         pass    
     os.chdir(folder_name)
-    datafile_name = dt_str + '_full_dataset_'+str(100)+'-nodes'+'.pickle'
+    datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
 
     main_df = pd.DataFrame()
     for i in range(10):
         for antecedent_soil_moisture in soil_moisture_list:
             for mean_rainfall_inch in mean_rainfall_set:
-                main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, i=i)
+                main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, nodes_num=nodes_num,i=i)
     f = open(datafile_name,'wb')
     pickle.dump(main_df, f)
     f.close()
