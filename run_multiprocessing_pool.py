@@ -16,24 +16,24 @@ def dt_str_gen():
         dt_str = today.strftime("%Y%m%d-%H%M")
     return dt_str
 
-def simulation(main_df, antecedent_soil_moisture, mean_rainfall_inch,i):
-    make_SWMM_inp.main(main_df = main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch,i=i)
+def simulation(main_df, antecedent_soil_moisture, mean_rainfall_inch,nodes_num,i):
+    make_SWMM_inp.main(main_df = main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch,nodes_num=nodes_num,i=i)
     print(antecedent_soil_moisture)
     print(mean_rainfall_inch)
 
-def apply_async(dt_str):
+def mp_loop(dt_str,nodes_num):
     # soil_nodes_range=[0, 49,50]
-    soil_moisture_list = np.linspace(0, 1, 1)
-    mean_rainfall_set = np.linspace(13, 3, 5, endpoint=False)
+    soil_moisture_list = np.linspace(0, 1, 5,endpoint=False)
+    mean_rainfall_set = np.linspace(13, 3, 10, endpoint=False)
     pool = mp.Pool()
-    datafile_name = dt_str + '_full_dataset_'+str(100)+'-nodes'+'.pickle'
+    datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
     main_df = pd.DataFrame()
 
-    for i in range(4):
+    for i in range(1):
         for antecedent_soil_moisture in soil_moisture_list:
             for mean_rainfall_inch in mean_rainfall_set:
         #         mu = np.random.uniform(low=1.6, high=2.2)
-                pool.apply_async(simulation, args=(main_df,antecedent_soil_moisture,mean_rainfall_inch,i))
+                pool.apply(simulation, args=(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i))
                 # pool.apply_async(simulation)
                 print(os.getpid())
                 # print(soil_moisture)
@@ -46,7 +46,8 @@ def apply_async(dt_str):
 if __name__ == '__main__':
     start = time.perf_counter()
     dt_str = dt_str_gen()
-    datafile_name = dt_str + '_full_dataset_'+str(100)+'-nodes'+'.pickle'
+    nodes_num = 100
+    datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
     folder_name='./SWMM_'+dt_str
     try:
         os.mkdir(folder_name)
@@ -54,8 +55,6 @@ if __name__ == '__main__':
         pass    
     os.chdir(folder_name)
     print(dt_str)
-    datafile_name = dt_str + '_full_dataset_'+str(100)+'-nodes'+'.pickle'
-
-    apply_async(dt_str)
+    mp_loop(dt_str, nodes_num) 
     finish = time.perf_counter()
     print(f'Finished in {round(finish-start,2)} seconds(s)')
