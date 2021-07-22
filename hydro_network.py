@@ -11,8 +11,7 @@ import datetime as date
 import datetime
 import time
 from random import sample
-from math import comb
-from math import log10
+from math import comb, log10, exp
 from scipy.special import factorial
 import statistics
 import os
@@ -68,9 +67,9 @@ def round_pipe_diam(old_diam):
         new_diam = round(old_inch)
     return new_diam/12
 
-def create_networks(g_type = 'gn', nodes_num = 10, n = 0.01, diam = 1, changing_diam = True, diam_increment = 0.5, soil_depth = 0, 
+def create_networks(g_type = 'gn', beta = 0.5, nodes_num = 10, n = 0.01, diam = 1, changing_diam = True, diam_increment = 0.5, soil_depth = 0, 
 slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_drainage_area = 1.5, node_manhole_area = 50, conductivity = 0.5,
-outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed = None, kernel = None):
+outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = None, kernel = None):
     """
     create a random network with different properties. the slope has been defaulted to be the same in
     the entire network, and the diameter is defaulted to go up as the network is further away from the
@@ -79,15 +78,18 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
     node drainage area set in acre.
     """
     gph = nx.gn_graph(nodes_num, seed = seed, kernel = kernel)
+    if g_type == 'grid':
+        gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
+        ### Need to resolve elev level for connected pipes that are at the same topographical scale.
     nx.topological_sort(gph)
-    max_path_order = max(len(nx.shortest_path(gph, source = k, target = 0)) for k in gph.nodes)
+    max_path_order = max(len(nx.shortest_path(gph, source = k, target = (0,0))) for k in gph.nodes)
     elev_range = np.linspace(elev_min, elev_max, num=max_path_order)
-    print(elev_range)
 
     for k in nx.topological_sort(gph):
-        downstream_degree_to_outlet = len(nx.shortest_path(gph, source = k, target = 0))-1
+        downstream_degree_to_outlet = len(nx.shortest_path(gph, source = k, target = (0,0)))-1
         elev = elev_range[downstream_degree_to_outlet]
-        a = dict(zip(["elev", "level", "node_drainage_area", "node_manhole_area", "soil_depth"], [elev, level, node_drainage_area, node_manhole_area, soil_depth]))
+        a = dict(zip(["elev", "level", "node_drainage_area", "node_manhole_area", "soil_depth"], 
+        [elev, level, node_drainage_area, node_manhole_area, soil_depth]))
         b = dict(zip([k], [a]))
         # print(k, 'elevation',elev)
         nx.set_node_attributes(gph, b)
@@ -101,7 +103,7 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
         elev_us = gph.nodes[k[0]].get('elev')
         elev_ds = gph.nodes[k[1]].get('elev')
         length = abs(elev_us-elev_ds)/slope
-        downstream_degree_to_outlet = len(nx.shortest_path(gph, source = k[0], target = 0))
+        downstream_degree_to_outlet = len(nx.shortest_path(gph, source = k[0], target = (0,0)))
         diam0 = ((max_path_order - downstream_degree_to_outlet) * diam * diam_increment)*changing_diam + diam
         # print(k,'diameter in create network',diam0)
         a = dict(zip(["n", "length", "diam",'conductivity'], [n, length, diam0, conductivity]))
@@ -109,7 +111,7 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
         nx.set_edge_attributes(gph, b)
     if changing_diam:
         for k in nx.topological_sort(gph):
-            if k == 0:
+            if k == (0,0):
                 pass
             else:
                 # print('node', k)
@@ -120,20 +122,119 @@ outlet_elev = None, outlet_level = None, outlet_node_drainage_area = None, seed 
                 # print('rational Q (K=1, c=0.8, i=5.6):', Qd)
                 # print('diameter for outflowing pipe', gph.out_edges(k,data='diam'))
                 Dr = (2.16*Qd*n/np.sqrt(slope))**(3/8)
-                ds_node = [u for k, u in gph.out_edges(k,data=False)]
+                ds_node = [ds_node for k, ds_node in gph.out_edges(k,data=False)][0]
                 # print('ds node',ds_node[0])
-                gph[k][ds_node[0]]['diam']=round_pipe_diam(Dr)
+                gph[k][ds_node]['diam']=round_pipe_diam(Dr)
                 # print('node',k,'diameter for outflowing pipe', gph.out_edges(k,data='diam'))
                 # print('diameter calculated', Dr)
     if outlet_level: 
         nx.set_node_attributes(gph, outlet_level, "level")
     else:
-        outlet_level = gph.nodes[0]['level']
+        outlet_level = gph.nodes[(0,0)]['level']
     if outlet_node_drainage_area: 
         nx.set_node_attributes(gph, outlet_node_drainage_area, "node_drainage_area")
         nx.set_node_attributes(gph, outlet_node_drainage_area, "node_manhole_area")
    
-    Manning_func(gph) 
+#    Manning_func(gph) 
+    return gph
+
+def my_grid_graph(m, n, beta, periodic=False, create_using=nx.DiGraph()):
+    """Returns the two-dimensional grid graph.
+
+    The grid graph has each node connected to its four nearest neighbors.
+
+    Parameters
+    ----------
+    m, n : int or iterable container of nodes
+        If an integer, nodes are from `range(n)`.
+        If a container, elements become the coordinate of the nodes.
+
+    beta : double
+        Parameter for Gibbs distribution
+    
+    create_using : NetworkX graph constructor, optional (default=nx.Graph)
+        Graph type to create. If graph instance, then cleared before populated.
+
+    Returns
+    -------
+    NetworkX graph
+        The (possibly periodic) grid graph of the specified dimensions.
+
+    """
+    gph = nx.empty_graph(0, create_using)
+    # print('rows: ',m,' cols: ',n)
+    # gph.add_nodes_from((i, j) for i in rows for j in cols)
+    i = 0
+    j = 0
+    gph.add_node((i, j))
+
+    # rand_num = np.random.rand()
+    # if rand_num < 0.5:
+    #     gph.add_node((1,0))
+    # else: 
+    #     gph.add_node((0,1))
+    sample_list = gph.nodes
+    k = 0
+    tree_s1 = [(i,j)]
+    for k in range(200):
+        if len(gph.nodes) == m * n:
+            # print(k)
+            break
+    # while len(gph.nodes) <= m * n:
+        try: 
+            i_s1, j_s1 = sample(sample_list,1)[0]
+        except ValueError:
+            sample_list = list(gph.nodes)
+            i_s1, j_s1 = sample(sample_list,1)[0]
+        selected_node = (i_s1, j_s1)
+        # possible combos
+        possible_nodes1 = [(i, j_s1) for i in range(i_s1-1,i_s1+2) if (i >= 0 and i < m)]
+        possible_nodes1.remove(selected_node)
+        # print('possible 1: ',possible_nodes1)
+        possible_nodes2 = [(i_s1, j) for j in range(j_s1-1,j_s1+2) if (j >= 0 and j < n)]
+        possible_nodes2.remove(selected_node)
+        # print('possible 2: ',possible_nodes2)
+
+        possible_nodes = possible_nodes1+possible_nodes2
+        # print('possible nodes:',possible_nodes)
+        
+        # select from possible nodes (neighbors)
+        one_possible_node = sample(possible_nodes,1)[0]
+        # print("one possible node, let's try",one_possible_node)
+        try: 
+            while one_possible_node in gph.nodes:
+                possible_nodes.remove(one_possible_node)
+                one_possible_node = sample(possible_nodes,1)[0]
+                # print('we now have nodes:',sample_list)  
+                # print('node selected to branch:',selected_node)
+                # print('possible nodes to branch to:',possible_nodes)
+                # print("one possible node, let's try",one_possible_node)
+                # print('oops, new possible node:',one_possible_node)
+            # print('new node is: ',one_possible_node)
+            total_path_old = sum([len(nx.shortest_path(gph, source = k, target = (0,0))) - 1 for k in gph.nodes])
+            shortest_path_old = sum(i + j for i, j in tree_s1)
+            gph.add_node(one_possible_node)
+            tree_s1.append(one_possible_node)
+            # print(tree_s1)
+            gph.add_edge(one_possible_node,selected_node)
+            # print("What's in graph gph?",gph.nodes, gph.edges)
+            ### Here see if we need new tree
+            total_path_new = sum([len(nx.shortest_path(gph, source = k, target = (0,0))) - 1 for k in gph.nodes])
+            shortest_path_new = sum(i + j for i, j in tree_s1)
+            delta_H = total_path_new - shortest_path_new - total_path_old + shortest_path_old
+            # nx.draw(gph,with_labels=True)
+            # plt.show()
+            rand_num = np.random.rand()
+            if rand_num > exp(-beta*delta_H):
+                # show_new_tree(gph, tree_s1, [one_possible_node])
+                # plt.show()
+                # print('we have a NEW TREE!', [one_possible_node])
+                tree_s1 = [one_possible_node]    
+
+            sample_list = tree_s1
+            # print('we now have nodes:',sample_list)  
+        except ValueError:
+            sample_list.remove(selected_node)
     return gph
 
 def fill_numbers(dictionary, full_list, number = 0):
@@ -655,7 +756,7 @@ def calculate_flow_path(gph, accum_attr='length', path_attr_name=None):
     if path_attr_name is None:
         path_attr_name = 'path_{}'.format(accum_attr)
     for node in gph.nodes:
-        shortest_path_set = list(nx.shortest_path(gph, source = node, target = 0))
+        shortest_path_set = list(nx.shortest_path(gph, source = node, target = (0,0)))
         path_attr = 0
         i = 0
         keep_running = True
@@ -716,10 +817,11 @@ def dispersion_func(gph, l_name = 'length', t_name = 'edge_time'):
 def neighbor_index_calc():
     pass
 
-def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, range_max = 20, range_count = 10):
+def random_sample_soil_nodes(gph, count_to_sample = None, range_min = 1, range_max = 20, range_count = 10):
     """
     randomly generate water retentive nodes in the network
     """
+    nodes_num = len(gph.nodes)
     if range_max >= nodes_num:
         range_max = nodes_num - 1
     if range_min >= nodes_num:
@@ -727,7 +829,9 @@ def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, r
     range_len = range_max - range_min + 1
     if range_count > range_len:
         range_count = range_len 
-
+    
+    us_nodes_to_sample = list(gph.nodes)
+    us_nodes_to_sample.remove((0,0))
     soil_nodes_combo_all = []
     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int) # numbers of combinations to iterate from
     for combo in combo_iter_list:
@@ -735,7 +839,8 @@ def random_sample_soil_nodes(nodes_num, count_to_sample = None, range_min = 1, r
         if not count_to_sample:
             count_to_sample = np.ceil(np.log10(count_all_possible_combination) + 1).astype(int)
         for _ in range(count_to_sample):
-            soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), combo))
+            # soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), combo))
+            soil_nodes_combo_to_add = tuple(sample(us_nodes_to_sample, combo))
             soil_nodes_combo_all.append(soil_nodes_combo_to_add)     
         # print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
         # print(soil_nodes_combo_all)
@@ -769,14 +874,16 @@ def calc_soil_node_degree(gph, soil_nodes):
 
 def calc_soil_node_elev(gph, soil_nodes):
     soil_nodes_length = len(soil_nodes)
-    soil_node_elev = ignore_zero_div(sum(len(nx.shortest_path(gph, source=k, target = 0)) - 1 
+    soil_node_elev = ignore_zero_div(sum(len(nx.shortest_path(gph, source=k, target = (0,0))) - 1 
     for k in soil_nodes),soil_nodes_length)
     return soil_node_elev
 
 if __name__ == '__main__':
-    kernel = lambda x: np.exp(-2)*2**x/factorial(x)
-    G = create_networks(nodes_num=10,kernel=kernel,node_drainage_area=87120)
+    # kernel = lambda x: np.exp(-2)*2**x/factorial(x)
+    G = create_networks(g_type = 'grid',beta=0.5,nodes_num=25,kernel=None,node_drainage_area=87120)
+    pos_grid = {node: np.array(node) for node in G}
+    nx.draw(G,pos_grid,with_labels=True)
     # depth = rainfall_func(dt=0.25,freq=0.8,is_pulse=False)
     # print(depth)
     # draw_varying_size(G,edge_attribute='diam')
-    # plt.show()
+    plt.show()

@@ -109,11 +109,11 @@ raingage]
 def info_subcatchments(f,graph,raingage,soil_nodes):
     subcatchments = [] ## This is where the node information is entered.
     for node in graph.nodes():
-        if node == 0:
+        if node == (0,0):
             continue
-        name = 'SC'+str(node)
+        name = 'SC'+str(node).replace(', ','_')
         raingage = raingage
-        outlet = str(node)
+        outlet = str(node).replace(', ','_')
         totalarea = graph.nodes[node].get('node_drainage_area')
         pcntimp = 0 if node in soil_nodes else 100
         width = 5
@@ -138,9 +138,9 @@ subcatchments]
 def info_subareas(f,graph):
     subareas = []
     for node in graph.nodes():
-        if node == 0:
+        if node == (0,0):
             continue
-        subcatchment = 'SC'+str(node)
+        subcatchment = 'SC'+str(node).replace(', ','_')
         nimperv = 0.014
         nperv = 0.2
         simperv = 0.02
@@ -167,9 +167,9 @@ def info_infiltration(f,infiltration,graph):
     if infiltration == 'HORTON':
         infiltration = []
         for node in graph.nodes():
-            if node == 0:
+            if node == (0,0):
                 continue
-            subcatchment = 'SC'+str(node)
+            subcatchment = 'SC'+str(node).replace(', ','_')
             maxrate = 3.0
             minrate = 0.5
             decay = 4
@@ -187,9 +187,9 @@ infiltration]
     elif infiltration == 'GREEN-AMPT':
         infiltration = []
         for node in graph.nodes():
-            if node == 0:
+            if node == (0,0):
                 continue
-            subcatchment = 'SC'+str(node)
+            subcatchment = 'SC'+str(node).replace(', ','_')
             suction = 10
             hydcon = 0.25
             imdmax = 0.1
@@ -268,7 +268,7 @@ drain_open = 0, drain_close = 0):
 def info_lid_usage(f, graph, soil_nodes, initsat, name = 'bioret_cell', surf_width = 200):
     lid_usages = []
     for node in soil_nodes:
-        sc_name = 'SC'+str(node)
+        sc_name = 'SC'+str(node).replace(', ','_')
         number = 1
         area = graph.nodes[node].get('node_drainage_area') * 43560
         from_imp = 100
@@ -303,9 +303,9 @@ def info_snowpacks(f):
 def info_junctions(f,graph,flood_level):
     junctions = [] ## This is where the nodes information is entered
     for node in graph.nodes():
-        if node == 0:
+        if node == (0,0):
             continue
-        name = str(node)
+        name = str(node).replace(', ','_')
         elevation = round(graph.nodes[node].get('elev'),5)
         maxdepth = flood_level
         initdepth = 0
@@ -325,7 +325,7 @@ junctions]
     f.writelines('\n')
 
 def info_outfalls(f,graph):
-    outfalls = add_whitespace(0,17,'')+add_whitespace(graph.nodes[0].get('elev'),11,'')+ \
+    outfalls = add_whitespace('(0_0)',17,'')+add_whitespace(graph.nodes[(0,0)].get('elev'),11,'')+ \
     add_whitespace('FREE',11,'')+add_whitespace('',17,'')+ \
     add_whitespace('NO',9,'')+add_whitespace('',16,'')
     lines = ['[OUTFALLS]',
@@ -340,9 +340,9 @@ outfalls]
 def info_conduits(f,graph):
     conduits = []   # This is for pipes
     for edge in graph.edges():
-        from_node = edge[0]
-        to_node = edge[1]
-        name = str(from_node)+'_'+str(to_node)
+        from_node = str(edge[0]).replace(', ','_')
+        to_node = str(edge[1]).replace(', ','_')
+        name = from_node+'_'+to_node
         length = graph.edges[edge].get('length')
         roughness = graph.edges[edge].get('n')
         edge_cond = add_whitespace(name,17,'') + add_whitespace(from_node,17,'') + \
@@ -361,10 +361,10 @@ conduits]
 def info_xsections(f,graph):
     xsections = []  # This is for pipes
     for edge in graph.edges():
-        from_node = edge[0]
-        to_node = edge[1]
+        from_node = str(edge[0]).replace(', ','_')
+        to_node = str(edge[1]).replace(', ','_')
         diameter = graph.edges[edge].get('diam')
-        name = str(from_node)+'_'+str(to_node)
+        name = from_node+'_'+to_node
         shape = 'CIRCULAR'
         edge_xsect = add_whitespace(name,17,'') + add_whitespace(shape,13,'') + \
             add_whitespace(diameter,17,'') + \
@@ -497,7 +497,6 @@ def rep_node_flooding_summary(rep_file_name):
                 # node_flooding_summary_number = 0
                 pass
         line_number+=1
-    print('node_flooding_summary_number', node_flooding_summary_number,'end_number',end_number)
     rep_file.seek(0)
 
     lines = rep_file.read().splitlines()
@@ -553,26 +552,29 @@ def rep_outflow_sumary(rep_file_name):
             pass
     return max_flow_cfs, total_vol_MG
 
-def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,mp=True):
+def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp=True):
     simulation_date = '06/01/2021'
     precip_name = 'hydrograph'
     node_drainage_area = 2           # acres
-    outlet_level = {0: 1} 
-    outlet_elev = {0: 85}                 
-    outlet_node_drainage_area = {0: node_drainage_area*10e5}             # set the river area to very large
+    outlet_level = {(0,0): 1} 
+    outlet_elev = {(0,0): 85}                 
+    outlet_node_drainage_area = {(0,0): node_drainage_area*10e5}             # set the river area to very large
     soil_depth = 6
     init_level = 0.0
     flood_level = 10
     report_file_list = []
 
-    soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(range_min = 0, range_max = 5, range_count = 5, nodes_num = nodes_num)
+    H = hn.create_networks(g_type = 'grid', beta=beta, nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
+    outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, kernel=None,seed = None)
+
+    soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(gph = H, range_min = 0, range_max = 5, range_count = 5)
     output_df = pd.DataFrame()#, columns=output_columns)
     output_df.loc[:,'soil_nodes_list'] = soil_nodes_combo
     k = 0
 
     for soil_nodes in soil_nodes_combo:
         # kernel = lambda x: np.exp(-mu)*mu**x/factorial(x)
-        H = hn.create_networks(g_type = 'gn', nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
+        H = hn.create_networks(g_type = 'grid', beta=0.5, nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
     outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, kernel=None,seed = None)
         soil_node_degree = hn.calc_soil_node_degree(H,soil_nodes)
         soil_node_elev = hn.calc_soil_node_elev(H,soil_nodes)
@@ -586,7 +588,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,mp=True
         report_file_name='rep_'+input_file_name
         output_file_name='op_'+input_file_name
         # subprocess.run(['/Users/xchen/Applications/swmm5/build/runswmm5',input_file_name, report_file_name, output_file_name])
-        subprocess.run(['../../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name])
+        subprocess.run(['../../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name],stdout=subprocess.DEVNULL)
         
         max_flood_nodes, node_hours_flooded, node_flood_vol_MG = rep_node_flooding_summary(report_file_name)
         max_flow_cfs, total_outflow_vol_MG = rep_outflow_sumary(report_file_name)
@@ -619,6 +621,7 @@ if __name__ == '__main__':
     soil_moisture_list = np.linspace(0.0, 1.0, 2)
     mean_rainfall_set = np.linspace(13, 3, 2, endpoint=False)
     nodes_num = 20
+    beta=0.5
 
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
@@ -631,10 +634,10 @@ if __name__ == '__main__':
     datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
 
     main_df = pd.DataFrame()
-    for i in range(3):
+    for i in range(1):
         for antecedent_soil_moisture in soil_moisture_list:
             for mean_rainfall_inch in mean_rainfall_set:
-                main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, nodes_num=nodes_num,i=i,mp=False)
+                main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, nodes_num=nodes_num,i=i,beta=beta,mp=False)
     f = open(datafile_name,'wb')
     pickle.dump(main_df, f)
     f.close()
