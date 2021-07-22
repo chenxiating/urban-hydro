@@ -16,12 +16,13 @@ def dt_str_gen():
         dt_str = today.strftime("%Y%m%d-%H%M")
     return dt_str
 
-def simulation(main_df, antecedent_soil_moisture, mean_rainfall_inch,nodes_num,i):
-    make_SWMM_inp.main(main_df = main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch,nodes_num=nodes_num,i=i)
-    print(antecedent_soil_moisture)
-    print(mean_rainfall_inch)
+def simulation(main_df, antecedent_soil_moisture, mean_rainfall_inch,nodes_num,beta,i):
+    make_SWMM_inp.main(main_df = main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch,
+    nodes_num=nodes_num,beta=beta,i=i)
+    # print(antecedent_soil_moisture)
+    # print(mean_rainfall_inch)
 
-def mp_loop(dt_str,nodes_num):
+def mp_loop(dt_str,nodes_num, beta):
     # soil_nodes_range=[0, 49,50]
     soil_moisture_list = np.linspace(0, 1, 5,endpoint=False)
     mean_rainfall_set = np.linspace(13, 3, 10, endpoint=False)
@@ -33,7 +34,7 @@ def mp_loop(dt_str,nodes_num):
         for antecedent_soil_moisture in soil_moisture_list:
             for mean_rainfall_inch in mean_rainfall_set:
         #         mu = np.random.uniform(low=1.6, high=2.2)
-                pool.apply(simulation, args=(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i))
+                pool.apply(simulation, args=(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,beta,i))
                 # pool.apply_async(simulation)
                 print(os.getpid())
                 # print(soil_moisture)
@@ -47,6 +48,7 @@ if __name__ == '__main__':
     start = time.perf_counter()
     dt_str = dt_str_gen()
     nodes_num = 100
+    beta = 0.5
     datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
     folder_name='./SWMM_'+dt_str
     try:
@@ -55,6 +57,6 @@ if __name__ == '__main__':
         pass    
     os.chdir(folder_name)
     print(dt_str)
-    mp_loop(dt_str, nodes_num) 
+    mp_loop(dt_str, nodes_num, beta) 
     finish = time.perf_counter()
     print(f'Finished in {round(finish-start,2)} seconds(s)')
