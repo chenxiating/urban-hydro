@@ -79,7 +79,9 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
     """
     gph = nx.gn_graph(nodes_num, seed = seed, kernel = kernel)
     if g_type == 'grid':
-        gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
+    #    gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
+        matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
+        gph = nx.from_numpy_matrix(matrix, create_using=nx.DiGraph)
         ### Need to resolve elev level for connected pipes that are at the same topographical scale.
     nx.topological_sort(gph)
     max_path_order = max(len(nx.shortest_path(gph, source = k, target = (0,0))) for k in gph.nodes)
@@ -874,9 +876,25 @@ def calc_soil_node_degree(gph, soil_nodes):
 
 def calc_soil_node_elev(gph, soil_nodes):
     soil_nodes_length = len(soil_nodes)
-    soil_node_elev = ignore_zero_div(sum(len(nx.shortest_path(gph, source=k, target = (0,0))) - 1 
-    for k in soil_nodes),soil_nodes_length)
-    return soil_node_elev
+    # print(gph.nodes)
+#    try:
+#        soil_node_elev = ignore_zero_div(sum(len(nx.shortest_path(gph, source=k, target = (0,0))) - 1 for k in soil_nodes),soil_nodes_length)
+#    except nx.exception.NodeNotFound:
+#        print(gph.nodes)
+#        print(soil_nodes)
+#        if k not in gph.nodes:
+#            raise TypeError
+#        if (0,0) not in gph.nodes:
+#            raise ValueErrori
+    if soil_nodes_length == 0:
+        return 0
+    else:
+        total_path = 0
+        for k in soil_nodes:
+            each_path = len(nx.shortest_path(gph, source=k, target = (0,0))) - 1
+            total_path = total_path + each_path
+        soil_node_elev = total_path/soil_nodes_length
+        return soil_node_elev
 
 if __name__ == '__main__':
     # kernel = lambda x: np.exp(-2)*2**x/factorial(x)

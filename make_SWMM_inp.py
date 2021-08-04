@@ -8,6 +8,7 @@ import datetime
 import pickle
 import subprocess
 import os
+from math import prod
 
 def make_inp(f,soil_nodes,simulation_date,infiltration,flowrouting,precip_name,graph,flood_level,antecedent_soil_moisture,mean_rainfall_inch):
     info_header(f=f,simulation_date=simulation_date,infiltration=infiltration,flowrouting=flowrouting)
@@ -574,9 +575,12 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
 
     for soil_nodes in soil_nodes_combo:
         # kernel = lambda x: np.exp(-mu)*mu**x/factorial(x)
-        H = hn.create_networks(g_type = 'grid', beta=0.5, nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
-    outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, kernel=None,seed = None)
+        H = hn.create_networks(g_type = 'grid', beta=0.5, nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, kernel=None,seed = None)
         soil_node_degree = hn.calc_soil_node_degree(H,soil_nodes)
+        soil_node_in_set_check = prod([(node in H.nodes) for node in soil_nodes])
+        if soil_node_in_set_check == 0:
+            print(soil_nodes)
+            print(H.nodes)
         soil_node_elev = hn.calc_soil_node_elev(H,soil_nodes)
         input_file_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(len(soil_nodes))+'-soil-nodes_'+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_'+str(i)+'_'+str(k)+'.inp'
         print('Permeable nodes count: ', len(soil_nodes), soil_nodes, 'Rainfall intensity: ', mean_rainfall_inch, 'Soil moisture: ', antecedent_soil_moisture)
