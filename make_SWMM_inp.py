@@ -575,12 +575,10 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         # kernel = lambda x: np.exp(-mu)*mu**x/factorial(x)
         net = hn.Storm_network(beta=beta, nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
     outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, count = count, seed = None)
-        soil_node_degree = net.calc_soil_node_degree()
         soil_node_in_set_check = prod([(node in net.gph.nodes) for node in net.soil_nodes])
         if soil_node_in_set_check == 0:
             print(net.soil_nodes)
             print(net.gph.nodes)
-        soil_node_elev = net.calc_soil_node_elev()
         input_file_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(len(net.soil_nodes))+'-soil-nodes_'+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_'+str(i)+'_'+str(k)+'.inp'
         print('Permeable nodes count: ', len(net.soil_nodes), net.soil_nodes, 'Rainfall intensity: ', mean_rainfall_inch, 'Soil moisture: ', antecedent_soil_moisture)
         infiltration='HORTON'
@@ -592,12 +590,13 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         report_file_name='rep_'+input_file_name
         output_file_name='op_'+input_file_name
         # subprocess.run(['/Users/xchen/Applications/swmm5/build/runswmm5',input_file_name, report_file_name, output_file_name])
-        subprocess.run(['../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name],stdout=subprocess.DEVNULL)
+        subprocess.run(['../../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name],stdout=subprocess.DEVNULL)
         
         max_flood_nodes, node_hours_flooded, node_flood_vol_MG = rep_node_flooding_summary(report_file_name)
         max_flow_cfs, total_outflow_vol_MG = rep_outflow_sumary(report_file_name)
-        output_df.at[k,'soil_node_degree_list'] = soil_node_degree
-        output_df.at[k,'soil_node_elev_list'] = soil_node_elev
+        output_df.at[k,'soil_node_degree_list'] = net.calc_soil_node_degree()
+        output_df.at[k,'soil_node_elev_list'] = net.calc_soil_node_elev()
+        output_df.at[k,'cumulative_node_drainage_area'] = net.calc_upstream_cumulative_area()
         output_df.at[k,'soil_nodes_count'] = len(net.soil_nodes)/nodes_num*100
         output_df.at[k,'max_flood_nodes'] = max_flood_nodes
         output_df.at[k,'flood_duration_total_list'] = node_hours_flooded
@@ -605,8 +604,8 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         output_df.at[k,'max_flow_cfs'] = max_flow_cfs
         output_df.at[k,'total_outflow_vol_MG'] = total_outflow_vol_MG
         output_df.at[k,'mean_rainfall'] = mean_rainfall_inch
-        output_df['soil_nodes_list'][k]=net.soil_nodes
         output_df.at[k,'antecedent_soil'] = antecedent_soil_moisture
+        output_df['soil_nodes_list'][k]=net.soil_nodes
         # 'mean_flood_nodes_TI'
         # 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g'
         subprocess.run(['rm',input_file_name, report_file_name, output_file_name])
@@ -623,16 +622,10 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         return main_df
 
 if __name__ == '__main__':
-    soil_moisture_list = np.linspace(0.0, 1.0, 2)
-    mean_rainfall_set = np.linspace(13, 3, 2, endpoint=False)
+    soil_moisture_list = np.linspace(0.0, 1.0, 1)
+    mean_rainfall_set = np.linspace(13, 3, 10, endpoint=False)
     nodes_num = 20
     beta=0.5
-
-    main_df = pd.DataFrame()
-    for i in range(1):
-        for antecedent_soil_moisture in soil_moisture_list:
-            for mean_rainfall_inch in mean_rainfall_set:
-                main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, nodes_num=nodes_num,i=i,beta=beta,mp=False)
 
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
@@ -642,6 +635,13 @@ if __name__ == '__main__':
     except FileExistsError:
         pass    
     os.chdir(folder_name)
+
+    main_df = pd.DataFrame()
+    for i in range(10):
+        for antecedent_soil_moisture in soil_moisture_list:
+            for mean_rainfall_inch in mean_rainfall_set:
+                main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, nodes_num=nodes_num,i=i,beta=beta,mp=False)
+
     datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
     f = open(datafile_name,'wb')
     pickle.dump(main_df, f)

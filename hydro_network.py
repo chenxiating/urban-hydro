@@ -31,7 +31,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         self.n = n
         # initialize graph
         # gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
-        self.matrix = pickle.load(open(r'./gibbs_grid/10-grid_0.pickle','rb'))
+        self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
         self.gph = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         # initialize topological order and elevation
         nx.topological_sort(self.gph)
@@ -39,7 +39,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         self.outlet_node = nodes_in_order[len(nodes_in_order)-1]
         max_path_order = max(len(nx.shortest_path(self.gph, source = k, target = self.outlet_node)) for k in self.gph.nodes)
         elev_range = np.linspace(elev_min, elev_max, num=max_path_order)
-
+        
         for k in nx.topological_sort(self.gph):
             downstream_degree_to_outlet = len(nx.shortest_path(self.gph, source = k, target = self.outlet_node))-1
             elev = elev_range[downstream_degree_to_outlet]
@@ -48,6 +48,8 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
             b = dict(zip([k], [a]))
             # print(k, 'elevation',elev)
             nx.set_node_attributes(self.gph, b)
+        self.max_path_order = max_path_order
+        self.downstream_degree_to_outlet = {k: len(nx.shortest_path(self.gph, source = k, target = self.outlet_node))-1 for k in self.gph.nodes}
         self.accumulate_downstream()
         self.random_sample_soil_nodes(count)
         if outlet_elev: 
@@ -118,11 +120,13 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                 attrib_val += self.gph[p][topo_node].get(accum_attr, 0)
             # store cumulative attribute value in current node
             self.gph.nodes[topo_node][cumu_attr_name] = attrib_val
+
         return 
 
     def random_sample_soil_nodes(self, count):
         us_nodes_to_sample = list(self.gph.nodes).copy()
         us_nodes_to_sample.remove(self.outlet_node)
+        # print(count)
         self.soil_nodes = tuple(sample(us_nodes_to_sample, count))
     
     # def random_sample_soil_nodes(self, count_to_sample = None, range_min = 1, range_max = 20, range_count = 10):
@@ -171,18 +175,18 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         soil_nodes_length = len(self.soil_nodes)
         degrees = dict(self.gph.degree())
         # soil_node_degree = ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
-        soil_node_degree_sum = sum(degrees.get(k,0)*degrees.get(k,0) for k in self.soil_nodes)
+        soil_node_degree_sum = sum(degrees[k]*degrees[k] for k in self.soil_nodes)
         # print(soil_node_degree_sum)
         soil_node_degree = ignore_zero_div(soil_node_degree_sum,soil_nodes_length)
         return soil_node_degree
     
-    def calculate_flow_path(self, accum_attr='length', path_attr_name=None):
+    def calc_flow_path(self, accum_attr='length', path_attr_name=None):
         """calculate flow paths lengths and travel time"""
         path_dict = {}
         if path_attr_name is None:
             path_attr_name = 'path_{}'.format(accum_attr)
         for node in self.gph.nodes:
-            shortest_path_set = list(nx.shortest_path(gph, source = node, target = self.outlet_node))
+            shortest_path_set = list(nx.shortest_path(self.gph, source = node, target = self.outlet_node))
             path_attr = 0
             i = 0
             keep_running = True
@@ -205,6 +209,61 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         nx.set_node_attributes(self.gph, path_dict, path_attr_name)
         return path_dict
     
+    def calc_upstream_cumulative_area(self,accum_attr='node_drainage_area', cumu_attr_name=None):
+        if cumu_attr_name is None:
+            cumu_attr_name = 'cumulative_{}'.format(accum_attr)
+                
+        cumulative_attr_value = sum(self.gph.nodes[node][cumu_attr_name] for node in self.soil_nodes)
+        # print('soil_nodes',self.soil_nodes,'cumu',cumulative_attr_value)
+        return cumulative_attr_value
+
+    def draw_network_init(self, ax = None, label_on = False, title = None):
+        """ draw the network flow and the dispersion coefficients at a single timestep. """
+        # pos = nx.spring_layout(gph)
+        # pos = nx.planar_layout(gph, scale = 100)
+        # print(edge_attribute)
+        pos = graphviz_layout(self.gph, prog = 'dot')
+        node_color = []
+        node_size_og = 10
+        node_size = []
+        node_label = {node:'' for node in self.gph.nodes}
+        for node in self.gph: 
+            if node == self.outlet_node:
+                node_color.append('C1')
+                node_size.append(node_size_og)
+            elif node in set(self.soil_nodes):
+                node_color.append('C2')
+                node_size.append(node_size_og*2)
+                node_label[node]=str(node)
+            else:
+                node_color.append('C0')
+                node_size.append(node_size_og)
+
+        # _, ax0 = plt.subplots(1,2, gridspec_kw={'width_ratios': [2, 3]})
+        ax1 = plt.subplot(122)
+        nx.draw(self.gph, pos, ax1, node_color = node_color, node_size = node_size,labels = node_label, 
+        font_size=6,with_labels = label_on)
+        ax1.set_title('Network')
+        
+        ax2 = plt.subplot(221)
+        k = self.downstream_degree_to_outlet
+        distance_dist = [k[j] for j in k]
+        ax2.hist(distance_dist)
+        ax2.set_xlabel('Dist. to Outlet')
+        ax2.set_ylabel('Count')
+        
+        ax3 = plt.subplot(223)
+        m = dict(self.gph.degree())
+        degree_dist = [m[j] for j in m]
+        ax3.hist(degree_dist)
+        ax3.set_xlabel('Degrees')
+        ax3.set_ylabel('Count')
+
+        plt.tight_layout()
+        
+        if title:
+            plt.suptitle(title)
+            
     def draw_network_timestamp(self, ax = None, edge_attribute = 'edge_dq', label_on = False, flood_level = 10, title = None):
         """ draw the network flow and the dispersion coefficients at a single timestep. """
         # pos = nx.spring_layout(gph)
@@ -386,9 +445,6 @@ def fill_numbers(dictionary, full_list, number = 0):
     my_dict = dict.fromkeys(full_list, number)
     my_dict.update(dictionary)
     return my_dict
-
-def neighbor_index_calc():
-    pass
 
 def ignore_zero_div(x,y):
     np.seterr(all='ignore')
