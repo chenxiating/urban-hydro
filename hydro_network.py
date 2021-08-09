@@ -31,7 +31,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         self.n = n
         # initialize graph
         # gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
-        self.matrix = pickle.load(open(r'./gibbs_grid/10-grid_0.pickle','rb'))
+        self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
         self.gph = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         # initialize topological order and elevation
         nx.topological_sort(self.gph)
