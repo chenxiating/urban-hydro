@@ -17,5 +17,5 @@ module load intel
 echo "Module loaded. This is to use SWMM with multiprocessing."
 echo "walltime=8:00:00,nodes=1:ppn=5,pmem=1000mb,-p small,no np"
 echo "this version has multiprocessing"
-echo "running now"
+echo "this is the 24-hour run version"
 python3 run_multiprocessing_pool.py

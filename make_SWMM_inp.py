@@ -25,7 +25,7 @@ def make_inp(f,outlet_node,soil_nodes,simulation_date,infiltration,flowrouting,p
     info_outfalls(f=f,graph=graph,outlet_node=outlet_node)
     info_conduits(f=f,graph=graph)
     info_xsections(f=f,graph=graph)
-    info_timeseries(f=f,simulation_date=simulation_date,precip_name=precip_name,two_hour_precip=mean_rainfall_inch,precip_interval=15)
+    info_timeseries(f=f,simulation_date=simulation_date,precip_name=precip_name,precip_duration_hour=2,total_precip=mean_rainfall_inch,precip_interval=15)
     info_report(f=f)
     info_tag(f=f)
     info_map(f=f) 
@@ -52,7 +52,7 @@ def info_header(f,simulation_date,infiltration='HORTON',flowrouting='KINWAVE'):
     'REPORT_START_DATE    06/01/2021',
     'REPORT_START_TIME    00:00:00',
     'END_DATE             06/02/2021',
-    'END_TIME             00:00:00',
+    'END_TIME             06:00:00',
     'SWEEP_START          01/01',
     'SWEEP_END            12/31',
     'DRY_DAYS             0',
@@ -379,12 +379,12 @@ xsections]
         f.writelines(line)
         f.writelines('\n')
 
-def info_timeseries(f,simulation_date,precip_name,two_hour_precip,precip_interval):
+def info_timeseries(f,simulation_date,precip_name,precip_duration_hour,total_precip,precip_interval):
     """ precip_interval: minutes for hydrograph """
-    interval_precip=two_hour_precip/(2*60/precip_interval)
+    interval_precip=total_precip/(precip_duration_hour*60/precip_interval)
     duration_precip = 0
     timeseries = []
-    for hour in range(2,5):
+    for hour in range(2,round(3+precip_duration_hour,0)):
         for minutes in np.linspace(0,60,num=int(60/precip_interval),endpoint=False,dtype=int):
             timeserie = add_whitespace(precip_name, 17, '')
             date_ts = add_whitespace(simulation_date,11,'')
