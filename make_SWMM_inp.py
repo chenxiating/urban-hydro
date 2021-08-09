@@ -566,7 +566,8 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
     report_file_list = []
 
     # soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(gph = storm_net.gph, range_min = 0, range_max = 5, range_count = 5)
-    output_df = pd.DataFrame()#, columns=output_columns)
+    output_df = pd.DataFrame(data={'soil_nodes_list':[()]},dtype=object)#, columns=output_columns)
+    # output_df = output_df.astype({'soil_nodes_list':'object'})
     k = 0
 
     for count in range(int(nodes_num/2)):
@@ -591,21 +592,21 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         report_file_name='rep_'+input_file_name
         output_file_name='op_'+input_file_name
         # subprocess.run(['/Users/xchen/Applications/swmm5/build/runswmm5',input_file_name, report_file_name, output_file_name])
-        subprocess.run(['../../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name],stdout=subprocess.DEVNULL)
+        subprocess.run(['../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name],stdout=subprocess.DEVNULL)
         
         max_flood_nodes, node_hours_flooded, node_flood_vol_MG = rep_node_flooding_summary(report_file_name)
         max_flow_cfs, total_outflow_vol_MG = rep_outflow_sumary(report_file_name)
-        # output_df.loc[k,'soil_nodes_list'] = net.soil_nodes
-        output_df.loc[k,'soil_node_degree_list'] = soil_node_degree
-        output_df.loc[k,'soil_node_elev_list'] = soil_node_elev
-        output_df.loc[k,'soil_nodes_count'] = len(net.soil_nodes)/nodes_num*100
-        output_df.loc[k,'max_flood_nodes'] = max_flood_nodes
-        output_df.loc[k,'flood_duration_total_list'] = node_hours_flooded
-        output_df.loc[k,'total_flooded_vol_MG'] = node_flood_vol_MG
-        output_df.loc[k,'max_flow_cfs'] = max_flow_cfs
-        output_df.loc[k,'total_outflow_vol_MG'] = total_outflow_vol_MG
-        output_df.loc[k,'mean_rainfall'] = mean_rainfall_inch
-        output_df.loc[k,'antecedent_soil'] = antecedent_soil_moisture
+        output_df.at[k,'soil_node_degree_list'] = soil_node_degree
+        output_df.at[k,'soil_node_elev_list'] = soil_node_elev
+        output_df.at[k,'soil_nodes_count'] = len(net.soil_nodes)/nodes_num*100
+        output_df.at[k,'max_flood_nodes'] = max_flood_nodes
+        output_df.at[k,'flood_duration_total_list'] = node_hours_flooded
+        output_df.at[k,'total_flooded_vol_MG'] = node_flood_vol_MG
+        output_df.at[k,'max_flow_cfs'] = max_flow_cfs
+        output_df.at[k,'total_outflow_vol_MG'] = total_outflow_vol_MG
+        output_df.at[k,'mean_rainfall'] = mean_rainfall_inch
+        output_df['soil_nodes_list'][k]=net.soil_nodes
+        output_df.at[k,'antecedent_soil'] = antecedent_soil_moisture
         # 'mean_flood_nodes_TI'
         # 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g'
         subprocess.run(['rm',input_file_name, report_file_name, output_file_name])

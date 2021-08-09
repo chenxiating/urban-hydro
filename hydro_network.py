@@ -31,7 +31,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         self.n = n
         # initialize graph
         # gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
-        self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
+        self.matrix = pickle.load(open(r'./gibbs_grid/10-grid_0.pickle','rb'))
         self.gph = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         # initialize topological order and elevation
         nx.topological_sort(self.gph)
@@ -407,7 +407,7 @@ def print_time(earlier_time):
 
 if __name__ == '__main__':
     # kernel = lambda x: np.exp(-2)*2**x/factorial(x)
-    storm_web = Storm_network(g_type = 'grid',beta=0.5,nodes_num=25,kernel=None,node_drainage_area=87120)
+    storm_web = Storm_network(beta=0.5,nodes_num=25,node_drainage_area=87120)
     # pos_grid = {node: (math.floor(node/self.nodes_num))) for node in storm_web.gph}
     pos = graphviz_layout(storm_web.gph, prog = 'dot')
     nx.draw(storm_web.gph,pos,node_size = 2)#,pos_grid,with_labels=True)
