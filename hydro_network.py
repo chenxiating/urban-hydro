@@ -11,7 +11,7 @@ import datetime as date
 import datetime
 import time
 from random import sample
-from math import comb, log10, exp
+from math import floor
 from scipy.special import factorial
 import statistics
 import os
@@ -21,18 +21,18 @@ class Storm_network:
 
     def __init__(self, beta = 0.5, nodes_num = 10, n = 0.01, diam = 1, changing_diam = True, diam_increment = 0.5, soil_depth = 0, 
 slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_drainage_area = 1.5, node_manhole_area = 50, conductivity = 0.5,
-outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = None, count = 0):
+outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0):
         """ create a random network with different properties. the slope has been defaulted to be the same in
         the entire network, and the diameter is defaulted to go up as the network is further away from the
         outlet. conductivity should somehow link to the porosity of soil. node drainage area set in acre.
         """
         self.beta = beta
         self.nodes_num = nodes_num
-        self.n = n
         # initialize graph
         # gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
         self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
         self.gph = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
+        self.nodes_num = len(self.gph.nodes)
         # initialize topological order and elevation
         nx.topological_sort(self.gph)
         nodes_in_order = list(nx.topological_sort(self.gph))
@@ -51,7 +51,14 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         self.max_path_order = max_path_order
         self.downstream_degree_to_outlet = {k: len(nx.shortest_path(self.gph, source = k, target = self.outlet_node))-1 for k in self.gph.nodes}
         self.accumulate_downstream()
-        self.random_sample_soil_nodes(count)
+        self.get_coordinates()
+        self.flood_nodes = None
+        
+        if soil_nodes:
+            self.soil_nodes = soil_nodes
+        else:
+            self.random_sample_soil_nodes(count)
+        
         if outlet_elev: 
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_elev}, 'elev')
         else:
@@ -62,9 +69,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
             elev_ds = self.gph.nodes[k[1]].get('elev')
             length = abs(elev_us-elev_ds)/slope
             downstream_degree_to_outlet = len(nx.shortest_path(self.gph, source = k[0], target = self.outlet_node))
-            diam0 = ((max_path_order - downstream_degree_to_outlet) * diam * diam_increment)*changing_diam + diam
-            # print(k,'diameter in create network',diam0)
-            a = dict(zip(["n", "length", "diam",'conductivity'], [n, length, diam0, conductivity]))
+            a = dict(zip(["n", "length",'conductivity'], [n, length, conductivity]))
             b = dict(zip([k], [a]))
             nx.set_edge_attributes(self.gph, b)
         if changing_diam:
@@ -73,10 +78,11 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                     pass
                 else:
                     acre = self.gph.nodes[k]['cumulative_node_drainage_area']
-                    Qd = 0.8*6*acre         # cfs
-                    # print('rational Q (K=1, c=0.8, i=5.6):', Qd)
-                    # print('diameter for outflowing pipe', gph.out_edges(k,data='diam'))
-                    Dr = (2.16*Qd*n/np.sqrt(slope))**(3/8)
+                    Qd = 0.96*(4.18/24)*acre         # cfs, 
+                    # i should be in in/hr. 
+                    # 100-year 24-hr storm is 7.4 inch, 100-yr 2-hr storm is 4.55 inch.
+                    # 10-year 24-hr storm is 4.18 inch.
+                    Dr = (2.16*Qd*n/np.sqrt(slope))**(3/8) # Mays 15.2.7, page 621
                     ds_node = [ds_node for k, ds_node in self.gph.out_edges(k,data=False)][0]
                     # print('ds node',ds_node[0])
                     self.gph[k][ds_node]['diam']=round_pipe_diam(Dr)
@@ -89,6 +95,13 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         if outlet_node_drainage_area: 
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_node_drainage_area}, "node_drainage_area")
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_node_drainage_area}, "node_manhole_area")
+        return
+
+    def get_coordinates(self):
+        # convert matrix index to (i,j)  coordinates
+        n = np.sqrt(self.nodes_num)
+        coordinates = graphviz_layout(self.gph, prog = 'dot')
+        nx.set_node_attributes(self.gph, coordinates, 'coordinates')
         return
 
     def accumulate_downstream(self, accum_attr='node_drainage_area', cumu_attr_name=None):
@@ -159,26 +172,37 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
     #     soil_nodes_combo_count = len(soil_nodes_combo)
     #     return soil_nodes_combo, soil_nodes_combo_count
     
-    def calc_soil_node_elev(self):
-        soil_nodes_length = len(self.soil_nodes)
-        if soil_nodes_length == 0:
+    def calc_node_distance(self,type = 'soil'):
+        if type == 'flood':
+            nodes = self.flood_nodes
+        else: 
+            nodes = self.soil_nodes
+        nodes_length = len(nodes)
+        if nodes_length == 0:
             return 0
         else:
             total_path = 0
-            for k in self.soil_nodes:
+            for k in nodes:
                 each_path = len(nx.shortest_path(self.gph, source=k, target = self.outlet_node)) - 1
                 total_path = total_path + each_path
-            soil_node_elev = total_path/soil_nodes_length
-            return soil_node_elev
+            node_elev = total_path/nodes_length
+            return node_elev
     
-    def calc_soil_node_degree(self):
-        soil_nodes_length = len(self.soil_nodes)
-        degrees = dict(self.gph.degree())
-        # soil_node_degree = ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
-        soil_node_degree_sum = sum(degrees[k]*degrees[k] for k in self.soil_nodes)
-        # print(soil_node_degree_sum)
-        soil_node_degree = ignore_zero_div(soil_node_degree_sum,soil_nodes_length)
-        return soil_node_degree
+    def calc_node_degree(self,type = 'soil'):
+        if type == 'flood':
+            nodes = self.flood_nodes
+        else: 
+            nodes = self.soil_nodes
+        nodes_length = len(nodes)
+        if nodes_length == 0:
+            return 0
+        else:
+            degrees = dict(self.gph.degree())
+            # soil_node_degree = ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
+            node_degree_sum = sum(degrees[k]*degrees[k] for k in nodes)
+            # print(soil_node_degree_sum)
+            node_degree = ignore_zero_div(node_degree_sum,nodes_length)
+            return node_degree
     
     def calc_flow_path(self, accum_attr='length', path_attr_name=None):
         """calculate flow paths lengths and travel time"""
@@ -226,7 +250,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         node_color = []
         node_size_og = 10
         node_size = []
-        node_label = {node:'' for node in self.gph.nodes}
+        node_label = {node:str(node) for node in self.gph.nodes}
         for node in self.gph: 
             if node == self.outlet_node:
                 node_color.append('C1')
@@ -235,11 +259,16 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                 node_color.append('C2')
                 node_size.append(node_size_og*2)
                 node_label[node]=str(node)
+            elif self.flood_nodes: 
+                node_color.append('C3')
+                node_size.append(node_size_og*2)
+                node_label[node]=str(node)
             else:
                 node_color.append('C0')
                 node_size.append(node_size_og)
 
         # _, ax0 = plt.subplots(1,2, gridspec_kw={'width_ratios': [2, 3]})
+        _ = plt.figure()
         ax1 = plt.subplot(122)
         nx.draw(self.gph, pos, ax1, node_color = node_color, node_size = node_size,labels = node_label, 
         font_size=6,with_labels = label_on)
@@ -462,12 +491,10 @@ def print_time(earlier_time):
     return now_time
 
 if __name__ == '__main__':
+    os.chdir(r'./gibbs_grid')
     # kernel = lambda x: np.exp(-2)*2**x/factorial(x)
     storm_web = Storm_network(beta=0.5,nodes_num=25,node_drainage_area=87120)
     # pos_grid = {node: (math.floor(node/self.nodes_num))) for node in storm_web.gph}
     pos = graphviz_layout(storm_web.gph, prog = 'dot')
     nx.draw(storm_web.gph,pos,node_size = 2)#,pos_grid,with_labels=True)
-    # depth = rainfall_func(dt=0.25,freq=0.8,is_pulse=False)
-    # print(depth)
-    # draw_varying_size(G,edge_attribute='diam')
     plt.show()

@@ -1,3 +1,4 @@
+from numpy.core.defchararray import add
 import hydro_network as hn
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,7 +30,7 @@ def make_inp(f,outlet_node,soil_nodes,simulation_date,infiltration,flowrouting,p
     info_report(f=f)
     info_tag(f=f)
     info_map(f=f) 
-    info_coordinates(f=f)
+    info_coordinates(f=f,graph=graph)
     info_vertices(f=f)
     info_polygons(f=f)
     info_symbols(f=f)
@@ -310,7 +311,7 @@ def info_junctions(f,graph,flood_level,outlet_node):
         elevation = round(graph.nodes[node].get('elev'),5)
         maxdepth = flood_level
         initdepth = 0
-        surdepth = flood_level
+        surdepth = 0
         aponded = 0
         node_junction = add_whitespace(name,17,'') + add_whitespace(elevation, 11, '') + \
                 add_whitespace(maxdepth,11,'')+add_whitespace(initdepth,11,'')+ \
@@ -424,9 +425,17 @@ def info_map(f):
         f.writelines('\n')
     f.writelines('\n')        
 
-def info_coordinates(f):
+def info_coordinates(f,graph):
+    coordinates = []
+    for node in graph.nodes():
+        name = str(node).replace(', ','_')
+        xcoord, ycoord = graph.nodes[node].get('coordinates')
+        node_coordinate = add_whitespace(name, 17, '') + add_whitespace(xcoord, 19, '') + \
+                add_whitespace(ycoord, 19, '') + '\n'
+        coordinates.append(node_coordinate)
     lines = ['[COORDINATES]',';;Node           X-Coord            Y-Coord',           
-';;-------------- ------------------ ------------------']
+';;-------------- ------------------ ------------------',
+coordinates]
     for line in lines:
         f.writelines(line)
         f.writelines('\n')
@@ -491,7 +500,7 @@ def rep_node_flooding_summary(rep_file_name):
         #     node_flooding_summary_number = line_number + 10
         try: 
             if (line_number > node_flooding_summary_number) and ("*****" in line):
-                end_number = line_number
+                end_number = line_number - 2
                 # print(end_number)
                 break
         except UnboundLocalError:
@@ -501,22 +510,24 @@ def rep_node_flooding_summary(rep_file_name):
     rep_file.seek(0)
 
     lines = rep_file.read().splitlines()
+    flood_nodes_list = []
     max_flood_nodes = 0
     node_hours_flooded = float(0)
     node_flood_vol_MG = float(0)
     if node_flooding_summary_number > 0:
         for i in range(node_flooding_summary_number, end_number):
             try: 
-                max_flood_nodes += 1
                 # print('max_flood_nodes',max_flood_nodes)
                 # print(lines[i])
+                flood_nodes_list.append(int(lines[i].split()[0]))
                 node_hours_flooded += float(lines[i].split()[1])
                 # print('node_hours_flooded',node_hours_flooded)
                 node_flood_vol_MG += float(lines[i].split()[5])
                 # print('node_flood_vol_MG',node_flood_vol_MG)
+                max_flood_nodes += 1
             except IndexError or UnboundLocalError:
                 pass
-    return max_flood_nodes, node_hours_flooded, node_flood_vol_MG
+    return flood_nodes_list, max_flood_nodes, node_hours_flooded, node_flood_vol_MG
 
 def rep_outflow_sumary(rep_file_name):
     rep_file=open(rep_file_name,'r')
@@ -562,25 +573,29 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
     outlet_node_drainage_area = node_drainage_area*10e5          # set the river area to very large
     soil_depth = 6
     init_level = 0.0
-    flood_level = 10
+    flood_level = 10         # maximum depth allowable for stormwater to accumulate in MH
     report_file_list = []
-
-    # soil_nodes_combo, soil_nodes_combo_count = hn.random_sample_soil_nodes(gph = storm_net.gph, range_min = 0, range_max = 5, range_count = 5)
-    output_df = pd.DataFrame(data={'soil_nodes_list':[()]},dtype=object)#, columns=output_columns)
+    # soil_nodes_list = [[0, 1, 4, 5, 15, 17, 23, 25, 29, 30, 31, 36, 40, 44, 51, 53, 54, 63, 64, 65, 67, 79, 82, 86, 89],
+    #    [6, 7, 12, 13, 19, 20, 32, 33, 34, 42, 43, 56, 58, 59, 62, 71, 72, 74, 75, 76, 77, 78, 81, 84, 88],
+    #    [1, 2, 3, 4, 11, 12, 13, 15, 20, 21, 22, 23, 24, 31, 32, 33, 34, 35, 36, 41, 42, 43, 51, 52, 53],
+    #    [98, 99, 7, 8, 9, 16, 17, 18, 19, 25, 26, 27, 28, 29, 37, 38, 39, 44, 45, 46, 68, 78, 79, 88, 89]]
+    output_df = pd.DataFrame(data={'soil_nodes_list':[()],'flood_nodes_list':[()]},dtype=object)#, columns=output_columns)
     # output_df = output_df.astype({'soil_nodes_list':'object'})
     k = 0
 
+    # for _ in range(100):
+        # count = 25
     for count in range(int(nodes_num/2)):
-    # for soil_nodes in soil_nodes_combo:
+    # for soil_nodes in soil_nodes_list:
         # kernel = lambda x: np.exp(-mu)*mu**x/factorial(x)
         net = hn.Storm_network(beta=beta, nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
-    outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, count = count, seed = None)
+    outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, count = count)
         soil_node_in_set_check = prod([(node in net.gph.nodes) for node in net.soil_nodes])
         if soil_node_in_set_check == 0:
             print(net.soil_nodes)
             print(net.gph.nodes)
         input_file_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(len(net.soil_nodes))+'-soil-nodes_'+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_'+str(i)+'_'+str(k)+'.inp'
-        print('Permeable nodes count: ', len(net.soil_nodes), net.soil_nodes, 'Rainfall intensity: ', mean_rainfall_inch, 'Soil moisture: ', antecedent_soil_moisture)
+        # print('Permeable nodes count: ', len(net.soil_nodes), net.soil_nodes, 'Rainfall intensity: ', mean_rainfall_inch, 'Soil moisture: ', antecedent_soil_moisture)
         infiltration='HORTON'
         flowrouting='KINWAVE'
         new_file=open(input_file_name,'w')
@@ -592,10 +607,11 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         # subprocess.run(['/Users/xchen/Applications/swmm5/build/runswmm5',input_file_name, report_file_name, output_file_name])
         subprocess.run(['../../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name],stdout=subprocess.DEVNULL)
         
-        max_flood_nodes, node_hours_flooded, node_flood_vol_MG = rep_node_flooding_summary(report_file_name)
+        flood_nodes_list, max_flood_nodes, node_hours_flooded, node_flood_vol_MG = rep_node_flooding_summary(report_file_name)
+        net.flood_nodes = tuple(flood_nodes_list)
         max_flow_cfs, total_outflow_vol_MG = rep_outflow_sumary(report_file_name)
-        output_df.at[k,'soil_node_degree_list'] = net.calc_soil_node_degree()
-        output_df.at[k,'soil_node_elev_list'] = net.calc_soil_node_elev()
+        output_df.at[k,'soil_node_degree_list'] = net.calc_node_degree()
+        output_df.at[k,'soil_node_distance_list'] = net.calc_node_distance()
         output_df.at[k,'cumulative_node_drainage_area'] = net.calc_upstream_cumulative_area()
         output_df.at[k,'soil_nodes_count'] = len(net.soil_nodes)/nodes_num*100
         output_df.at[k,'max_flood_nodes'] = max_flood_nodes
@@ -605,7 +621,11 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         output_df.at[k,'total_outflow_vol_MG'] = total_outflow_vol_MG
         output_df.at[k,'mean_rainfall'] = mean_rainfall_inch
         output_df.at[k,'antecedent_soil'] = antecedent_soil_moisture
-        output_df['soil_nodes_list'][k]=net.soil_nodes
+        output_df.at[k,'soil_nodes_list'] = net.soil_nodes
+        output_df.at[k,'flood_nodes_list'] = net.flood_nodes
+        output_df.at[k,'flood_node_degree_list'] = net.calc_node_degree(type = 'flood')
+        output_df.at[k,'flood_node_distance_list'] = net.calc_node_distance(type = 'flood')
+        # output_df['soil_nodes_list'][k]=net.soil_nodes
         # 'mean_flood_nodes_TI'
         # 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g'
         subprocess.run(['rm',input_file_name, report_file_name, output_file_name])
@@ -623,8 +643,9 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
 
 if __name__ == '__main__':
     soil_moisture_list = np.linspace(0.0, 1.0, 1)
-    mean_rainfall_set = np.linspace(13, 3, 10, endpoint=False)
-    nodes_num = 20
+    # mean_rainfall_set = [5.27, 6.32, 7.19]
+    mean_rainfall_set = np.array([1.44, 1.69, 2.15, 2.59, 3.29, 3.89, 4.55, 5.27, 6.32, 7.19])
+    nodes_num = 100
     beta=0.5
 
     today = date.datetime.today()
@@ -637,12 +658,13 @@ if __name__ == '__main__':
     os.chdir(folder_name)
 
     main_df = pd.DataFrame()
-    for i in range(10):
+    for i in range(1):
         for antecedent_soil_moisture in soil_moisture_list:
             for mean_rainfall_inch in mean_rainfall_set:
                 main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, nodes_num=nodes_num,i=i,beta=beta,mp=False)
 
     datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
+    main_df.to_csv(path_or_buf = datafile_name.replace('.pickle','.csv'))
     f = open(datafile_name,'wb')
     pickle.dump(main_df, f)
     f.close()
