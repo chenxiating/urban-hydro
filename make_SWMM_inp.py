@@ -431,10 +431,13 @@ def info_coordinates(f,graph):
     coordinates = []
     for node in graph.nodes():
         name = str(node).replace(', ','_')
-        xcoord, ycoord = graph.nodes[node].get('coordinates')
-        node_coordinate = add_whitespace(name, 17, '') + add_whitespace(xcoord, 19, '') + \
+        try:
+            xcoord, ycoord = graph.nodes[node].get('coordinates')
+            node_coordinate = add_whitespace(name, 17, '') + add_whitespace(xcoord, 19, '') + \
                 add_whitespace(ycoord, 19, '') + '\n'
-        coordinates.append(node_coordinate)
+            coordinates.append(node_coordinate)
+        except TypeError:
+            pass
     lines = ['[COORDINATES]',';;Node           X-Coord            Y-Coord',           
 ';;-------------- ------------------ ------------------',
 coordinates]
