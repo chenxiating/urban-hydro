@@ -11,12 +11,12 @@ import subprocess
 import os
 from math import prod
 
-def make_inp(f,outlet_node,soil_nodes,simulation_date,infiltration,flowrouting,precip_name,graph,flood_level,antecedent_soil_moisture,mean_rainfall_inch):
+def make_inp(f,outlet_node,soil_nodes,simulation_date,infiltration,pcntimp,flowrouting,precip_name,graph,flood_level,antecedent_soil_moisture,mean_rainfall_inch):
     info_header(f=f,simulation_date=simulation_date,infiltration=infiltration,flowrouting=flowrouting)
     info_evaporations(f=f,et_rate=5)
     info_temperature(f=f)
     info_raingages(f=f,precip_name=precip_name,raingage=1)
-    info_subcatchments(f=f,graph=graph,raingage=1,soil_nodes=soil_nodes,outlet_node=outlet_node)
+    info_subcatchments(f=f,graph=graph,raingage=1,soil_nodes=soil_nodes,outlet_node=outlet_node,pcntimp=pcntimp)
     info_subareas(f=f,graph=graph,outlet_node=outlet_node)
     info_infiltration(f=f,infiltration=infiltration,graph=graph,outlet_node=outlet_node)
     info_lid_controls(f=f)
@@ -108,7 +108,7 @@ raingage]
         f.writelines('\n')
     f.writelines('\n')
 
-def info_subcatchments(f,graph,raingage,soil_nodes,outlet_node):
+def info_subcatchments(f,graph,raingage,soil_nodes,outlet_node, pcntimp):
     subcatchments = [] ## This is where the node information is entered.
     for node in graph.nodes():
         if node == outlet_node:
@@ -117,7 +117,8 @@ def info_subcatchments(f,graph,raingage,soil_nodes,outlet_node):
         raingage = raingage
         outlet = str(node).replace(', ','_')
         totalarea = graph.nodes[node].get('node_drainage_area')
-        pcntimp = 0 if node in soil_nodes else 100
+        # pcntimp = 0 if node in soil_nodes else 100
+        pcntimp = 85
         width = 5
         pcntslope = 0.5
         curblength = 0
@@ -268,14 +269,15 @@ drain_open = 0, drain_close = 0):
     f.writelines('\n')
 
 def info_lid_usage(f, graph, soil_nodes, initsat, name = 'bioret_cell', surf_width = 200):
+    """ LID takes up 1% of the subcatchment area. """
     lid_usages = []
     for node in soil_nodes:
         sc_name = 'SC'+str(node).replace(', ','_')
         number = 1
-        area = graph.nodes[node].get('node_drainage_area') * 43560
-        from_imp = 100
-        to_perv = 100
-        from_perv = 100
+        area = graph.nodes[node].get('node_drainage_area') * 43560 * 0.01
+        from_imp = 50
+        to_perv = 0
+        from_perv = 0
         lid_usage = add_whitespace(sc_name,17,'') + add_whitespace(name,17,'') + \
             add_whitespace(number,8,'') + add_whitespace(area,11,'') + \
             add_whitespace(surf_width,11,'') + add_whitespace(initsat,11,'') + \
@@ -599,7 +601,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         infiltration='HORTON'
         flowrouting='KINWAVE'
         new_file=open(input_file_name,'w')
-        make_inp(f=new_file,outlet_node=net.outlet_node,soil_nodes=net.soil_nodes,simulation_date=simulation_date,infiltration=infiltration,flowrouting=flowrouting,precip_name=precip_name,graph=net.gph,flood_level=flood_level,
+        make_inp(f=new_file,outlet_node=net.outlet_node,soil_nodes=net.soil_nodes,simulation_date=simulation_date,infiltration=infiltration,pcntimp = 85, flowrouting=flowrouting,precip_name=precip_name,graph=net.gph,flood_level=flood_level,
         antecedent_soil_moisture = antecedent_soil_moisture, mean_rainfall_inch = mean_rainfall_inch)
         new_file.close()
         report_file_name='rep_'+input_file_name
