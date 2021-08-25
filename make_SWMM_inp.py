@@ -117,8 +117,8 @@ def info_subcatchments(f,graph,raingage,soil_nodes,outlet_node, pcntimp):
         raingage = raingage
         outlet = str(node).replace(', ','_')
         totalarea = graph.nodes[node].get('node_drainage_area')
-        # pcntimp = 0 if node in soil_nodes else 100
-        pcntimp = 85
+        if pcntimp is None:
+            pcntimp = 0 if node in soil_nodes else 100
         width = 5
         pcntslope = 0.5
         curblength = 0
@@ -166,7 +166,7 @@ subareas]
         f.writelines('\n')
     f.writelines('\n')
     
-def info_infiltration(f,infiltration,graph,outlet_node):
+def info_infiltration(f,graph,outlet_node,infiltration = 'HORTON'):
     if infiltration == 'HORTON':
         infiltration = []
         for node in graph.nodes():
@@ -190,7 +190,7 @@ infiltration]
     elif infiltration == 'GREEN-AMPT':
         infiltration = []
         for node in graph.nodes():
-            if node == (0,0):
+            if node == outlet_node:
                 continue
             subcatchment = 'SC'+str(node).replace(', ','_')
             suction = 10
@@ -275,9 +275,9 @@ def info_lid_usage(f, graph, soil_nodes, initsat, name = 'bioret_cell', surf_wid
         sc_name = 'SC'+str(node).replace(', ','_')
         number = 1
         area = graph.nodes[node].get('node_drainage_area') * 43560 * 0.01
-        from_imp = 50
+        from_imp = 100
         to_perv = 0
-        from_perv = 0
+        from_perv = 100
         lid_usage = add_whitespace(sc_name,17,'') + add_whitespace(name,17,'') + \
             add_whitespace(number,8,'') + add_whitespace(area,11,'') + \
             add_whitespace(surf_width,11,'') + add_whitespace(initsat,11,'') + \
@@ -522,14 +522,17 @@ def rep_node_flooding_summary(rep_file_name):
     if node_flooding_summary_number > 0:
         for i in range(node_flooding_summary_number, end_number):
             try: 
-                # print('max_flood_nodes',max_flood_nodes)
-                # print(lines[i])
-                flood_nodes_list.append(int(lines[i].split()[0]))
-                node_hours_flooded += float(lines[i].split()[1])
-                # print('node_hours_flooded',node_hours_flooded)
-                node_flood_vol_MG += float(lines[i].split()[5])
-                # print('node_flood_vol_MG',node_flood_vol_MG)
-                max_flood_nodes += 1
+                if float(lines[i].split()[1]) < 0.3:
+                    pass
+                else:
+                    # print('max_flood_nodes',max_flood_nodes)
+                    # print(lines[i])
+                    flood_nodes_list.append(int(lines[i].split()[0]))
+                    node_hours_flooded += float(lines[i].split()[1])
+                    # print('node_hours_flooded',node_hours_flooded)
+                    node_flood_vol_MG += float(lines[i].split()[5])
+                    # print('node_flood_vol_MG',node_flood_vol_MG)
+                    max_flood_nodes += 1
             except IndexError or UnboundLocalError:
                 pass
     return flood_nodes_list, max_flood_nodes, node_hours_flooded, node_flood_vol_MG
@@ -588,14 +591,15 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
     # output_df = output_df.astype({'soil_nodes_list':'object'})
     k = 0
 
-    # for _ in range(100):
-        # count = 25
+    # for _ in range(1):
+    #     count = 25
     for count in range(int(nodes_num/2)):
     # for soil_nodes in soil_nodes_list:
-        # kernel = lambda x: np.exp(-mu)*mu**x/factorial(x)
+        # soil_nodes = (0, 1, 4, 5, 15, 17, 23, 25, 29, 30, 31, 36, 40, 44, 51, 53, 54, 63, 64, 65, 67, 79, 82, 86, 89)
         net = hn.Storm_network(beta=beta, nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
     outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, count = count)
         soil_node_in_set_check = prod([(node in net.gph.nodes) for node in net.soil_nodes])
+        print(net.soil_nodes)
         if soil_node_in_set_check == 0:
             print(net.soil_nodes)
             print(net.gph.nodes)
@@ -604,7 +608,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         infiltration='HORTON'
         flowrouting='KINWAVE'
         new_file=open(input_file_name,'w')
-        make_inp(f=new_file,outlet_node=net.outlet_node,soil_nodes=net.soil_nodes,simulation_date=simulation_date,infiltration=infiltration,pcntimp = 85, flowrouting=flowrouting,precip_name=precip_name,graph=net.gph,flood_level=flood_level,
+        make_inp(f=new_file,outlet_node=net.outlet_node,soil_nodes=net.soil_nodes,simulation_date=simulation_date,infiltration=infiltration,pcntimp = 60, flowrouting=flowrouting,precip_name=precip_name,graph=net.gph,flood_level=flood_level,
         antecedent_soil_moisture = antecedent_soil_moisture, mean_rainfall_inch = mean_rainfall_inch)
         new_file.close()
         report_file_name='rep_'+input_file_name
@@ -633,7 +637,8 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         # output_df['soil_nodes_list'][k]=net.soil_nodes
         # 'mean_flood_nodes_TI'
         # 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g'
-        subprocess.run(['rm',input_file_name, report_file_name, output_file_name])
+        if mp: 
+            subprocess.run(['rm',input_file_name, report_file_name, output_file_name])
         k += 1
     print(output_df)
 
@@ -648,8 +653,8 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
 
 if __name__ == '__main__':
     soil_moisture_list = np.linspace(0.0, 1.0, 1)
-    # mean_rainfall_set = [5.27, 6.32, 7.19]
-    mean_rainfall_set = np.array([1.44, 1.69, 2.15, 2.59, 3.29, 3.89, 4.55, 5.27, 6.32, 7.19])
+    mean_rainfall_set = [3.89]#, 6.32, 7.19]
+    # mean_rainfall_set = np.array([1.44, 1.69, 2.15, 2.59, 3.29, 3.89, 4.55, 5.27, 6.32, 7.19])
     nodes_num = 100
     beta=0.5
 
@@ -670,8 +675,8 @@ if __name__ == '__main__':
 
     datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
     main_df.to_csv(path_or_buf = datafile_name.replace('.pickle','.csv'))
-    f = open(datafile_name,'wb')
-    pickle.dump(main_df, f)
-    f.close()
+    # f = open(datafile_name,'wb')
+    # pickle.dump(main_df, f)
+    # f.close()
     print(main_df)
     print(datafile_name)

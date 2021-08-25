@@ -79,7 +79,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                 else:
                     acre = self.gph.nodes[k]['cumulative_node_drainage_area']
                     Qd = 0.96*(4.18/24)*acre         # cfs, 
-                    # i should be in in/hr. 
+                    # i should be in in/hr. Design storm
                     # 100-year 24-hr storm is 7.4 inch, 100-yr 2-hr storm is 4.55 inch.
                     # 10-year 24-hr storm is 4.18 inch.
                     Dr = (2.16*Qd*n/np.sqrt(slope))**(3/8) # Mays 15.2.7, page 621
