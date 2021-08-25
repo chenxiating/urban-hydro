@@ -51,7 +51,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         self.max_path_order = max_path_order
         self.downstream_degree_to_outlet = {k: len(nx.shortest_path(self.gph, source = k, target = self.outlet_node))-1 for k in self.gph.nodes}
         self.accumulate_downstream()
-        self.get_coordinates()
+        # self.get_coordinates()
         self.flood_nodes = None
         
         if soil_nodes:
