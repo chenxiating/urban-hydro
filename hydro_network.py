@@ -1,3 +1,4 @@
+from networkx.algorithms.cluster import clustering
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -53,11 +54,11 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         self.accumulate_downstream()
         # self.get_coordinates()
         self.flood_nodes = None
-        
+        self.soil_nodes = ()
+
         if soil_nodes:
             self.soil_nodes = soil_nodes
-        else:
-            self.random_sample_soil_nodes(count)
+        self.random_sample_soil_nodes(count=count)
         
         if outlet_elev: 
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_elev}, 'elev')
@@ -139,8 +140,14 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
     def random_sample_soil_nodes(self, count):
         us_nodes_to_sample = list(self.gph.nodes).copy()
         us_nodes_to_sample.remove(self.outlet_node)
-        # print(count)
-        self.soil_nodes = tuple(sample(us_nodes_to_sample, count))
+
+        if self.soil_nodes and (count - len(self.soil_nodes))>0: 
+            set_to_sample_from = set(us_nodes_to_sample) - set(self.soil_nodes)
+            new_soil_nodes = sample(set_to_sample_from, count - len(self.soil_nodes))
+            total_soil_nodes = tuple(set(self.soil_nodes) + set(new_soil_nodes))
+            self.soil_nodes = total_soil_nodes
+        else: 
+            self.soil_nodes = tuple(sample(us_nodes_to_sample, count))
     
     # def random_sample_soil_nodes(self, count_to_sample = None, range_min = 1, range_max = 20, range_count = 10):
     #     """
@@ -232,6 +239,21 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
             path_dict[node] = path_attr
         nx.set_node_attributes(self.gph, path_dict, path_attr_name)
         return path_dict
+
+    def calc_node_clustering(self,type = 'soil'):
+        clustering_coef = 0
+        if type == 'flood':
+            nodes = self.flood_nodes
+        else: 
+            nodes = self.soil_nodes
+        for node in nodes:
+            in_edges = self.gph.in_edges(node)
+            us_nodes = [edge[0] for edge in in_edges]
+            in_us = sum([us_node in nodes for us_node in us_nodes])
+            if len(us_nodes)> 0:
+                clustering_coef = clustering_coef + (in_us/len(us_nodes))
+        print(clustering_coef)
+        return clustering_coef
     
     def calc_upstream_cumulative_area(self,accum_attr='node_drainage_area', cumu_attr_name=None):
         if cumu_attr_name is None:

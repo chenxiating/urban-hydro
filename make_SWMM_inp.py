@@ -9,6 +9,7 @@ import datetime
 import pickle
 import subprocess
 import os
+from random import sample
 from math import prod
 
 def make_inp(f,outlet_node,soil_nodes,simulation_date,infiltration,pcntimp,flowrouting,precip_name,graph,flood_level,antecedent_soil_moisture,mean_rainfall_inch):
@@ -572,7 +573,7 @@ def rep_outflow_sumary(rep_file_name):
             pass
     return max_flow_cfs, total_vol_MG
 
-def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp=True):
+def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,count=0,soil_nodes=None,mp=True):
     simulation_date = '06/01/2021'
     precip_name = 'hydrograph'
     node_drainage_area = 2           # acres
@@ -583,23 +584,16 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
     init_level = 0.0
     flood_level = 10         # maximum depth allowable for stormwater to accumulate in MH
     report_file_list = []
-    # soil_nodes_list = [[0, 1, 4, 5, 15, 17, 23, 25, 29, 30, 31, 36, 40, 44, 51, 53, 54, 63, 64, 65, 67, 79, 82, 86, 89],
-    #    [6, 7, 12, 13, 19, 20, 32, 33, 34, 42, 43, 56, 58, 59, 62, 71, 72, 74, 75, 76, 77, 78, 81, 84, 88],
-    #    [1, 2, 3, 4, 11, 12, 13, 15, 20, 21, 22, 23, 24, 31, 32, 33, 34, 35, 36, 41, 42, 43, 51, 52, 53],
-    #    [98, 99, 7, 8, 9, 16, 17, 18, 19, 25, 26, 27, 28, 29, 37, 38, 39, 44, 45, 46, 68, 78, 79, 88, 89]]
     output_df = pd.DataFrame(data={'soil_nodes_list':[()],'flood_nodes_list':[()]},dtype=object)#, columns=output_columns)
     # output_df = output_df.astype({'soil_nodes_list':'object'})
     k = 0
 
-    # for _ in range(1):
+    for _ in range(1):
     #     count = 25
-    for count in range(int(nodes_num/2)):
-    # for soil_nodes in soil_nodes_list:
-        # soil_nodes = (0, 1, 4, 5, 15, 17, 23, 25, 29, 30, 31, 36, 40, 44, 51, 53, 54, 63, 64, 65, 67, 79, 82, 86, 89)
+    # for count in range(int(nodes_num/2)):
         net = hn.Storm_network(beta=beta, nodes_num = nodes_num, level = init_level, diam = 1, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
-    outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, count = count)
+    outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, count = count, soil_nodes = soil_nodes)
         soil_node_in_set_check = prod([(node in net.gph.nodes) for node in net.soil_nodes])
-        print(net.soil_nodes)
         if soil_node_in_set_check == 0:
             print(net.soil_nodes)
             print(net.gph.nodes)
@@ -621,6 +615,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
         max_flow_cfs, total_outflow_vol_MG = rep_outflow_sumary(report_file_name)
         output_df.at[k,'soil_node_degree_list'] = net.calc_node_degree()
         output_df.at[k,'soil_node_distance_list'] = net.calc_node_distance()
+        output_df.at[k,'soil_clustering'] = net.calc_node_clustering()
         output_df.at[k,'cumulative_node_drainage_area'] = net.calc_upstream_cumulative_area()
         output_df.at[k,'soil_nodes_count'] = len(net.soil_nodes)/nodes_num*100
         output_df.at[k,'max_flood_nodes'] = max_flood_nodes
@@ -653,7 +648,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,mp
 
 if __name__ == '__main__':
     soil_moisture_list = np.linspace(0.0, 1.0, 1)
-    mean_rainfall_set = [3.89]#, 6.32, 7.19]
+    mean_rainfall_set = [3.89, 4.55, 5.27, 6.32, 7.19]
     # mean_rainfall_set = np.array([1.44, 1.69, 2.15, 2.59, 3.29, 3.89, 4.55, 5.27, 6.32, 7.19])
     nodes_num = 100
     beta=0.5
@@ -667,16 +662,31 @@ if __name__ == '__main__':
         pass    
     os.chdir(folder_name)
 
-    main_df = pd.DataFrame()
-    for i in range(1):
-        for antecedent_soil_moisture in soil_moisture_list:
-            for mean_rainfall_inch in mean_rainfall_set:
-                main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, nodes_num=nodes_num,i=i,beta=beta,mp=False)
+    main_df = pd.DataFrame()    
+    soil_nodes_list = [[0, 1, 2, 3, 4, 10, 11, 12, 13, 15, 20, 21, 22, 23, 24, 30, 31, 32, 33, 34, 
+    35, 36, 41, 42, 43, 51, 52, 53, 61, 62, 63, 70, 71, 72, 81], [5, 6, 7, 8, 9, 16, 17, 18, 19, 
+    25, 26, 27, 28, 29, 37, 38, 39, 44, 45, 46, 47, 48, 49, 54, 58, 59, 68, 69, 78, 79, 88, 89, 94, 
+    95, 96, 98, 99], [6, 7, 12, 13, 19, 20, 32, 33, 34, 42, 43, 56, 58, 59, 62, 71, 72, 74, 75, 
+    76, 77, 78, 81, 84, 88], [0, 1, 4, 5, 15, 17, 23, 25, 29, 30, 31, 36, 40, 44, 51, 53, 54, 63, 
+    64, 65, 67, 79, 82, 86, 89, 90, 91, 92, 94, 99], [59, 49, 39, 38, 37, 27, 28, 18, 19, 9, 8, 7, 
+    6, 5, 16, 26, 25, 17, 29, 69, 68, 78, 79, 88, 89, 98, 99]]
+    for soil_nodes_group in soil_nodes_list:
+        for i in range(10):
+            for j in [10, 20, 30, 40]:
+                if j > len(soil_nodes_group): 
+                    soil_nodes = None
+                    count = j
+                else: 
+                    soil_nodes = sample(soil_nodes_group,j)
+                    count = 0
+                for antecedent_soil_moisture in soil_moisture_list:
+                    for mean_rainfall_inch in mean_rainfall_set:
+                        main_df = main(main_df, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch, nodes_num=nodes_num,i=i,beta=beta,count=count, soil_nodes = soil_nodes, mp=False)
 
-    datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
+        datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'
     main_df.to_csv(path_or_buf = datafile_name.replace('.pickle','.csv'))
-    # f = open(datafile_name,'wb')
-    # pickle.dump(main_df, f)
-    # f.close()
+    f = open(datafile_name,'wb')
+    pickle.dump(main_df, f)
+    f.close()
     print(main_df)
     print(datafile_name)
