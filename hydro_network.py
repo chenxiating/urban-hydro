@@ -242,16 +242,40 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
 
     def calc_node_clustering(self,type = 'soil'):
         clustering_coef = 0
+        all_nodes = {}
+        all_ds_nodes = {}
+        big_group = []
+
         if type == 'flood':
-            nodes = self.flood_nodes
+            us_search_nodes = self.flood_nodes
         else: 
-            nodes = self.soil_nodes
-        for node in nodes:
-            in_edges = self.gph.in_edges(node)
-            us_nodes = [edge[0] for edge in in_edges]
-            in_us = sum([us_node in nodes for us_node in us_nodes])
-            if len(us_nodes)> 0:
-                clustering_coef = clustering_coef + (in_us/len(us_nodes))
+            us_search_nodes = self.soil_nodes
+        
+        ds_search_nodes = us_search_nodes.copy()
+
+        def iter_nodes(self, nodes, dir = 'ds'):
+            
+            def edge_dir(node, dir):
+                if dir == 'ds':
+                    return self.gph.out_edges(node)
+                else: 
+                    return self.gph.in_edges(node)
+            
+            def search_neighbor(node):
+                edges = edge_dir(node,dir)
+                all_nodes[node] = [edge[n] for edge in edges]
+                gi_node = list(node for node in all_nodes[node] if node in nodes)
+                return gi_node
+            
+            n = (dir == 'ds')
+            for node in nodes:
+                small_group = [node]
+                gi_node = search_neighbor(node)                
+                while len(gi_node) > 0:
+                    small_group.append(node for node in gi_node)
+                    nodes.remove(node for node in gi_node)
+                    gi_node = search_neighbor(node)
+
         print(clustering_coef)
         return clustering_coef
     
