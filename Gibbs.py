@@ -279,7 +279,7 @@ class Uniform_network:
     #             self.matrix[v0, v1] = 0
     #     return norm_coef, r
 
-    def generate_tree(self, mode = 'uniform', k=1000, i = 0):
+    def generate_tree(self, mode = 'uniform', k=1000):
         """do random walk from given point until boundary is hit, or until all nodes have been visited
         initialize first point, generate tree until hitting dead end, initialize next point"""
         start = time.perf_counter()
@@ -307,6 +307,7 @@ class Uniform_network:
         print(f'{self.m} by {self.n} uniform graph, finished in {round(finish-start,2)} seconds(s)')
         
         if mode == 'Gibbs':
+            i = 0
             try:
                 deltaH_list = self.generate_Gibbs(k=k)
                 # self.export_tree(i = i)
@@ -316,9 +317,9 @@ class Uniform_network:
             except RecursionError:
                 self.open_nodes = self.grid_nodes.copy()
                 self.matrix = np.zeros((self.m*self.n, self.m*self.n))
-                i = i+1
+                i += 1
                 print(f'Generating new tree, attempt # {i}')
-                self.generate_tree(mode=mode, i = i)     
+                self.generate_tree(mode=mode)     
 
     def draw_tree(self,title=None,node_to_color = None):
         _ = plt.figure(figsize=(10,4.5))
@@ -369,7 +370,36 @@ class Uniform_network:
         plt.show()
         return np.array(deltaH_list)
 
-def main():
+def main(size, beta=0.5):
+    start = time.perf_counter()    
+    all_deltaH_list = []
+    ax1 = plt.subplot(121)
+    ax2 = plt.subplot(122)
+    for _ in range(1000):
+        uni = Uniform_network(size, size, beta=beta)
+        deltaH_list = uni.generate_tree(mode="Gibbs", k=2)
+        ax1.plot(deltaH_list,alpha = 0.1, color = 'C0')
+        all_deltaH_list.append(deltaH_list)
+        print(len(deltaH_list))
+    ax2.hist(all_deltaH_list, lw = 0)  
+    new_list = [elem for a0 in all_deltaH_list for elem in a0]
+    ax2.hist(new_list,density=True,bins=30,orientation='horizontal')
+    ax2.set_ylabel('$\Delta H$')
+    ax2.set_xlabel('Frequency')
+    ax1.set_ylabel('$\Delta H$')
+    plt.title(f'beta = {uni.beta}')
+    plt.savefig(f'./dist_beta{uni.beta}.png')
+    plt.show()
+    name = f'deltaH_beta{uni.beta}.pickle'
+    f = open(name,'wb')
+    pickle.dump(all_deltaH_list,f)
+    f.close()
+    finish = time.perf_counter()
+    print(f'{size} by {size} final graph, finished in {round(finish-start,2)} seconds(s)')
+    # print(uni.matrix)
+
+#%%
+if __name__ == '__main__':
     #%%
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
@@ -384,32 +414,4 @@ def main():
     except FileNotFoundError:
         os.makedirs(dir_name)
         os.chdir(dir_name)
-
-    start = time.perf_counter()    
-    all_deltaH_list = []
-    ax2 = plt.subplot(122)
-    for i in range(1000):
-        uni = Uniform_network(size, size, beta=0.5)
-        deltaH_list = uni.generate_tree(mode="Gibbs", k=4000, i = i)
-        ax2.plot(deltaH_list,alpha = 0.1, color = 'C0')
-        all_deltaH_list.append(deltaH_list)
-        print(len(deltaH_list))
-    ax1 = plt.subplot(121)
-    ax1.hist(all_deltaH_list, lw = 0)  
-    ax1.set_xlabel('$\Delta$ H')
-    ax1.set_ylabel('Count')
-    ax2.set_ylabel('$\Delta$ H')
-    plt.title(f'beta = {uni.beta}')
-    plt.savefig(r'./dist.png')
-    plt.show()
-    name = 'deltaH.pickle'
-    f = open(name,'wb')
-    pickle.dump(all_deltaH_list,f)
-    f.close()
-    finish = time.perf_counter()
-    print(f'{size} by {size} final graph, finished in {round(finish-start,2)} seconds(s)')
-    # print(uni.matrix)
-
-#%%
-if __name__ == '__main__':
-    main()
+    main(size)
