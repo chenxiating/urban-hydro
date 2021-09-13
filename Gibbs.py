@@ -199,7 +199,8 @@ class Uniform_network:
         # for i in range(k):
         j = 0
         deltaH_list = []
-        # while i < k or self.calculate_path_diff(self.matrix) > 0: 
+        if k < burntime: 
+            raise ValueError('Iteration number is less than burntime.')
         for i in range(k):
             s1_matrix = self.matrix.copy()
             if self.calculate_path_diff(s1_matrix) == 0:
@@ -377,7 +378,7 @@ def main(size, beta=0.5):
     ax2 = plt.subplot(122)
     for _ in range(1000):
         uni = Uniform_network(size, size, beta=beta)
-        deltaH_list = uni.generate_tree(mode="Gibbs", k=2)
+        deltaH_list = uni.generate_tree(mode="Gibbs", k=4000)
         ax1.plot(deltaH_list,alpha = 0.1, color = 'C0')
         all_deltaH_list.append(deltaH_list)
         print(len(deltaH_list))
