@@ -196,36 +196,21 @@ class Uniform_network:
 
     def generate_Gibbs(self, k, burntime = 3000):
         """reiterate steps to make one Gibbs graph"""
-        # for i in range(k):
         j = 0
         deltaH_list = []
         if k < burntime: 
             raise ValueError('Iteration number is less than burntime.')
         for i in range(k):
             s1_matrix = self.matrix.copy()
-            if self.calculate_path_diff(s1_matrix) == 0:
-                H_diff = 0
-                threshold = 0
-            else:
-                r = self.random_next_edge()
-                s2_matrix = self.matrix.copy()
-                H_diff = self.calculate_path_diff(s2_matrix) - self.calculate_path_diff(s1_matrix)
-                # print(f'New network path diff: {self.calculate_path_diff(s2_matrix)}, old network diff: {self.calculate_path_diff(s1_matrix)}')
-                # r is the maximum degree of the points in S
-                # _, r = self.calculate_norm_coef(self.beta)
-                # print(f'r is {r}')
-                threshold = 1/r*min(1, np.exp(-self.beta*H_diff))
+            r = self.random_next_edge()
+            s2_matrix = self.matrix.copy()
+            H_diff = self.calculate_path_diff(s2_matrix) - self.calculate_path_diff(s1_matrix)
+            threshold = 1/r*min(1, np.exp(-self.beta*H_diff))
 
             # decide whether to take x as the new network
             x = random.random()
             if x > threshold:
-                self.matrix = s1_matrix
-                # print(f"Round {j} ||== No new network, continue on s1")
-            # else:
-            #     if H_diff < 0: 
-            #         print(f'Round {j} s2 has lower energy ({self.calculate_path_diff(s2_matrix)})') 
-            #     else:
-            #         print(f'Upper jump ({self.calculate_path_diff(s2_matrix)}). X: {round(x,2)} and need less than {round(threshold,2)}') 
+                self.matrix = s1_matrix                
             if i > burntime: 
                 deltaH_list.append(self.calculate_path_diff(self.matrix))
             j = j + 1
@@ -311,9 +296,8 @@ class Uniform_network:
             i = 0
             try:
                 deltaH_list = self.generate_Gibbs(k=k)
-                # self.export_tree(i = i)
                 finish = time.perf_counter()
-                print(f'Number {i + 1} of {k}-iteration Gibbs graph, finished in {round(finish-start,2)} seconds(s)')
+                print(f'A {k}-iteration Gibbs graph, finished in {round(finish-start,2)} seconds(s)')
                 return deltaH_list
             except RecursionError:
                 self.open_nodes = self.grid_nodes.copy()
@@ -371,18 +355,12 @@ class Uniform_network:
         plt.show()
         return np.array(deltaH_list)
 
-def main(size, beta=0.5):
-    start = time.perf_counter()    
-    all_deltaH_list = []
+def gibbs_pdf(uni, all_deltaH_list):
+    _ = plt.figure()
     ax1 = plt.subplot(121)
     ax2 = plt.subplot(122)
-    for _ in range(1000):
-        uni = Uniform_network(size, size, beta=beta)
-        deltaH_list = uni.generate_tree(mode="Gibbs", k=4000)
+    for deltaH_list in all_deltaH_list:
         ax1.plot(deltaH_list,alpha = 0.1, color = 'C0')
-        all_deltaH_list.append(deltaH_list)
-        print(len(deltaH_list))
-    ax2.hist(all_deltaH_list, lw = 0)  
     new_list = [elem for a0 in all_deltaH_list for elem in a0]
     ax2.hist(new_list,density=True,bins=30,orientation='horizontal')
     ax2.set_ylabel('$\Delta H$')
@@ -390,7 +368,20 @@ def main(size, beta=0.5):
     ax1.set_ylabel('$\Delta H$')
     plt.title(f'beta = {uni.beta}')
     plt.savefig(f'./dist_beta{uni.beta}.png')
-    plt.show()
+
+def main(size, beta=0.5):
+    start = time.perf_counter()    
+    all_deltaH_list = []
+    # ax1 = plt.subplot(121)
+    # ax2 = plt.subplot(122)
+    for _ in range(1000):
+        uni = Uniform_network(size, size, beta=beta)
+        deltaH_list = uni.generate_tree(mode="Gibbs", k=4000)
+        # ax1.plot(deltaH_list,alpha = 0.1, color = 'C0')
+        all_deltaH_list.append(deltaH_list)
+        print(len(deltaH_list))
+    uni.export_tree(i = beta)
+    gibbs_pdf(uni,all_deltaH_list)
     name = f'deltaH_beta{uni.beta}.pickle'
     f = open(name,'wb')
     pickle.dump(all_deltaH_list,f)
