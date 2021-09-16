@@ -1,3 +1,4 @@
+from re import search
 from networkx.algorithms.cluster import clustering
 import numpy as np
 import matplotlib.pyplot as plt
@@ -242,41 +243,61 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
 
     def calc_node_clustering(self,type = 'soil'):
         clustering_coef = 0
-        all_nodes = {}
-        all_ds_nodes = {}
-        big_group = []
+        us_nodes = {}
+        ds_nodes = {}
+        big_group = {}
 
         if type == 'flood':
-            us_search_nodes = self.flood_nodes
+            nodes = self.flood_nodes.copy()
         else: 
-            us_search_nodes = self.soil_nodes
+            nodes = self.soil_nodes.copy()
         
-        ds_search_nodes = us_search_nodes.copy()
-
-        def iter_nodes(self, nodes, dir = 'ds'):
+        def iter_nodes(nodes, dir = 'ds'):
             
             def edge_dir(node, dir):
+                """Look for upstream incoming or downstream outgoing edge"""
                 if dir == 'ds':
                     return self.gph.out_edges(node)
                 else: 
                     return self.gph.in_edges(node)
             
-            def search_neighbor(node):
-                edges = edge_dir(node,dir)
-                all_nodes[node] = [edge[n] for edge in edges]
-                gi_node = list(node for node in all_nodes[node] if node in nodes)
-                return gi_node
-            
-            n = (dir == 'ds')
-            for node in nodes:
-                small_group = [node]
-                gi_node = search_neighbor(node)                
-                while len(gi_node) > 0:
-                    small_group.append(node for node in gi_node)
-                    nodes.remove(node for node in gi_node)
-                    gi_node = search_neighbor(node)
+            def search_ds_neighbor(leaf):
+                n = 1
+                edges = edge_dir(leaf,dir) # Look for downstream edge
+                ds_nodes[leaf] = [edge[n] for edge in edges]
+                gi_node = list(root for root in ds_nodes[leaf] if root in nodes)
+                if len(gi_node) > 0:
+                    search_node = gi_node[0]
+                    root = search_ds_neighbor(search_node)
+                else:
+                    root = leaf
+                    big_group[root] = 1
+                    return root
+                return root
 
-        print(clustering_coef)
+            def search_us_neighbor(root, to_add = 0):
+                n = 0
+                edges = edge_dir(root,'us') # Look for upstream edge
+                us_nodes[root] = [edge[n] for edge in edges]
+                gi_nodes = list(node for node in us_nodes[root] if node in nodes)
+                to_add += len(gi_nodes)
+                if len(gi_nodes) > 0:
+                    for gi_node in gi_nodes:
+                        nodes.remove(gi_node)
+                        to_add = search_us_neighbor(gi_node, to_add=to_add)
+                return to_add
+            
+            for node in nodes:
+
+                root = search_ds_neighbor(node)
+                to_add = search_us_neighbor(root)
+                big_group[root] += to_add
+            print(big_group, nodes)
+        
+        if len(self.soil_nodes) > 0:
+            iter_nodes(nodes=nodes,dir='ds')
+            clustering_coef = 1 - sum(a/len(self.soil_nodes) for a in big_group.values())/len(big_group)
+            # SHOULD THIS BE ADJUSTED DEPENDING ON HOW LARGE THE GRID IS?
         return clustering_coef
     
     def calc_upstream_cumulative_area(self,accum_attr='node_drainage_area', cumu_attr_name=None):
@@ -541,6 +562,13 @@ if __name__ == '__main__':
     # kernel = lambda x: np.exp(-2)*2**x/factorial(x)
     storm_web = Storm_network(beta=0.5,nodes_num=25,node_drainage_area=87120)
     # pos_grid = {node: (math.floor(node/self.nodes_num))) for node in storm_web.gph}
-    pos = graphviz_layout(storm_web.gph, prog = 'dot')
-    nx.draw(storm_web.gph,pos,node_size = 2)#,pos_grid,with_labels=True)
+    # pos = graphviz_layout(storm_web.gph, prog = 'dot')
+    # nx.draw(storm_web.gph,pos,node_size = 2)#,pos_grid,with_labels=True)
+    storm_web.soil_nodes=[78, 88, 40]
+    storm_web.calc_node_clustering()
+    storm_web.soil_nodes=[37, 70, 40]
+    storm_web.calc_node_clustering()
+    storm_web.soil_nodes=[37, 38, 59, 49, 47, 48]
+    storm_web.calc_node_clustering()
+    storm_web.draw_network_init(label_on=True)
     plt.show()
