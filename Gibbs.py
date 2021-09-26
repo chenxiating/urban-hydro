@@ -6,7 +6,7 @@ Created on Fri Jul 23 11:49:28 2021
 @author: xuefeng
 """
 
-from multiprocessing import Value
+import multiprocessing as mp
 from os import error
 import random
 from networkx.classes.digraph import DiGraph
@@ -271,7 +271,7 @@ class Uniform_network:
         start = time.perf_counter()
         #initialize first point - this will be the outlet point
         outlet_point = random.choice(self.open_nodes)
-        print('Outlet point:', self.convert_ij(*outlet_point))
+        # print('Outlet point:', self.convert_ij(*outlet_point))
         
         # update open_nodes 
         self.open_nodes.remove(outlet_point) 
@@ -285,19 +285,16 @@ class Uniform_network:
             next_point = self.generate_branch(first_point)
             first_point = next_point
         
-        # self.draw_tree(title = "Uniform before Gibbs")
-        # norm_coef, _ = self.calculate_norm_coef(self.beta)
-        # print(f'Normalization coefficient for this graph is {norm_coef}')
-
         finish = time.perf_counter()
-        print(f'{self.m} by {self.n} uniform graph, finished in {round(finish-start,2)} seconds(s)')
+        # print(f'{self.m} by {self.n} uniform graph, finished in {round(finish-start,2)} seconds(s)')
         
         if mode == 'Gibbs':
-            i = 0
+            i = 1
             try:
                 deltaH_list = self.generate_Gibbs(k=k)
                 finish = time.perf_counter()
-                print(f'A {k}-iteration Gibbs graph, finished in {round(finish-start,2)} seconds(s)')
+                print(f'{i} of {k}-iteration beta = {self.beta} Gibbs graph, finished in {round(finish-start,2)} seconds(s)')
+                i +=1
                 return deltaH_list
             except RecursionError:
                 self.open_nodes = self.grid_nodes.copy()
@@ -355,7 +352,7 @@ class Uniform_network:
         plt.show()
         return np.array(deltaH_list)
 
-def gibbs_pdf(uni, all_deltaH_list):
+def gibbs_pdf(beta,all_deltaH_list):
     _ = plt.figure()
     ax1 = plt.subplot(121)
     ax2 = plt.subplot(122)
@@ -366,8 +363,8 @@ def gibbs_pdf(uni, all_deltaH_list):
     ax2.set_ylabel('$\Delta H$')
     ax2.set_xlabel('Frequency')
     ax1.set_ylabel('$\Delta H$')
-    plt.title(f'beta = {uni.beta}')
-    plt.savefig(f'./dist_beta{uni.beta}.png')
+    plt.title(f'beta = {beta}')
+    plt.savefig(f'./dist_beta{beta}.png')
 
 def main(size, beta=0.5):
     start = time.perf_counter()    
@@ -381,7 +378,7 @@ def main(size, beta=0.5):
         all_deltaH_list.append(deltaH_list)
         print(len(deltaH_list))
     uni.export_tree(i = beta)
-    gibbs_pdf(uni,all_deltaH_list)
+    gibbs_pdf(uni.beta,all_deltaH_list)
     name = f'deltaH_beta{uni.beta}.pickle'
     f = open(name,'wb')
     pickle.dump(all_deltaH_list,f)
@@ -392,18 +389,4 @@ def main(size, beta=0.5):
 
 #%%
 if __name__ == '__main__':
-    #%%
-    today = date.datetime.today()
-    dt_str = today.strftime("%Y%m%d-%H%M")
-
-    # signal.signal(signal.SIGALRM, handler)
-    # signal.alarm(1800)
-
-    size = 10
-    dir_name =  f'gibbs{size}_{dt_str}'
-    try: 
-        os.chdir(dir_name)
-    except FileNotFoundError:
-        os.makedirs(dir_name)
-        os.chdir(dir_name)
-    main(size)
+    main()
