@@ -11,7 +11,8 @@ from scipy.special import factorial
 
 def simulation(uni):
     # Gibbs.main(size = size,beta = beta)
-    uni.generate_tree(mode='Gibbs',k=4000)
+    deltaH_list = uni.generate_tree(mode='Gibbs',k=4000)
+    return deltaH_list
 
 def generate_starting_tree(size,beta,tree_count=1000):
     my_trees = []
@@ -23,10 +24,12 @@ def generate_starting_tree(size,beta,tree_count=1000):
 def mp_loop(my_trees):
     pool = mp.Pool(processes=mp.cpu_count())
     all_deltaH_list = []
-    for _ in range(1000):
-        all_deltaH_list.append(pool.map_async(simulation,my_trees))
+    group_deltaH = pool.map_async(simulation,my_trees).get()
+    ungroup_deltaH = [elem for elem in group_deltaH]
+    [all_deltaH_list.append(i) for i in ungroup_deltaH]
     pool.close()
     pool.join()
+    return(all_deltaH_list)
 
 if __name__ == '__main__':
     today = date.datetime.today()
@@ -53,7 +56,7 @@ if __name__ == '__main__':
         pickle.dump(all_deltaH_list,f)
         f.close()
         finish1 = time.perf_counter()
-        print(f'Finished ONE BETA in {round(finish1-start1,2)} seconds(s)')
+        print(f'Finished beta = {beta} in {round(finish1-start1,2)} seconds(s)')
     finish0 = time.perf_counter()
     print(f'Finished STARTING TREE in {round(finish0-start0,2)} seconds(s)')
 
