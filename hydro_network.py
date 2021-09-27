@@ -1,5 +1,3 @@
-from re import search
-from networkx.algorithms.cluster import clustering
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -248,9 +246,9 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         big_group = {}
 
         if type == 'flood':
-            nodes = self.flood_nodes.copy()
+            nodes = list(self.flood_nodes).copy()
         else: 
-            nodes = self.soil_nodes.copy()
+            nodes = list(self.soil_nodes).copy()
         
         def iter_nodes(nodes, dir = 'ds'):
             
@@ -273,6 +271,10 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                     root = leaf
                     big_group[root] = 1
                     return root
+                # try: 
+                #     nodes.remove(root)
+                # except ValueError:
+                #     print(root)
                 return root
 
             def search_us_neighbor(root, to_add = 0):
@@ -283,20 +285,23 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                 to_add += len(gi_nodes)
                 if len(gi_nodes) > 0:
                     for gi_node in gi_nodes:
-                        nodes.remove(gi_node)
+                        # nodes.remove(gi_node)
                         to_add = search_us_neighbor(gi_node, to_add=to_add)
                 return to_add
             
             for node in nodes:
-
+                if (node in us_nodes.values()) or (node in big_group.keys()):
+                    pass
                 root = search_ds_neighbor(node)
                 to_add = search_us_neighbor(root)
                 big_group[root] += to_add
-            print(big_group, nodes)
+            print(big_group, self.soil_nodes)
         
+        self.soil_node_cluster = big_group.values()
+
         if len(self.soil_nodes) > 0:
             iter_nodes(nodes=nodes,dir='ds')
-            clustering_coef = 1 - sum(a/len(self.soil_nodes) for a in big_group.values())/len(big_group)
+            clustering_coef = sum(a/len(self.soil_nodes) for a in big_group.values() if a > 1)/len(big_group)
             # SHOULD THIS BE ADJUSTED DEPENDING ON HOW LARGE THE GRID IS?
         return clustering_coef
     
@@ -341,14 +346,27 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         font_size=6,with_labels = label_on)
         ax1.set_title('Network')
         
-        ax2 = plt.subplot(221)
+        try: 
+            self.calc_node_clustering()
+            ax2 = plt.subplot(321)
+            ax3 = plt.subplot(323)
+            ax4 = plt.subplot(325)
+            cluster = self.soil_node_cluster
+            bin_spacing = list(np.linspace(1,max(cluster)+3,max(cluster)+3, endpoint=True,dtype=int))
+            ax4.hist(cluster,bins=bin_spacing,align='left',color='C2',edgecolor='white', linewidth=1.2)
+            ax4.set_xlabel('Number of LID Nodes per Cluster')
+            ax4.set_ylabel('Count')
+        except ValueError:
+            ax2 = plt.subplot(221)
+            ax3 = plt.subplot(223)
+        
         k = self.downstream_degree_to_outlet
         distance_dist = [k[j] for j in k]
         ax2.hist(distance_dist)
         ax2.set_xlabel('Dist. to Outlet')
         ax2.set_ylabel('Count')
         
-        ax3 = plt.subplot(223)
+        
         m = dict(self.gph.degree())
         degree_dist = [m[j] for j in m]
         ax3.hist(degree_dist)
@@ -560,15 +578,19 @@ def print_time(earlier_time):
 if __name__ == '__main__':
     os.chdir(r'./gibbs_grid')
     # kernel = lambda x: np.exp(-2)*2**x/factorial(x)
-    storm_web = Storm_network(beta=0.5,nodes_num=25,node_drainage_area=87120)
-    # pos_grid = {node: (math.floor(node/self.nodes_num))) for node in storm_web.gph}
-    # pos = graphviz_layout(storm_web.gph, prog = 'dot')
-    # nx.draw(storm_web.gph,pos,node_size = 2)#,pos_grid,with_labels=True)
-    storm_web.soil_nodes=[78, 88, 40]
-    storm_web.calc_node_clustering()
-    storm_web.soil_nodes=[37, 70, 40]
-    storm_web.calc_node_clustering()
-    storm_web.soil_nodes=[37, 38, 59, 49, 47, 48]
-    storm_web.calc_node_clustering()
-    storm_web.draw_network_init(label_on=True)
+    # storm_web = Storm_network(beta=0.5,nodes_num=25,node_drainage_area=87120)
+    # storm_web.soil_nodes=[50, 55, 59, 36, 92, 23, 0, 19, 49, 37, 88, 25, 78, 68, 17, 33, 91, 27, 76, 73]
+
+    # storm_web.draw_network_init(label_on=True)
+    # plt.show()
+    # storm_web.calc_node_clustering()
+    # storm_web.draw_network_init(label_on=True)
+    # # storm_web.soil_nodes=[37, 38, 59, 49, 47, 48]
+    # storm_web.calc_node_clustering()
+    # storm_web.draw_network_init(label_on=True)
+
+    for _ in range(10):
+        storm_web = Storm_network(beta=0.5,nodes_num=25,node_drainage_area=87120,count=20)
+        # print(storm_web.soil_nodes)
+        storm_web.draw_network_init(label_on=True)
     plt.show()
