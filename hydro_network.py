@@ -1,3 +1,4 @@
+from typing import KeysView
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -6,7 +7,7 @@ import pandas as pd
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
 import pickle
-import itertools
+from collections import Counter
 import datetime as date
 import datetime
 import time
@@ -15,7 +16,7 @@ from math import floor
 from scipy.special import factorial
 import statistics
 import os
-import sys
+import Gibbs
 
 class Storm_network:
 
@@ -27,10 +28,11 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         outlet. conductivity should somehow link to the porosity of soil. node drainage area set in acre.
         """
         self.beta = beta
-        self.nodes_num = nodes_num
         # initialize graph
         # gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
-        self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
+        # self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
+        self.n = int(np.sqrt(nodes_num))
+        self.matrix = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0))
         self.gph = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         self.nodes_num = len(self.gph.nodes)
         # initialize topological order and elevation
@@ -244,6 +246,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         us_nodes = {}
         ds_nodes = {}
         big_group = {}
+        self.soil_node_cluster = []
 
         if type == 'flood':
             nodes = list(self.flood_nodes).copy()
@@ -295,14 +298,20 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                 root = search_ds_neighbor(node)
                 to_add = search_us_neighbor(root)
                 big_group[root] += to_add
-            print(big_group, self.soil_nodes)
-        
-        self.soil_node_cluster = big_group.values()
+            # print(big_group, self.soil_nodes)
+            return big_group
 
         if len(self.soil_nodes) > 0:
             iter_nodes(nodes=nodes,dir='ds')
-            clustering_coef = sum(a/len(self.soil_nodes) for a in big_group.values() if a > 1)/len(big_group)
+            self.soil_node_cluster = big_group.values()
+            cluster_hist = Counter(self.soil_node_cluster)
+            # clustering_coef = sum(a/len(self.soil_nodes) for a in big_group.values() if a > 1)/len(big_group)
+            norm_hist = {i: floor(len(self.soil_nodes)/i) for i in cluster_hist.keys()}
+            norm_coef = 1/sum([cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys()]) 
+            clustering_coef = norm_coef*sum(i * cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys())
+            # print(f'Clustering coefficient is {clustering_coef}')
             # SHOULD THIS BE ADJUSTED DEPENDING ON HOW LARGE THE GRID IS?
+        
         return clustering_coef
     
     def calc_upstream_cumulative_area(self,accum_attr='node_drainage_area', cumu_attr_name=None):
@@ -313,12 +322,84 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         # print('soil_nodes',self.soil_nodes,'cumu',cumulative_attr_value)
         return cumulative_attr_value
 
+    # def draw_network_init(self, ax = None, label_on = False, title = None):
+    #     """ draw the network flow and the dispersion coefficients at a single timestep. """
+    #     # pos = nx.spring_layout(gph)
+    #     # pos = nx.planar_layout(gph, scale = 100)
+    #     # print(edge_attribute)
+    #     node_color = []
+    #     node_size_og = 10
+    #     node_size = []
+    #     node_label = {node:str(node) for node in self.gph.nodes}
+    #     for node in self.gph: 
+    #         if node == self.outlet_node:
+    #             node_color.append('C1')
+    #             node_size.append(node_size_og)
+    #         elif node in set(self.soil_nodes):
+    #             node_color.append('C2')
+    #             node_size.append(node_size_og*2)
+    #             node_label[node]=str(node)
+    #         elif self.flood_nodes: 
+    #             node_color.append('C3')
+    #             node_size.append(node_size_og*2)
+    #             node_label[node]=str(node)
+    #         else:
+    #             node_color.append('C0')
+    #             node_size.append(node_size_og)
+
+    #     # _, ax0 = plt.subplots(1,2, gridspec_kw={'width_ratios': [2, 3]})
+    #     _ = plt.figure()
+    #     plt.suptitle(rf'{self.n} by {self.n} network with $\beta$ = {self.beta}')
+    #     ax0 = plt.subplot(222)
+    #     pos_grid = {k: (floor(k/self.n), k%self.n) for k in self.gph.nodes()}
+    #     nx.draw(self.gph, pos_grid, ax0, node_color=node_color, node_size=node_size, edge_color='grey')
+        
+    #     ax1 = plt.subplot(224)
+    #     pos = graphviz_layout(self.gph, prog = 'dot')
+    #     nx.draw(self.gph, pos, ax1, node_color = node_color, node_size = node_size,labels = node_label, 
+    #     font_size=6,edge_color='grey',with_labels = label_on)
+        
+    #     try: 
+    #         self.calc_node_clustering()
+    #         ax2 = plt.subplot(321)
+    #         ax3 = plt.subplot(323)
+    #         ax4 = plt.subplot(325)
+    #         ax4.grid(alpha=0.1)
+    #         cluster = self.soil_node_cluster
+    #         bin_spacing = list(np.linspace(1,max(cluster)+3,max(cluster)+3, endpoint=True,dtype=int))
+    #         ax4.hist(cluster,bins=bin_spacing,align='left',color='C2',edgecolor='white', linewidth=1.2)
+    #         ax4.set_xlabel('Number of LID Nodes per Cluster')
+    #         ax4.set_ylabel('Count')
+    #     except ValueError:
+    #         ax2 = plt.subplot(221)
+    #         ax3 = plt.subplot(223)
+        
+    #     k = self.downstream_degree_to_outlet
+    #     distance_dist = [k[j] for j in k]
+    #     ax2.grid(alpha=0.1)
+    #     ax2.hist(distance_dist)
+    #     ax2.set_xlabel('Dist. to Outlet')
+    #     ax2.set_ylabel('Count')
+        
+        
+    #     m = dict(self.gph.degree())
+    #     degree_dist = [m[j] for j in m]
+    #     ax3.grid(alpha=0.1)
+    #     ax3.hist(degree_dist)
+    #     ax3.set_xlabel('Degrees')
+    #     ax3.set_ylabel('Count')
+
+    #     # plt.tight_layout()
+    #     plt.subplots_adjust(wspace=0)
+
+    #     if title:
+    #         plt.suptitle(title)
+    
     def draw_network_init(self, ax = None, label_on = False, title = None):
         """ draw the network flow and the dispersion coefficients at a single timestep. """
         # pos = nx.spring_layout(gph)
         # pos = nx.planar_layout(gph, scale = 100)
         # print(edge_attribute)
-        pos = graphviz_layout(self.gph, prog = 'dot')
         node_color = []
         node_size_og = 10
         node_size = []
@@ -340,43 +421,57 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                 node_size.append(node_size_og)
 
         # _, ax0 = plt.subplots(1,2, gridspec_kw={'width_ratios': [2, 3]})
-        _ = plt.figure()
-        ax1 = plt.subplot(122)
+        fig = plt.figure()
+        gs = fig.add_gridspec(3,2)
+        plt.suptitle(rf'{self.n} by {self.n} network with $\beta$ = {self.beta}')
+
+        ax0 = fig.add_subplot(gs[:-1,0])
+        pos_grid = {k: (floor(k/self.n), k%self.n) for k in self.gph.nodes()}
+        nx.draw(self.gph, pos_grid, ax0, node_color=node_color, node_size=node_size, edge_color='lightgrey')
+        
+        ax1 = fig.add_subplot(gs[:-1,1])
+        pos = graphviz_layout(self.gph, prog = 'dot')
         nx.draw(self.gph, pos, ax1, node_color = node_color, node_size = node_size,labels = node_label, 
-        font_size=6,with_labels = label_on)
-        ax1.set_title('Network')
+        font_size=6,edge_color='lightgrey',with_labels = label_on)
         
-        try: 
-            self.calc_node_clustering()
-            ax2 = plt.subplot(321)
-            ax3 = plt.subplot(323)
-            ax4 = plt.subplot(325)
-            cluster = self.soil_node_cluster
-            bin_spacing = list(np.linspace(1,max(cluster)+3,max(cluster)+3, endpoint=True,dtype=int))
-            ax4.hist(cluster,bins=bin_spacing,align='left',color='C2',edgecolor='white', linewidth=1.2)
-            ax4.set_xlabel('Number of LID Nodes per Cluster')
-            ax4.set_ylabel('Count')
-        except ValueError:
-            ax2 = plt.subplot(221)
-            ax3 = plt.subplot(223)
+        # try: 
+        #     self.calc_node_clustering()
+        #     ax2 = plt.subplot(321)
+        #     ax3 = plt.subplot(323)
+        #     ax4 = plt.subplot(325)
+        #     ax4.grid(alpha=0.1)
+        #     cluster = self.soil_node_cluster
+        #     bin_spacing = list(np.linspace(1,max(cluster)+3,max(cluster)+3, endpoint=True,dtype=int))
+        #     ax4.hist(cluster,bins=bin_spacing,align='left',color='C2',edgecolor='white', linewidth=1.2)
+        #     ax4.set_xlabel('Number of LID Nodes per Cluster')
+        #     ax4.set_ylabel('Count')
+        # except ValueError:
+        #     ax2 = plt.subplot(221)
+        #     ax3 = plt.subplot(223)
         
+        ax2 = fig.add_subplot(gs[2,:])
         k = self.downstream_degree_to_outlet
         distance_dist = [k[j] for j in k]
-        ax2.hist(distance_dist)
+        ax2.grid(alpha=0.1)
+        bin_spacing_dist = list(np.linspace(0,max(distance_dist),max(distance_dist)+1, endpoint=True,dtype=int))
+        ax2.hist(distance_dist, bins = bin_spacing_dist, align='left')
         ax2.set_xlabel('Dist. to Outlet')
         ax2.set_ylabel('Count')
         
         
-        m = dict(self.gph.degree())
-        degree_dist = [m[j] for j in m]
-        ax3.hist(degree_dist)
-        ax3.set_xlabel('Degrees')
-        ax3.set_ylabel('Count')
+        # m = dict(self.gph.degree())
+        # degree_dist = [m[j] for j in m]
+        # ax3.grid(alpha=0.1)
+        # ax3.hist(degree_dist)
+        # ax3.set_xlabel('Degrees')
+        # ax3.set_ylabel('Count')
 
-        plt.tight_layout()
-        
+        # plt.tight_layout()
+        plt.subplots_adjust(wspace=0)
+
         if title:
             plt.suptitle(title)
+            
             
     def draw_network_timestamp(self, ax = None, edge_attribute = 'edge_dq', label_on = False, flood_level = 10, title = None):
         """ draw the network flow and the dispersion coefficients at a single timestep. """
@@ -576,21 +671,11 @@ def print_time(earlier_time):
     return now_time
 
 if __name__ == '__main__':
-    os.chdir(r'./gibbs_grid')
-    # kernel = lambda x: np.exp(-2)*2**x/factorial(x)
-    # storm_web = Storm_network(beta=0.5,nodes_num=25,node_drainage_area=87120)
-    # storm_web.soil_nodes=[50, 55, 59, 36, 92, 23, 0, 19, 49, 37, 88, 25, 78, 68, 17, 33, 91, 27, 76, 73]
-
-    # storm_web.draw_network_init(label_on=True)
-    # plt.show()
-    # storm_web.calc_node_clustering()
-    # storm_web.draw_network_init(label_on=True)
-    # # storm_web.soil_nodes=[37, 38, 59, 49, 47, 48]
-    # storm_web.calc_node_clustering()
-    # storm_web.draw_network_init(label_on=True)
-
-    for _ in range(10):
-        storm_web = Storm_network(beta=0.5,nodes_num=25,node_drainage_area=87120,count=20)
-        # print(storm_web.soil_nodes)
-        storm_web.draw_network_init(label_on=True)
+    # for beta in [0.4, 0.8]:
+    #     storm_web = Storm_network(beta=beta,nodes_num=100,node_drainage_area=87120,count=20)
+    #     storm_web.draw_network_init(label_on=False)
+    storm_web_0 = Storm_network(beta=0.2,nodes_num=16,node_drainage_area=87120)
+    storm_web_0.draw_network_init(label_on=False)
+    storm_web_1 = Storm_network(beta=0.8,nodes_num=16,node_drainage_area=87120)
+    storm_web_1.draw_network_init(label_on=False)
     plt.show()
