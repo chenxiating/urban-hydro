@@ -209,10 +209,10 @@ infiltration]
         f.writelines('\n')
     f.writelines('\n')
 
-def info_lid_controls(f, name = 'bioret_cell', type = 'BC', surf_height = 8, surf_veg = 0.1, surf_n = 0.1, 
-surf_slope = 1.0, soil_height = 18, soil_n = 0.43, soil_fc = 0.4, soil_wp = 0.18,
-soil_k = 1.3, soil_kslope = 40, soil_psi = 3.5, stor_height = 0, stor_voidratio = 0.25,
-stor_seepage = 1.5, stor_clog = 0, drain_coef = 0, drain_exp = 0.5, drain_offset = 6,
+def info_lid_controls(f, name = 'bioret_cell', type = 'BC', surf_height = 9, surf_veg = 0.1, surf_n = 0.1, 
+surf_slope = 1.0, soil_height = 24, soil_n = 0.43, soil_fc = 0.4, soil_wp = 0.18,
+soil_k = 1.5, soil_kslope = 40, soil_psi = 3.5, stor_height = 0, stor_voidratio = 0.25,
+stor_seepage = 1.3, stor_clog = 0, drain_coef = 0, drain_exp = 0.5, drain_offset = 6,
 drain_open = 0, drain_close = 0):
     """
     This is for the LID module, specifically for the bio-retention cell or a rain garden. 
@@ -275,7 +275,8 @@ def info_lid_usage(f, graph, soil_nodes, initsat, name = 'bioret_cell', surf_wid
     for node in soil_nodes:
         sc_name = 'SC'+str(node).replace(', ','_')
         number = 1
-        area = graph.nodes[node].get('node_drainage_area') * 43560 * 0.01
+        # Assume 5% of the area is covered by LID
+        area = graph.nodes[node].get('node_drainage_area') * 43560 * 0.05
         from_imp = 100
         to_perv = 0
         from_perv = 100

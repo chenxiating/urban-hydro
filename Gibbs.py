@@ -31,7 +31,7 @@ def handler(signum, frame):
 
 class Uniform_network:
     
-    def __init__(self, m, n, beta): 
+    def __init__(self, m, n, beta, mode='uniform',outlet_point = None): 
         # m: number of rows (indexed by i)
         # n: number of columns (indexed by j)
         # (i,j) coordinates gives item (1+j)+i*n in adjacency matrix
@@ -58,7 +58,9 @@ class Uniform_network:
             possible_edges.append(list((self.convert_ij(vi, vj), self.convert_ij(*k)) for k in pts))
         list_set = set(edge for sublist in possible_edges for edge in sublist)
         self.possible_edges = list(list_set)
+        self.outlet_point=outlet_point
 
+        self.generate_tree(mode=mode,k=5*self.n**3,outlet_point=outlet_point)
 #        # number of adjacency nodes 
 #        self.n_adjacent = 4 * np.ones((m,n))
 #        self.n_adjacent[0,:], self.n_adjacent[-1,:], self.n_adjacent[:,0], self.n_adjacent[:,-1] = 3,3,3,3
@@ -77,7 +79,7 @@ class Uniform_network:
         """generates the next point within the grid via random walk 
         determine possible destination nodes and assign probabilities"""
         possible_next_pts = [(vi+1, vj), (vi-1, vj), (vi, vj+1), (vi, vj-1)]
-            
+
         # need to check that pt are in grid
         pts = [pt for pt in possible_next_pts if (pt in set(self.grid_nodes))] # eliminate points outside of grid
         rv = len(pts) # total number of adjacent nodes
@@ -179,9 +181,9 @@ class Uniform_network:
     def calculate_path_diff(self, input_matrix):
         """calculate the difference between the mapped path length and shortest path length"""
         G = nx.from_numpy_matrix(input_matrix,create_using=nx.DiGraph)
-        outlet = [n for n, d in G.out_degree() if d == 0][0]
-        total_path = sum([len(nx.shortest_path(G, source = k, target = outlet)) - 1 for k in G.nodes])
-        outlet_x, outlet_y = self.convert_index(outlet)
+        self.outlet_point = [n for n, d in G.out_degree() if d == 0][0]
+        total_path = sum([len(nx.shortest_path(G, source = k, target = self.outlet_point)) - 1 for k in G.nodes])
+        outlet_x, outlet_y = self.convert_index(self.outlet_point)
         grid_nodes = self.grid_nodes
         shortest_path = sum((abs(x - outlet_x) + abs(y - outlet_y)) for x, y in grid_nodes)
         # # check path calculations
@@ -194,12 +196,13 @@ class Uniform_network:
             raise Exception("Diff is negative!")
         return diff
 
-    def generate_Gibbs(self, k, burntime = 3000):
+    def generate_Gibbs(self, k):
         """reiterate steps to make one Gibbs graph"""
         j = 0
         deltaH_list = []
-        if k < burntime: 
-            raise ValueError('Iteration number is less than burntime.')
+        burntime=3*k/4
+        # if k < burntime: 
+        #     raise ValueError('Iteration number is less than burntime.')
         for i in range(k):
             s1_matrix = self.matrix.copy()
             r = self.random_next_edge()
@@ -265,19 +268,20 @@ class Uniform_network:
     #             self.matrix[v0, v1] = 0
     #     return norm_coef, r
 
-    def generate_tree(self, mode = 'uniform', k=1000):
+    def generate_tree(self, mode, k, outlet_point = None):
         """do random walk from given point until boundary is hit, or until all nodes have been visited
         initialize first point, generate tree until hitting dead end, initialize next point"""
         start = time.perf_counter()
         #initialize first point - this will be the outlet point
-        outlet_point = random.choice(self.open_nodes)
+        if not outlet_point:
+            self.outlet_point = random.choice(self.open_nodes)
         # print('Outlet point:', self.convert_ij(*outlet_point))
         
         # update open_nodes 
-        self.open_nodes.remove(outlet_point) 
+        self.open_nodes.remove(self.outlet_point)
         
         # build the first branch first 
-        first_point = outlet_point
+        first_point = self.outlet_point
         
         while len(self.open_nodes)>0: 
             # print('###### Open nodes left: ###### ', len(self.open_nodes))
@@ -289,35 +293,67 @@ class Uniform_network:
         # print(f'{self.m} by {self.n} uniform graph, finished in {round(finish-start,2)} seconds(s)')
         
         if mode == 'Gibbs':
-            i = 1
             try:
-                deltaH_list = self.generate_Gibbs(k=k)
+                self.deltaH_list = self.generate_Gibbs(k=k)
                 finish = time.perf_counter()
-                print(f'{i} of {k}-iteration beta = {self.beta} Gibbs graph, finished in {round(finish-start,2)} seconds(s)')
-                i +=1
-                return deltaH_list
+                print(f'{k}-iteration beta = {self.beta} Gibbs graph, finished in {round(finish-start,2)} seconds(s)')
+                return self
             except RecursionError:
                 self.open_nodes = self.grid_nodes.copy()
                 self.matrix = np.zeros((self.m*self.n, self.m*self.n))
-                i += 1
-                print(f'Generating new tree, attempt # {i}')
+                print('Generating new tree')
                 self.generate_tree(mode=mode)     
 
-    def draw_tree(self,title=None,node_to_color = None):
+    def draw_tree(self,title=None,save=False):
         _ = plt.figure(figsize=(10,4.5))
         G = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         node_color_dict = {node: 'C0' for node in G.nodes}
-        if node_to_color:
-            node_color_dict[node_to_color] = 'C1'
+        node_size_dict = {node: 5 for node in G.nodes}
+        node_color_dict[self.convert_ij(self.outlet_point[0],self.outlet_point[1])] = 'C1'
+        node_size_dict[self.convert_ij(self.outlet_point[0],self.outlet_point[1])] = 10
         node_color = list(node_color_dict.values())
+        node_size = list(node_size_dict.values())
         plt.subplot(121)
         pos_grid = {k: self.convert_index(k) for k in G.nodes()}
-        nx.draw(G, pos=pos_grid, node_color=node_color, node_size=2, edge_color='grey') #, with_labels = True)
+        nx.draw(G, pos=pos_grid, node_color=node_color, node_size=node_size, edge_color='lightgrey') #, with_labels = True)
         plt.subplot(122)
         pos_gv = graphviz_layout(G, prog = 'dot')
         #nx.draw(G, pos=nx.planar_layout(G), node_size=10, edge_color='lightgrey')
-        nx.draw(G, pos=pos_gv, node_color=node_color, node_size=2, edge_color='lightgrey') #, with_labels=True)
+        nx.draw(G, pos=pos_gv, node_color=node_color, node_size=node_size, edge_color='lightgrey') #, with_labels=True)
         plt.title(title)
+        if save:
+            plt.savefig(f'./tree_size{self.n}by{self.m}_beta{self.beta}.png')
+    
+    def draw_tree_with_distance(self,title=None,save=False):
+        _ = plt.figure(figsize=(5,5))
+        outlet_point_k = self.convert_ij(self.outlet_point[0],self.outlet_point[1])
+        G = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
+        node_color_dict = {node: 'C0' for node in G.nodes}
+        node_size_dict = {node: 5 for node in G.nodes}
+        node_color_dict[outlet_point_k] = 'C1'
+        node_size_dict[outlet_point_k] = 20
+        node_color = list(node_color_dict.values())
+        node_size = list(node_size_dict.values())
+        pos_grid = {k: self.convert_index(k) for k in G.nodes()}
+        # node_labels = {node: len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1 - sum(self.convert_index(node)) for node in G.nodes}
+        node_labels = {}
+        # nx.draw_networkx_nodes(G,pos=pos_grid, node_color=node_color, node_size=node_size)
+        nx.draw(G, pos=pos_grid, node_color=node_color, node_size=node_size, edge_color='grey') #, with_labels = True)
+        for node in G.nodes:
+            node_xy = self.convert_index(node)
+            actual = len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1
+            shortest = sum(self.convert_index(node))
+            # node_labels[node] = f'{actual} - {shortest} \n = {actual-shortest}'
+            if actual-shortest == 0: 
+                label = ''
+            else:
+                label = actual-shortest
+            node_labels[node] = f'{label}'
+        label_grid = {node: (pos_grid[node][0]+0.1, pos_grid[node][1]+0.1) for node in G.nodes}
+        nx.draw_networkx_labels(G,pos=label_grid,labels=node_labels,font_size = 20)
+        plt.title(title)
+        if save:
+            plt.savefig(f'./tree_size_dist{self.n}by{self.m}_beta{self.beta}.png')
     
     # def draw_tree2(self,s1_matrix, title=None):
     #     _ = plt.figure(figsize=(10,4.5))
@@ -337,6 +373,7 @@ class Uniform_network:
         f = open(name,'wb')
         pickle.dump(self.matrix,f)
         f.close()
+        self.draw_tree(save=True)
 
     def compile_datasets(self,folder_name = None):
         if folder_name:
@@ -353,30 +390,47 @@ class Uniform_network:
         return np.array(deltaH_list)
 
 def gibbs_pdf(beta,all_deltaH_list):
-    _ = plt.figure()
-    ax1 = plt.subplot(121)
-    ax2 = plt.subplot(122)
+    fig = plt.figure()
+    plt.suptitle(rf'Distribution of {int(len(all_deltaH_list))} random Gibbs trees with $\beta$ = {beta}')
+    gs = fig.add_gridspec(1,5)
+    ax1 = fig.add_subplot(gs[0,:-1])
+    ax2 = fig.add_subplot(gs[0,-1])
+    # ax1 = plt.subplot(121)
+    # ax2 = plt.subplot(122)
     for deltaH_list in all_deltaH_list:
-        ax1.plot(deltaH_list,alpha = 0.1, color = 'C0')
-    new_list = [elem for a0 in all_deltaH_list for elem in a0]
-    ax2.hist(new_list,density=True,bins=30,orientation='horizontal')
-    ax2.set_ylabel('$\Delta H$')
-    ax2.set_xlabel('Frequency')
+        ax1.plot(deltaH_list,alpha = max(0.1, 1/len(all_deltaH_list)), color = 'C0')
     ax1.set_ylabel('$\Delta H$')
-    plt.title(f'beta = {beta}')
+    ax1.set_xlabel('Iteration')
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    
+    new_list = [elem for a0 in all_deltaH_list for elem in a0]
+    ax2.hist(new_list,density=True,orientation='horizontal')#,bins=30,)
+    ax2.axis('off')
+    # ax2.spines['bottom'].set_visible(False)
+    # ax2.spines['left'].set_visible(False)
+    # ax2.get_yaxis().set_visible(False)
+    # ax2.spines['right'].set_visible(False)
+    # ax2.xaxis.set_label_position("top")
+    # ax2.xaxis.tick_top()
+    # ax2.set_xlabel('Frequency')
+    # ax2.grid()
+    # ax2.set_ylabel('$\Delta H$')
+    # ax2.yaxis.tick_right()
+    # ax2.yaxis.set_label_position("right")
+    # ax2.set_xlabel('Frequency')
+    plt.subplots_adjust(wspace=0)
     plt.savefig(f'./dist_beta{beta}.png')
 
-def main(size, beta=0.5):
+def test(size, beta=0.5, tree_num = 1000):
     start = time.perf_counter()    
     all_deltaH_list = []
     # ax1 = plt.subplot(121)
     # ax2 = plt.subplot(122)
-    for _ in range(1000):
-        uni = Uniform_network(size, size, beta=beta)
-        deltaH_list = uni.generate_tree(mode="Gibbs", k=4000)
+    for i in range(tree_num):
+        uni = Uniform_network(size, size, beta=beta,mode="Gibbs")
         # ax1.plot(deltaH_list,alpha = 0.1, color = 'C0')
-        all_deltaH_list.append(deltaH_list)
-        print(len(deltaH_list))
+        all_deltaH_list.append(uni.deltaH_list)
     uni.export_tree(i = beta)
     gibbs_pdf(uni.beta,all_deltaH_list)
     name = f'deltaH_beta{uni.beta}.pickle'
@@ -384,9 +438,20 @@ def main(size, beta=0.5):
     pickle.dump(all_deltaH_list,f)
     f.close()
     finish = time.perf_counter()
-    print(f'{size} by {size} final graph, finished in {round(finish-start,2)} seconds(s)')
-    # print(uni.matrix)
+    print(f'{size} by {size} final graph, finished in {round(finish-start,2)} seconds')
+    return uni
+
+def main(size, beta, outlet_point, mode = "Gibbs"):
+    gibbs = Uniform_network(m=size, n=size, beta=beta, outlet_point=outlet_point, mode = mode)
+    return gibbs.matrix
 
 #%%
 if __name__ == '__main__':
-    main()
+    # tree = test(size = 10, beta = 0.6, tree_num = 1000)
+    # main(10,0.8,"Gibbs")
+    # plt.show()
+    uni = Uniform_network(4, 4, beta=0.2, outlet_point = (0,0), mode='uniform')
+    # gibbs = Uniform_network(4, 4, beta=0.8, outlet_point = (0,0), mode='Gibbs')
+    uni.draw_tree_with_distance()
+    # gibbs.draw_tree()
+    plt.show()
