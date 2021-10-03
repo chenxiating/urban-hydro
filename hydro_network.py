@@ -674,8 +674,6 @@ if __name__ == '__main__':
     # for beta in [0.4, 0.8]:
     #     storm_web = Storm_network(beta=beta,nodes_num=100,node_drainage_area=87120,count=20)
     #     storm_web.draw_network_init(label_on=False)
-    storm_web_0 = Storm_network(beta=0.2,nodes_num=16,node_drainage_area=87120)
+    storm_web_0 = Storm_network(beta=0.2,nodes_num=100,count=20,node_drainage_area=87120)
     storm_web_0.draw_network_init(label_on=False)
-    storm_web_1 = Storm_network(beta=0.8,nodes_num=16,node_drainage_area=87120)
-    storm_web_1.draw_network_init(label_on=False)
     plt.show()

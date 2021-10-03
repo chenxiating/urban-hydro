@@ -25,6 +25,8 @@ import os
 
 from numpy.lib.function_base import delete
 
+from compile_datasets import convert_index
+
 def handler(signum, frame):
     print("Breaking while loop now!")
     raise Exception("End of time")
@@ -59,8 +61,7 @@ class Uniform_network:
         list_set = set(edge for sublist in possible_edges for edge in sublist)
         self.possible_edges = list(list_set)
         self.outlet_point=outlet_point
-
-        self.generate_tree(mode=mode,k=5*self.n**3,outlet_point=outlet_point)
+        self.generate_tree(mode=mode,k=5*self.n**3,outlet_point=self.outlet_point)
 #        # number of adjacency nodes 
 #        self.n_adjacent = 4 * np.ones((m,n))
 #        self.n_adjacent[0,:], self.n_adjacent[-1,:], self.n_adjacent[:,0], self.n_adjacent[:,-1] = 3,3,3,3
@@ -181,11 +182,12 @@ class Uniform_network:
     def calculate_path_diff(self, input_matrix):
         """calculate the difference between the mapped path length and shortest path length"""
         G = nx.from_numpy_matrix(input_matrix,create_using=nx.DiGraph)
-        self.outlet_point = [n for n, d in G.out_degree() if d == 0][0]
-        total_path = sum([len(nx.shortest_path(G, source = k, target = self.outlet_point)) - 1 for k in G.nodes])
-        outlet_x, outlet_y = self.convert_index(self.outlet_point)
+        outlet_point_k = [n for n, d in G.out_degree() if d == 0][0]
+        self.outlet_point = self.convert_index(outlet_point_k)
+        total_path = sum([len(nx.shortest_path(G, source = k, target = outlet_point_k)) - 1 for k in G.nodes])
+        # outlet_x, outlet_y = self.convert_index(self.outlet_point)
         grid_nodes = self.grid_nodes
-        shortest_path = sum((abs(x - outlet_x) + abs(y - outlet_y)) for x, y in grid_nodes)
+        shortest_path = sum((abs(x - self.outlet_point[0]) + abs(y - self.outlet_point[1])) for x, y in grid_nodes)
         # # check path calculations
         # for x, y in grid_nodes:
         #     print(f'Outlet node: ({outlet_x}, {outlet_y}). Grid node: ({x}, {y})')
@@ -304,56 +306,131 @@ class Uniform_network:
                 print('Generating new tree')
                 self.generate_tree(mode=mode)     
 
-    def draw_tree(self,title=None,save=False):
-        _ = plt.figure(figsize=(10,4.5))
+    def draw_tree(self,title=None,dist_label=True,save=False):
+        fig = plt.figure(figsize=(6,6))
+        small_node_size = 50
+        outlet_point_k = self.convert_ij(self.outlet_point[0],self.outlet_point[1])
         G = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         node_color_dict = {node: 'C0' for node in G.nodes}
-        node_size_dict = {node: 5 for node in G.nodes}
-        node_color_dict[self.convert_ij(self.outlet_point[0],self.outlet_point[1])] = 'C1'
-        node_size_dict[self.convert_ij(self.outlet_point[0],self.outlet_point[1])] = 10
+        node_size_dict = {node: small_node_size for node in G.nodes}
+        node_color_dict[outlet_point_k] = 'C1'
+        node_size_dict[outlet_point_k] = small_node_size*5
         node_color = list(node_color_dict.values())
         node_size = list(node_size_dict.values())
-        plt.subplot(121)
+        # plt.subplot(121)
         pos_grid = {k: self.convert_index(k) for k in G.nodes()}
-        nx.draw(G, pos=pos_grid, node_color=node_color, node_size=node_size, edge_color='lightgrey') #, with_labels = True)
-        plt.subplot(122)
-        pos_gv = graphviz_layout(G, prog = 'dot')
-        #nx.draw(G, pos=nx.planar_layout(G), node_size=10, edge_color='lightgrey')
-        nx.draw(G, pos=pos_gv, node_color=node_color, node_size=node_size, edge_color='lightgrey') #, with_labels=True)
+        nx.draw(G, pos=pos_grid, node_color=node_color, node_size=node_size, edge_color='grey') #, with_labels = True)
+        if dist_label:
+            node_labels = {}
+            for node in G.nodes:
+                node_xy = self.convert_index(node)
+                actual = len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1
+                shortest = abs(node_xy[1] - self.outlet_point[1]) + abs(node_xy[0] - self.outlet_point[0])
+                # node_labels[node] = f'{actual} - {shortest} \n = {actual-shortest}'
+                if actual-shortest == 0: 
+                    label = ''
+                else:
+                    label = actual-shortest
+                    # print(str(self.convert_index(node)),actual,shortest)
+                node_labels[node] = f'{label}'
+            label_grid = {node: (pos_grid[node][0]+0.1, pos_grid[node][1]+0.1) for node in G.nodes}
+            nx.draw_networkx_labels(G,pos=label_grid,labels=node_labels,font_size = 20)
+        
+        # plt.subplot(122)
+        # pos_gv = graphviz_layout(G, prog = 'dot')
+        # #nx.draw(G, pos=nx.planar_layout(G), node_size=10, edge_color='lightgrey')
+        # nx.draw(G, pos=pos_gv, node_color=node_color, node_size=node_size, edge_color='grey') #, with_labels=True)
+        # if dist_label:
+        #     label_grid_gv = {node: (pos_gv[node][0], pos_gv[node][1]+1) for node in G.nodes}
+        #     nx.draw_networkx_labels(G,pos=label_grid_gv,labels=node_labels,font_size = 20)
         plt.title(title)
         if save:
             plt.savefig(f'./tree_size{self.n}by{self.m}_beta{self.beta}.png')
     
-    def draw_tree_with_distance(self,title=None,save=False):
-        _ = plt.figure(figsize=(5,5))
+    def draw_tree_with_distance(self,title=None,dist_label=True,save=False):
+        fig = plt.figure(figsize=(10,6))
+        gs = fig.add_gridspec(6,10)
+        small_node_size = 50
         outlet_point_k = self.convert_ij(self.outlet_point[0],self.outlet_point[1])
         G = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         node_color_dict = {node: 'C0' for node in G.nodes}
-        node_size_dict = {node: 5 for node in G.nodes}
+        node_size_dict = {node: small_node_size for node in G.nodes}
         node_color_dict[outlet_point_k] = 'C1'
-        node_size_dict[outlet_point_k] = 20
+        node_size_dict[outlet_point_k] = small_node_size*5
         node_color = list(node_color_dict.values())
         node_size = list(node_size_dict.values())
+        # plt.subplot(121)
+        ax1 = fig.add_subplot(gs[:4,:4])
         pos_grid = {k: self.convert_index(k) for k in G.nodes()}
-        # node_labels = {node: len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1 - sum(self.convert_index(node)) for node in G.nodes}
-        node_labels = {}
-        # nx.draw_networkx_nodes(G,pos=pos_grid, node_color=node_color, node_size=node_size)
         nx.draw(G, pos=pos_grid, node_color=node_color, node_size=node_size, edge_color='grey') #, with_labels = True)
-        for node in G.nodes:
-            node_xy = self.convert_index(node)
-            actual = len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1
-            shortest = sum(self.convert_index(node))
-            # node_labels[node] = f'{actual} - {shortest} \n = {actual-shortest}'
-            if actual-shortest == 0: 
-                label = ''
-            else:
-                label = actual-shortest
-            node_labels[node] = f'{label}'
-        label_grid = {node: (pos_grid[node][0]+0.1, pos_grid[node][1]+0.1) for node in G.nodes}
-        nx.draw_networkx_labels(G,pos=label_grid,labels=node_labels,font_size = 20)
-        plt.title(title)
+        if dist_label:
+            node_labels = {}
+            for node in G.nodes:
+                node_xy = self.convert_index(node)
+                actual = len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1
+                shortest = abs(node_xy[1] - self.outlet_point[1]) + abs(node_xy[0] - self.outlet_point[0])
+                # node_labels[node] = f'{actual} - {shortest} \n = {actual-shortest}'
+                if actual-shortest == 0: 
+                    label = ''
+                else:
+                    label = actual-shortest
+                    # print(str(self.convert_index(node)),actual,shortest)
+                node_labels[node] = f'{label}'
+            label_grid = {node: (pos_grid[node][0]+0.1, pos_grid[node][1]+0.1) for node in G.nodes}
+            nx.draw_networkx_labels(G,pos=label_grid,labels=node_labels,font_size = 20)
+        
+        # # plt.subplot(122)
+        # ax2 = fig.add_subplot(gs[:3,3:])
+        # pos_gv = graphviz_layout(G, prog = 'dot')
+        # #nx.draw(G, pos=nx.planar_layout(G), node_size=10, edge_color='lightgrey')
+        # nx.draw(G, pos=pos_gv, node_color=node_color, node_size=node_size, edge_color='grey') #, with_labels=True)
+        # # if dist_label:
+        # #     label_grid_gv = {node: (pos_gv[node][0], pos_gv[node][1]+1) for node in G.nodes}
+        # #     nx.draw_networkx_labels(G,pos=label_grid_gv,labels=node_labels,font_size = 20)
+        
+        ax3 = fig.add_subplot(gs[:4,-5:])
+        distance_dist = [len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1 for node in G.nodes]
+        ax3.grid(alpha=0.1)
+        bin_spacing_dist = list(np.linspace(0,max(distance_dist),max(distance_dist)+1, endpoint=True,dtype=int))
+        ax3.hist(distance_dist, bins = bin_spacing_dist, align='left')
+        ax3.set_xlabel('Node distance to outlet')
+        ax3.set_ylabel('Count')
+
         if save:
-            plt.savefig(f'./tree_size_dist{self.n}by{self.m}_beta{self.beta}.png')
+            plt.savefig(f'./tree_size{self.n}by{self.m}_beta{self.beta}.png')
+    
+    def draw_tree_with_distance_label(self,title=None,dist_label=True,save=False):
+        fig = plt.figure(figsize=(6,6))
+        small_node_size = 50
+        outlet_point_k = self.convert_ij(self.outlet_point[0],self.outlet_point[1])
+        G = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
+        node_color_dict = {node: 'C0' for node in G.nodes}
+        node_size_dict = {node: small_node_size for node in G.nodes}
+        node_color_dict[outlet_point_k] = 'C1'
+        node_size_dict[outlet_point_k] = small_node_size*5
+    
+        max_length = max(len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1 for node in G.nodes)
+        # plt.subplot(121)
+        pos_grid = {k: self.convert_index(k) for k in G.nodes()}
+        
+        if dist_label:
+            node_labels = {}
+            for node in G.nodes:
+                node_xy = self.convert_index(node)
+                actual = len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1
+                if actual == max_length:
+                    node_labels[node]=max_length
+                    node_color_dict[node] = 'red'
+                    node_size_dict[node] = small_node_size*5   
+            label_grid = {node: (pos_grid[node][0]+0.2, pos_grid[node][1]+0.2) for node in G.nodes}
+            nx.draw_networkx_labels(G,pos=label_grid,labels=node_labels,font_size = 20)            
+        
+        node_color = list(node_color_dict.values())
+        node_size = list(node_size_dict.values())
+        nx.draw(G, pos=pos_grid, node_color=node_color, node_size=node_size, edge_color='grey') #, with_labels = True)
+
+        if save:
+            plt.savefig(f'./tree_size{self.n}by{self.m}_beta{self.beta}.png')
     
     # def draw_tree2(self,s1_matrix, title=None):
     #     _ = plt.figure(figsize=(10,4.5))
@@ -450,8 +527,10 @@ if __name__ == '__main__':
     # tree = test(size = 10, beta = 0.6, tree_num = 1000)
     # main(10,0.8,"Gibbs")
     # plt.show()
-    uni = Uniform_network(4, 4, beta=0.2, outlet_point = (0,0), mode='uniform')
-    # gibbs = Uniform_network(4, 4, beta=0.8, outlet_point = (0,0), mode='Gibbs')
-    uni.draw_tree_with_distance()
-    # gibbs.draw_tree()
+    # uni = Uniform_network(5, 5, beta=0., outlet_point = (0,0), mode='Gibbs')
+    gibbs = Uniform_network(5, 5, beta=0.8, outlet_point = (0,0), mode='Gibbs')
+    # uni.draw_tree_with_distance_label()
+    # uni.draw_tree()
+    gibbs.draw_tree_with_distance_label()
+    gibbs.draw_tree()
     plt.show()

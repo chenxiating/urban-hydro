@@ -16,4 +16,4 @@ module load intel
 
 echo "This is to generate Gibbs network."
 echo "walltime=24:00:00,nodes=1:ppn=4,pmem=1000mb,-p small,no np"
-python3 Gibbs.py
+python3 run_mp_gibbs.py

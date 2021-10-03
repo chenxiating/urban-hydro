@@ -12,33 +12,25 @@ from statistics import StatisticsError
 from statistics import mean
 
 matplotlib.rcParams['figure.figsize'] = (6, 4)
-# matplotlib.rcParams['text.usetex'] = True
-# try: 
-#     folder_name = sys.argv[1]
-# except IndexError:
-#     # folder_name = 'datafiles_pool_20210326-2212_1849651'
-#     folder_name = 'datafiles_pool_20210303-2012_1242945'
-# datafile_directory='/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/datasets-compiled'
-# os.chdir(datafile_directory)
 
 # datafile_name = r'./SWMM_20210830-1058/20210830-1058_full_dataset_100-nodes.pickle' # This is only small rainfall, 10 + 20 % permeability 
 # datafile_name = r'./SWMM_20210831-0907/20210831-0907_full_dataset_100-nodes.pickle' # This is only heavy rainfall, 10 + 20 % permeability 
-datafile_name = r'./SWMM_20210907-1531/20210907-1531_full_dataset_100-nodes.pickle' # This is only heavy rainfall, 10 - 40 % permeabilty 
+datafile_name = r'./SWMM_20211002-1437/20211002-1437_full_dataset_100-nodes.pickle'
 print("sys.argv is", sys.argv)
 print("datafile_name is", datafile_name)
-# pos0 = datafile_name.find('dataset_') + len('dataset_')
-# pos1 = datafile_name.find('-inch') + len('-inch')
-# pos2 = pos1 + len('_')
-# pos3 = datafile_name.find('-nodes')
-# nodes_num = int(datafile_name[pos0:pos3])
 nodes_num = 100
 # graph_nodes_count_string = datafile_name[pos2:pos3] + '-Nodes Graph with Mean Rainfall Intensity of ' + datafile_name[pos0:pos1] + '\n'
 
 df = pickle.load(open(datafile_name, 'rb'))
+df.to_csv(datafile_name.replace('pickle','csv'))
 # df = pd.read_csv(datafile_name.replace('pickle','csv'))
 df.flood_duration_total_list = df.flood_duration_total_list/24
 df.cumulative_node_drainage_area = df.cumulative_node_drainage_area/df.soil_nodes_count
-df.dropna(inplace=True)
+print(df.head())
+
+# df.dropna(inplace=True)
+# print(df.head())
+
 df.soil_clustering = df.soil_clustering/df.soil_nodes_count
 
 datafile_name = datafile_name[2:20]
@@ -46,10 +38,7 @@ path="/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/figures/models/"+ 
 print(path)
 if not os.path.exists(path):
     os.makedirs(path)
-# df = df[df['soil_nodes_count']<=50]
-# df['soil_nodes_average_upstream_area'] = df.soil_nodes_total_upstream_area/df.soil_nodes_count
-
-# print(df.head)
+# print(df.head())
 
 label_dict = {'flood_duration_list':'Days with Flooding', 'flood_duration_total_list': 'Flooded Node-Day',
     'max_flow_cfs':'Peak Flow Rate at Outlet (cfs)', 'soil_nodes_count':'% of Permeable Nodes', 'soil_node_distance_list': "Mean Distance from Permeable Nodes to Outlet", 
@@ -67,9 +56,6 @@ xaxis_attribute = 'flood_duration_total_list', cmap_on = False, save_plot = True
     xmax = max(xaxis) + 1
     cmap0 = cm.get_cmap(cmap)
     color_dict = {'color': cmap0(0.8), 'alpha': 0.3}
-    # label_dict = {'flood_duration_list':'Days with Flooding', 'flood_duration_total_list': 'Average Days of Flooding per Node',
-    # 'outlet_water_level':'Water Level at Outlet (ft)', 'soil_nodes_count':'% Permeable', 'soil_node_distance_list': "Topography Index", 
-    # 'soil_node_degree_list':'Neighbor Index', 'soil_nodes_total_upstream_area':'Cumulative Area'} 
     if cmap_on: 
         color_dict = {'c': xaxis, 'alpha': 0.7, 'cmap': cmap}
     xlabel = label_dict[xaxis_attribute]
@@ -445,11 +431,6 @@ color_attribute = 'soil_nodes_count', cmap_on = True, kde = False,save_plot = Fa
     if save_plot:
         plt.savefig(path + fig_name +'.png')
         print('Plot is saved as', fig_name +'.png')
-    
-    # if separate_plot:
-        # fig, ax = plt.subplots(1,1,1)
-        # ax.plt(x_centroid_list,y_centroid_list)
-        # print(df_centroid)
 
 def test_one_permeability(df, soil_nodes_count, x = 'soil_node_degree_list', y = 'max_flood_nodes',title=None,save_plot = False):
     is_set = (df.soil_nodes_count > soil_nodes_count - 10) & (df.soil_nodes_count <= soil_nodes_count)
@@ -462,7 +443,6 @@ def test_one_permeability(df, soil_nodes_count, x = 'soil_node_degree_list', y =
     vmax = max(mean_rainfall_set)
     color_iteration = np.linspace(vmin, vmax, len(mean_rainfall_set), endpoint=True)
     for i in mean_rainfall_set:
-        # print(f'x: {x}, y: {y}, i:{i}, mean rainfall:{mean_rainfall_set[i]}')
         label = i
         is_set = (df1.mean_rainfall == i)
         df_plot = df1.loc[is_set]
@@ -503,17 +483,17 @@ def test_one_permeability(df, soil_nodes_count, x = 'soil_node_degree_list', y =
         print('Plot is saved as', fig_name +'.png')
 
 if __name__ == '__main__':
-
-    # two_axis_plot(df = df, xaxis_attribute='soil_node_degree_list', yaxis_attribute='soil_clustering')
-    # for x in ['soil_clustering']:#,'cumulative_node_drainage_area','soil_node_degree_list','soil_node_distance_list']:#,'mean_flood_nodes_TI']:
-    #     # for y in ['flood_duration_total_list','max_flood_nodes','total_flooded_vol_MG','max_flow_cfs','total_outflow_vol_MG','flood_node_degree_list', 'flood_node_distance_list']:#, 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g']:
-    #     for y in ['flood_duration_total_list','max_flow_cfs']:
-    # #     # for x in ['soil_node_degree_list']:
-    #         # test_one_permeability(df=df, x=x, y=y, save_plot=True)
-    #         multi_rainfall_figure_plot(df, ncols = 5, nrows = 1, xaxis_attribute = x, yaxis_attribute = y, cmap_on = True, save_plot=True)
-    test_one_permeability(df=df, soil_nodes_count = 30, x= 'soil_clustering',y='flood_node_degree_list', title = f'Permeability at {30}%', save_plot=False)
+    
+    # two_axis_plot(df = df, xaxis_attribute='soil_node_distance_list', yaxis_attribute='soil_clustering')
+    for x in ['soil_clustering','cumulative_node_drainage_area','soil_node_degree_list','soil_node_distance_list']:#,'mean_flood_nodes_TI']:
+        # for y in ['flood_duration_total_list','max_flood_nodes','total_flooded_vol_MG','max_flow_cfs','total_outflow_vol_MG','flood_node_degree_list', 'flood_node_distance_list']:#, 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g']:
+        for y in ['flood_duration_total_list','max_flow_cfs']:
+    #     # for x in ['soil_node_degree_list']:
+            # test_one_permeability(df=df, x=x, y=y, save_plot=True)
+            multi_rainfall_figure_plot(df, ncols = 10, nrows = 1, xaxis_attribute = x, yaxis_attribute = y, cmap_on = True, save_plot=False)
+    # test_one_permeability(df=df, soil_nodes_count = 30, x= 'soil_clustering',y='flood_node_degree_list', title = f'Permeability at {30}%', save_plot=False)
     # permeability_marker = [10, 20, 30, 40]
     # for i in permeability_marker:
     #     for x in ['soil_clustering']:#,'soil_node_degree_list','soil_node_distance_list']:
-    #         test_one_permeability(df=df, soil_nodes_count = i, x=x, y='max_flow_cfs', save_plot=True,title = f'Permeability at {i}%')
+    #         test_one_permeability(df=df, soil_nodes_count = i, x=x, y='max_flow_cfs', save_plot=False,title = f'Permeability at {i}%')
     plt.show()
