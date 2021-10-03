@@ -630,6 +630,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,co
         output_df.at[k,'flood_nodes_list'] = net.flood_nodes
         output_df.at[k,'flood_node_degree_list'] = net.calc_node_degree(type = 'flood')
         output_df.at[k,'flood_node_distance_list'] = net.calc_node_distance(type = 'flood')
+        output_df.at[k,'beta'] = net.beta
         # output_df['soil_nodes_list'][k]=net.soil_nodes
         # 'mean_flood_nodes_TI'
         # 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g'

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
+#SBATCH --ntasks-per-node=10
 #SBATCH --mem=1000mb
 #SBATCH -t 16:00:00
 #SBATCH --mail-type=ALL
