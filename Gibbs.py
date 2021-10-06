@@ -348,9 +348,10 @@ class Uniform_network:
             plt.savefig(f'./tree_size{self.n}by{self.m}_beta{self.beta}.png')
     
     def draw_tree_with_distance(self,title=None,dist_label=True,save=False):
-        fig = plt.figure(figsize=(10,6))
-        gs = fig.add_gridspec(6,10)
+        fig = plt.figure(figsize=(12,6))
+        # gs = fig.add_gridspec(3,6)
         small_node_size = 50
+        arrowsize = int(30)
         outlet_point_k = self.convert_ij(self.outlet_point[0],self.outlet_point[1])
         G = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         node_color_dict = {node: 'C0' for node in G.nodes}
@@ -360,9 +361,10 @@ class Uniform_network:
         node_color = list(node_color_dict.values())
         node_size = list(node_size_dict.values())
         # plt.subplot(121)
-        ax1 = fig.add_subplot(gs[:4,:4])
+        # ax1 = fig.add_subplot(gs[:3,:3])
+        ax1 = plt.subplot(121)
         pos_grid = {k: self.convert_index(k) for k in G.nodes()}
-        nx.draw(G, pos=pos_grid, node_color=node_color, node_size=node_size, edge_color='grey') #, with_labels = True)
+        nx.draw(G, pos=pos_grid, node_color=node_color, node_size=node_size, edge_color='grey', arrowsize=arrowsize) #, with_labels = True)
         if dist_label:
             node_labels = {}
             for node in G.nodes:
@@ -370,14 +372,14 @@ class Uniform_network:
                 actual = len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1
                 shortest = abs(node_xy[1] - self.outlet_point[1]) + abs(node_xy[0] - self.outlet_point[0])
                 # node_labels[node] = f'{actual} - {shortest} \n = {actual-shortest}'
-                if actual-shortest == 0: 
-                    label = ''
-                else:
-                    label = actual-shortest
+                # if actual-shortest == 0: 
+                #     label = ''
+                # else:
+                label = actual-shortest
                     # print(str(self.convert_index(node)),actual,shortest)
                 node_labels[node] = f'{label}'
-            label_grid = {node: (pos_grid[node][0]+0.1, pos_grid[node][1]+0.1) for node in G.nodes}
-            nx.draw_networkx_labels(G,pos=label_grid,labels=node_labels,font_size = 20)
+            label_grid = {node: (pos_grid[node][0]+0.2, pos_grid[node][1]+0.2) for node in G.nodes}
+            nx.draw_networkx_labels(G,pos=label_grid,labels=node_labels,font_size = 30)
         
         # # plt.subplot(122)
         # ax2 = fig.add_subplot(gs[:3,3:])
@@ -388,14 +390,35 @@ class Uniform_network:
         # #     label_grid_gv = {node: (pos_gv[node][0], pos_gv[node][1]+1) for node in G.nodes}
         # #     nx.draw_networkx_labels(G,pos=label_grid_gv,labels=node_labels,font_size = 20)
         
-        ax3 = fig.add_subplot(gs[:4,-5:])
-        distance_dist = [len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1 for node in G.nodes]
-        ax3.grid(alpha=0.1)
-        bin_spacing_dist = list(np.linspace(0,max(distance_dist),max(distance_dist)+1, endpoint=True,dtype=int))
-        ax3.hist(distance_dist, bins = bin_spacing_dist, align='left')
-        ax3.set_xlabel('Node distance to outlet')
-        ax3.set_ylabel('Count')
+        # ax3 = fig.add_subplot(gs[:4,-5:])
+        # distance_dist = [len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1 for node in G.nodes]
+        # ax3.grid(alpha=0.1)
+        # bin_spacing_dist = list(np.linspace(0,max(distance_dist),max(distance_dist)+1, endpoint=True,dtype=int))
+        # ax3.hist(distance_dist, bins = bin_spacing_dist, align='left')
+        # ax3.set_xlabel('Node distance to outlet')
+        # ax3.set_ylabel('Count')
 
+        # ax3 = fig.add_subplot(gs[:3,-3:])
+        ax3 = plt.subplot(122)
+        max_length = max(len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1 for node in G.nodes)
+        # plt.subplot(121)
+        pos_grid = {k: self.convert_index(k) for k in G.nodes()}
+        
+        if dist_label:
+            node_labels = {}
+            for node in G.nodes:
+                actual = len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1
+                if actual == max_length:
+                    node_labels[node]=max_length
+                    node_color_dict[node] = 'red'
+                    node_size_dict[node] = small_node_size*5   
+            label_grid = {node: (pos_grid[node][0]+0.2, pos_grid[node][1]+0.2) for node in G.nodes}
+            nx.draw_networkx_labels(G,ax=ax3, pos=label_grid,labels=node_labels,font_size = 30)            
+            
+        node_color = list(node_color_dict.values())
+        node_size = list(node_size_dict.values())
+        nx.draw(G, pos=pos_grid, node_color=node_color, node_size=node_size, edge_color='grey', arrowsize=arrowsize) 
+        
         if save:
             plt.savefig(f'./tree_size{self.n}by{self.m}_beta{self.beta}.png')
     
@@ -416,7 +439,6 @@ class Uniform_network:
         if dist_label:
             node_labels = {}
             for node in G.nodes:
-                node_xy = self.convert_index(node)
                 actual = len(nx.shortest_path(G, source = node, target = outlet_point_k)) - 1
                 if actual == max_length:
                     node_labels[node]=max_length
@@ -527,10 +549,9 @@ if __name__ == '__main__':
     # tree = test(size = 10, beta = 0.6, tree_num = 1000)
     # main(10,0.8,"Gibbs")
     # plt.show()
-    # uni = Uniform_network(5, 5, beta=0., outlet_point = (0,0), mode='Gibbs')
-    gibbs = Uniform_network(5, 5, beta=0.8, outlet_point = (0,0), mode='Gibbs')
-    # uni.draw_tree_with_distance_label()
+    uni = Uniform_network(5, 5, beta=0., outlet_point = (0,0), mode='Gibbs')
+    # gibbs = Uniform_network(5, 5, beta=2, outlet_point = (0,0), mode='Gibbs')
+    uni.draw_tree_with_distance()
     # uni.draw_tree()
-    gibbs.draw_tree_with_distance_label()
-    gibbs.draw_tree()
+    # gibbs.draw_tree_with_distance()
     plt.show()

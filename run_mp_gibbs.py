@@ -14,7 +14,7 @@ def simulation(uni):
     deltaH_list = uni.generate_tree(mode='Gibbs',k=4000)
     return deltaH_list
 
-def generate_starting_tree(size,beta,tree_count=1000):
+def generate_starting_tree(size,beta,tree_count=100):
     my_trees = []
     tree_pool = mp.Pool(processes=mp.cpu_count())
     for _ in range(tree_count):
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
     size = 10
-    beta_list = np.array([0.2, 0.4, 0.6, 0.8])
+    beta_list = np.array([2, 4])
     dir_name =  f'gibbs{size}_{dt_str}'
 
     try: 
@@ -51,7 +51,7 @@ if __name__ == '__main__':
         my_trees = generate_starting_tree(size,beta)
         all_deltaH_list = mp_loop(my_trees)
         Gibbs.gibbs_pdf(beta,all_deltaH_list)
-        name = f'deltaH_beta{beta}.pickle'
+        name = f'deltaH_beta{beta}_size{size}.pickle'
         f = open(name,'wb')
         pickle.dump(all_deltaH_list,f)
         f.close()

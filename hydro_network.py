@@ -20,7 +20,7 @@ import Gibbs
 
 class Storm_network:
 
-    def __init__(self, beta = 0.5, nodes_num = 10, n = 0.01, diam = 1, changing_diam = True, diam_increment = 0.5, soil_depth = 0, 
+    def __init__(self, beta = 0.5, nodes_num = 10, n = 0.01, min_diam = 1, changing_diam = True, soil_depth = 0, 
 slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_drainage_area = 1.5, node_manhole_area = 50, conductivity = 0.5,
 outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0):
         """ create a random network with different properties. the slope has been defaulted to be the same in
@@ -90,6 +90,8 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                     self.gph[k][ds_node]['diam']=round_pipe_diam(Dr)
                     # print('node',k,'diameter for outflowing pipe', gph.out_edges(k,data='diam'))
                     # print('diameter calculated', Dr)
+        else:
+            nx.set_edge_attributes(self.gph, {edge: {'diam':min_diam} for edge in self.gph.edges})
         if outlet_level: 
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_level}, "level")
         else:
@@ -674,6 +676,10 @@ if __name__ == '__main__':
     # for beta in [0.4, 0.8]:
     #     storm_web = Storm_network(beta=beta,nodes_num=100,node_drainage_area=87120,count=20)
     #     storm_web.draw_network_init(label_on=False)
-    storm_web_0 = Storm_network(beta=0.2,nodes_num=100,count=20,node_drainage_area=87120)
-    storm_web_0.draw_network_init(label_on=False)
+    beta_df = pd.DataFrame()
+    for beta in [0.2, 0.4, 0.8]:
+        storm_web_0 = Storm_network(beta=beta,nodes_num=100,count=0,node_drainage_area=87120)
+        storm_web_0.draw_network_init(label_on=False)
+        # storm_web_1 = Storm_network(beta=beta,nodes_num=100,count=0,node_drainage_area=87120,change_diam=False,)
+        # storm_web_1.draw_network_init(label_on=False)
     plt.show()
