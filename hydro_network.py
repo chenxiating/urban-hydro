@@ -32,7 +32,8 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         # gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
         # self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
         self.n = int(np.sqrt(nodes_num))
-        self.matrix = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0))
+        self.network = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0))
+        self.matrix = self.network.matrix
         self.gph = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         self.nodes_num = len(self.gph.nodes)
         # initialize topological order and elevation
@@ -53,7 +54,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         self.max_path_order = max_path_order
         self.downstream_degree_to_outlet = {k: len(nx.shortest_path(self.gph, source = k, target = self.outlet_node))-1 for k in self.gph.nodes}
         self.accumulate_downstream()
-        # self.get_coordinates()
+        self.get_coordinates()
         self.flood_nodes = None
         self.soil_nodes = ()
 
@@ -103,8 +104,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
 
     def get_coordinates(self):
         # convert matrix index to (i,j)  coordinates
-        n = np.sqrt(self.nodes_num)
-        coordinates = graphviz_layout(self.gph, prog = 'dot')
+        coordinates = {node: self.network.convert_index(node) for node in self.gph.nodes}
         nx.set_node_attributes(self.gph, coordinates, 'coordinates')
         return
 
@@ -678,8 +678,8 @@ if __name__ == '__main__':
     #     storm_web.draw_network_init(label_on=False)
     beta_df = pd.DataFrame()
     for beta in [0.2, 0.4, 0.8]:
-        storm_web_0 = Storm_network(beta=beta,nodes_num=100,count=0,node_drainage_area=87120)
-        storm_web_0.draw_network_init(label_on=False)
-        # storm_web_1 = Storm_network(beta=beta,nodes_num=100,count=0,node_drainage_area=87120,change_diam=False,)
-        # storm_web_1.draw_network_init(label_on=False)
+        # storm_web_0 = Storm_network(beta=beta,nodes_num=100,count=0,node_drainage_area=87120)
+        # storm_web_0.draw_network_init(label_on=False)
+        storm_web_1 = Storm_network(beta=beta,nodes_num=100,count=0,node_drainage_area=87120,changing_diam=False,)
+        storm_web_1.draw_network_init(label_on=False)
     plt.show()

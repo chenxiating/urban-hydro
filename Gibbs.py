@@ -542,7 +542,7 @@ def test(size, beta=0.5, tree_num = 1000):
 
 def main(size, beta, outlet_point, mode = "Gibbs"):
     gibbs = Uniform_network(m=size, n=size, beta=beta, outlet_point=outlet_point, mode = mode)
-    return gibbs.matrix
+    return gibbs
 
 #%%
 if __name__ == '__main__':
