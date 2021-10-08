@@ -32,7 +32,7 @@ def mp_loop(nodes_num, beta):
     mean_rainfall_set = np.array([1.44, 1.69, 2.15, 2.59, 3.29, 3.89, 4.55, 5.27, 6.32, 7.19])
     pool = mp.Pool(processes=mp.cpu_count())
     main_df = None
-    for i in range(1):
+    for i in range(100):
         for mean_rainfall_inch in mean_rainfall_set:
             for count in [0,10,20,30,40,50]:
                 pool.apply_async(simulation, args=(main_df, mean_rainfall_inch,nodes_num,i,beta,count))
