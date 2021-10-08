@@ -612,6 +612,7 @@ def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_in
     output_df.at[k,'beta'] = net.beta
     output_df.at[k,'changing_diam'] = changing_diam
     output_df.at[k,'min_diam'] = min_diam
+    output_df.at[k,'H_diff'] = net.H_diff
     
     if mp: 
         subprocess.run(['rm',input_file_name, report_file_name, output_file_name])

@@ -219,6 +219,7 @@ class Uniform_network:
             if i > burntime: 
                 deltaH_list.append(self.calculate_path_diff(self.matrix))
             j = j + 1
+        self.H_diff = H_diff
         return np.array(deltaH_list)
 
     def tree_structure_check(self):
@@ -549,9 +550,9 @@ if __name__ == '__main__':
     # tree = test(size = 10, beta = 0.6, tree_num = 1000)
     # main(10,0.8,"Gibbs")
     # plt.show()
-    uni = Uniform_network(5, 5, beta=0., outlet_point = (0,0), mode='Gibbs')
-    # gibbs = Uniform_network(5, 5, beta=2, outlet_point = (0,0), mode='Gibbs')
-    uni.draw_tree_with_distance()
+    # uni = Uniform_network(5, 5, beta=0., outlet_point = (0,0), mode='Gibbs')
+    gibbs = Uniform_network(5, 5, beta=2, outlet_point = (0,0), mode='Gibbs')
+    # uni.draw_tree_with_distance()
     # uni.draw_tree()
-    # gibbs.draw_tree_with_distance()
+    gibbs.draw_tree_with_distance()
     plt.show()
