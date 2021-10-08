@@ -1,4 +1,5 @@
 import make_SWMM_inp
+import hydro_network
 import pandas as pd
 import pickle
 import multiprocessing as mp
@@ -17,24 +18,24 @@ def dt_str_gen():
         dt_str = today.strftime("%Y%m%d-%H%M")
     return dt_str
 
-def simulation(main_df, antecedent_soil_moisture, mean_rainfall_inch,nodes_num,beta,i,min_diam,changing_diam):
-    make_SWMM_inp.main(main_df = main_df, antecedent_soil_moisture=0.5, mean_rainfall_inch=mean_rainfall_inch,nodes_num=nodes_num,beta=beta,i=i,count=0,min_diam=min_diam,changing_diam=changing_diam)
+def simulation(main_df, mean_rainfall_inch,nodes_num,i,beta,count):
+    make_SWMM_inp.main(main_df = main_df, antecedent_soil_moisture=0.5, mean_rainfall_inch=mean_rainfall_inch,nodes_num=nodes_num,beta=beta,i=i,count=count,fixing_graph=True,changing_diam=True)
 
-def mp_loop(nodes_num, beta_list):
+def make_first_graph(nodes_num, beta):
+    graph = hydro_network.Storm_network(nodes_num, beta = beta, fixing_graph = True)
+    graph.generate_graph()
+
+def mp_loop(nodes_num, beta):
     #soil_moisture_list = np.linspace(0, 1, 5,endpoint=False)
-    soil_moisture_list = [0.5]
     # mean_rainfall_set = np.array([1.44, 1.69, 2.15, 2.59, 3.29, 3.89, 4.55, 5.27, 6.32, 7.19])
+    make_first_graph(nodes_num, beta)
     mean_rainfall_set = np.array([1.44, 1.69, 2.15, 2.59, 3.29, 3.89, 4.55, 5.27, 6.32, 7.19])
     pool = mp.Pool(processes=mp.cpu_count())
     main_df = None
-    for min_diam in [1,2,4]:
-        for changing_diam in [0,1]:
-            for i in range(100):
-                # for antecedent_soil_moisture in soil_moisture_list:
-                for mean_rainfall_inch in mean_rainfall_set:
-                    for beta in beta_list:
-                    #for count in [0,10,20,30,40,50]:
-                        pool.apply_async(simulation, args=(main_df,mean_rainfall_inch,nodes_num,beta,i,min_diam,changing_diam))
+    for i in range(1):
+        for mean_rainfall_inch in mean_rainfall_set:
+            for count in [0,10,20,30,40,50]:
+                pool.apply_async(simulation, args=(main_df, mean_rainfall_inch,nodes_num,i,beta,count))
                         # pool.apply_async(simulation)
     pool.close()
     pool.join()
@@ -42,7 +43,8 @@ def mp_loop(nodes_num, beta_list):
 def read_pickle_files(datafile_name):
     all_files = os.listdir()
     main_df = pd.DataFrame()
-    for one_file in all_files:
+    all_pickle_files = [one_file for one_file in all_files if 'graph' not in one_file]
+    for one_file in all_pickle_files:
         df = pickle.load(open(one_file, 'rb'))
         main_df = pd.concat([main_df,df],ignore_index=True)
         os.remove(one_file)
@@ -63,8 +65,7 @@ if __name__ == '__main__':
         pass    
     os.chdir(folder_name)
     print(dt_str)
-    beta_list= [0, 0.2, 0.5, 0.8]
-    mp_loop(nodes_num, beta_list) 
+    mp_loop(nodes_num,beta=0.4) 
     finish = time.perf_counter()
     print(f'Finished in {round(finish-start,2)} seconds(s)')
     datafile_name = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes'+'.pickle'

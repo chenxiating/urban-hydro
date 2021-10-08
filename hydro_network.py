@@ -20,9 +20,9 @@ import Gibbs
 
 class Storm_network:
 
-    def __init__(self, beta = 0.5, nodes_num = 10, n = 0.01, min_diam = 1, changing_diam = True, soil_depth = 0, 
+    def __init__(self, nodes_num, beta = 0.5, n = 0.01, min_diam = 1, changing_diam = True, soil_depth = 0, 
 slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_drainage_area = 1.5, node_manhole_area = 50, conductivity = 0.5,
-outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0):
+outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fixing_graph = False):
         """ create a random network with different properties. the slope has been defaulted to be the same in
         the entire network, and the diameter is defaulted to go up as the network is further away from the
         outlet. conductivity should somehow link to the porosity of soil. node drainage area set in acre.
@@ -32,7 +32,20 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         # gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
         # self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
         self.n = int(np.sqrt(nodes_num))
-        self.network = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0))
+        if fixing_graph:
+            file_name = f'{nodes_num}-node_graph_mp.pickle'
+            try: 
+                path = rf'./{file_name}'
+                input_matrix = np.array(pickle.load(open(path,'rb')))
+                #self.network = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0),input_matrix=input_matrix)
+                self.generate_graph(input_matrix=input_matrix)
+            except FileNotFoundError: 
+                self.generate_graph(file_name)
+                # self.network = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0)) 
+        else:
+            self.generate_graph()
+            # self.network = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0))
+            
         self.matrix = self.network.matrix
         self.gph = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         self.nodes_num = len(self.gph.nodes)
@@ -101,6 +114,11 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_node_drainage_area}, "node_drainage_area")
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_node_drainage_area}, "node_manhole_area")
         return
+
+    def generate_graph(self,file_name = None, input_matrix = None):
+        self.network = Gibbs.main(size=self.n, beta = self.beta, mode="Gibbs",outlet_point = (0,0),input_matrix=input_matrix)
+        if file_name: 
+            self.network.export_tree(name=file_name)
 
     def get_coordinates(self):
         # convert matrix index to (i,j)  coordinates

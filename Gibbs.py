@@ -5,11 +5,7 @@ Created on Fri Jul 23 11:49:28 2021
 
 @author: xuefeng
 """
-
-import multiprocessing as mp
-from os import error
 import random
-from networkx.classes.digraph import DiGraph
 import numpy as np
 import glob
 import networkx as nx
@@ -19,13 +15,9 @@ import time
 import datetime as date
 from networkx.drawing.nx_agraph import graphviz_layout
 import pickle
-import signal
 import pandas as pd
 import os
 
-from numpy.lib.function_base import delete
-
-from compile_datasets import convert_index
 
 def handler(signum, frame):
     print("Breaking while loop now!")
@@ -33,13 +25,15 @@ def handler(signum, frame):
 
 class Uniform_network:
     
-    def __init__(self, m, n, beta, mode='uniform',outlet_point = None): 
+    def __init__(self, m, n, beta, mode='uniform',outlet_point = None, input_matrix = None): 
         # m: number of rows (indexed by i)
         # n: number of columns (indexed by j)
         # (i,j) coordinates gives item (1+j)+i*n in adjacency matrix
         self.m = m
         self.n = n
         self.beta = beta
+        if mode == 'uniform':
+            self.beta = 0
         
         # initialize adjacency matrix
         self.matrix = np.zeros((m*n, m*n))
@@ -59,14 +53,19 @@ class Uniform_network:
             pts = [pt for pt in possible_next_pts if (pt in set(self.grid_nodes))] # eliminate points outside of grid
             possible_edges.append(list((self.convert_ij(vi, vj), self.convert_ij(*k)) for k in pts))
         list_set = set(edge for sublist in possible_edges for edge in sublist)
-        self.possible_edges = list(list_set)
-        self.outlet_point=outlet_point
-        self.generate_tree(mode=mode,k=5*self.n**3,outlet_point=self.outlet_point)
-#        # number of adjacency nodes 
+        
+        if input_matrix is not None:
+            self.matrix = input_matrix
+        else: 
+            self.possible_edges = list(list_set)
+            self.outlet_point=outlet_point
+            self.generate_tree(k=5*self.n**3,outlet_point=self.outlet_point,input_matrix=input_matrix)
+        self.path_diff = self.calculate_path_diff(self.matrix)
+        self.find_outlet_point()
+#       # number of adjacency nodes 
 #        self.n_adjacent = 4 * np.ones((m,n))
 #        self.n_adjacent[0,:], self.n_adjacent[-1,:], self.n_adjacent[:,0], self.n_adjacent[:,-1] = 3,3,3,3
 #        self.n_adjacent[0,0], self.n_adjacent[-1,-1], self.n_adjacent[0,-1], self.n_adjacent[-1,0] = 2,2,2,2
-
     def convert_ij(self, i,j): 
         """converts (i,j) coordinates on a matrix to corresponding index on adjacency matrix
         add 1 if starting index at 1 instead of 0"""
@@ -179,6 +178,11 @@ class Uniform_network:
             self.matrix[v1,v0] = 1
         return next_point
 
+    def find_outlet_point(self):
+        G = nx.from_numpy_matrix(self.matrix,create_using=nx.DiGraph)
+        outlet_point_k = [n for n, d in G.out_degree() if d == 0][0]
+        self.outlet_point = self.convert_index(outlet_point_k)
+    
     def calculate_path_diff(self, input_matrix):
         """calculate the difference between the mapped path length and shortest path length"""
         G = nx.from_numpy_matrix(input_matrix,create_using=nx.DiGraph)
@@ -200,7 +204,6 @@ class Uniform_network:
 
     def generate_Gibbs(self, k):
         """reiterate steps to make one Gibbs graph"""
-        j = 0
         deltaH_list = []
         burntime=3*k/4
         # if k < burntime: 
@@ -218,8 +221,6 @@ class Uniform_network:
                 self.matrix = s1_matrix                
             if i > burntime: 
                 deltaH_list.append(self.calculate_path_diff(self.matrix))
-            j = j + 1
-        self.H_diff = H_diff
         return np.array(deltaH_list)
 
     def tree_structure_check(self):
@@ -271,14 +272,14 @@ class Uniform_network:
     #             self.matrix[v0, v1] = 0
     #     return norm_coef, r
 
-    def generate_tree(self, mode, k, outlet_point = None):
+    def generate_tree(self, k, input_matrix, outlet_point = None):
         """do random walk from given point until boundary is hit, or until all nodes have been visited
         initialize first point, generate tree until hitting dead end, initialize next point"""
         start = time.perf_counter()
         #initialize first point - this will be the outlet point
+
         if not outlet_point:
             self.outlet_point = random.choice(self.open_nodes)
-        # print('Outlet point:', self.convert_ij(*outlet_point))
         
         # update open_nodes 
         self.open_nodes.remove(self.outlet_point)
@@ -295,17 +296,17 @@ class Uniform_network:
         finish = time.perf_counter()
         # print(f'{self.m} by {self.n} uniform graph, finished in {round(finish-start,2)} seconds(s)')
         
-        if mode == 'Gibbs':
-            try:
-                self.deltaH_list = self.generate_Gibbs(k=k)
-                finish = time.perf_counter()
-                print(f'{k}-iteration beta = {self.beta} Gibbs graph, finished in {round(finish-start,2)} seconds(s)')
-                return self
-            except RecursionError:
-                self.open_nodes = self.grid_nodes.copy()
-                self.matrix = np.zeros((self.m*self.n, self.m*self.n))
-                print('Generating new tree')
-                self.generate_tree(mode=mode)     
+        try:
+            self.deltaH_list = self.generate_Gibbs(k=k)
+            # self.path_diff = self.calculate_path_diff(self.matrix)
+            finish = time.perf_counter()
+            print(f'{k}-iteration beta = {self.beta} Gibbs graph, finished in {round(finish-start,2)} seconds(s)')
+            return self
+        except RecursionError:
+            self.open_nodes = self.grid_nodes.copy()
+            self.matrix = np.zeros((self.m*self.n, self.m*self.n))
+            print('Generating new tree')
+            self.generate_tree()     
 
     def draw_tree(self,title=None,dist_label=True,save=False):
         fig = plt.figure(figsize=(6,6))
@@ -467,13 +468,13 @@ class Uniform_network:
     #     nx.draw(H, pos=pos_grid, node_size=2, edge_color='grey') #, with_labels = True)
     #     plt.title(title)
     
-    def export_tree(self, i, name = None):
+    def export_tree(self, i=0, name = None):
         if not name:
             name = f'{self.n}-grid_{i}.pickle'
         f = open(name,'wb')
         pickle.dump(self.matrix,f)
         f.close()
-        self.draw_tree(save=True)
+        # self.draw_tree(save=True)
 
     def compile_datasets(self,folder_name = None):
         if folder_name:
@@ -541,8 +542,8 @@ def test(size, beta=0.5, tree_num = 1000):
     print(f'{size} by {size} final graph, finished in {round(finish-start,2)} seconds')
     return uni
 
-def main(size, beta, outlet_point, mode = "Gibbs"):
-    gibbs = Uniform_network(m=size, n=size, beta=beta, outlet_point=outlet_point, mode = mode)
+def main(size, beta, outlet_point, mode = "Gibbs",input_matrix = None):
+    gibbs = Uniform_network(m=size, n=size, beta=beta, outlet_point=outlet_point, mode = mode, input_matrix=input_matrix)
     return gibbs
 
 #%%
