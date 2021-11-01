@@ -327,8 +327,9 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
             cluster_hist = Counter(self.soil_node_cluster)
             # clustering_coef = sum(a/len(self.soil_nodes) for a in big_group.values() if a > 1)/len(big_group)
             norm_hist = {i: floor(len(self.soil_nodes)/i) for i in cluster_hist.keys()}
-            norm_coef = 1/sum([cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys()]) 
-            clustering_coef = norm_coef*sum(i * cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys())
+            # norm_coef = 1/sum([cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys()]) /len(self.soil_nodes)
+            # clustering_coef = norm_coef*sum(i * cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys())
+            clustering_coef = 1/len(self.soil_nodes) * sum(i*cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys())
             # print(f'Clustering coefficient is {clustering_coef}')
             # SHOULD THIS BE ADJUSTED DEPENDING ON HOW LARGE THE GRID IS?
         

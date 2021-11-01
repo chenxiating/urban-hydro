@@ -358,6 +358,9 @@ class Uniform_network:
         G = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         node_color_dict = {node: 'C0' for node in G.nodes}
         node_size_dict = {node: small_node_size for node in G.nodes}
+        node_color_dict.update({node: 'C2' for node in [1, 3, 5, 10, 16, 20, 22]})
+        print(node_color_dict)
+        node_size_dict.update({node: small_node_size*5 for node in [1, 3, 5, 10, 16, 20, 22]})
         node_color_dict[outlet_point_k] = 'C1'
         node_size_dict[outlet_point_k] = small_node_size*5
         node_color = list(node_color_dict.values())
@@ -552,7 +555,7 @@ if __name__ == '__main__':
     # main(10,0.8,"Gibbs")
     # plt.show()
     # uni = Uniform_network(5, 5, beta=0., outlet_point = (0,0), mode='Gibbs')
-    gibbs = Uniform_network(5, 5, beta=2, outlet_point = (0,0), mode='Gibbs')
+    gibbs = Uniform_network(5, 5, beta=0.2, outlet_point = (0,0), mode='Gibbs')
     # uni.draw_tree_with_distance()
     # uni.draw_tree()
     gibbs.draw_tree_with_distance()

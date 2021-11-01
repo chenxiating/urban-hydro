@@ -647,7 +647,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,ch
     # print(output_df)
 
     if mp:
-        pickle_file_name = str(antecedent_soil_moisture)+'_'+str(mean_rainfall_inch)+'_'+str(beta)+'_'+str(i)+'.pickle'
+        pickle_file_name = str(antecedent_soil_moisture)+'_'+str(mean_rainfall_inch)+'_'+str(beta)+'_'+str(min_diam)+'_'+str(i)+'.pickle'
         f = open(pickle_file_name,'wb')
         pickle.dump(output_df, f)
         f.close()
