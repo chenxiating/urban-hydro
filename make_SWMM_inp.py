@@ -1,4 +1,5 @@
 from numpy.core.defchararray import add
+from sklearn import cluster
 import hydro_network as hn
 import matplotlib.pyplot as plt
 import numpy as np
@@ -617,8 +618,7 @@ def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_in
     if mp: 
         subprocess.run(['rm',input_file_name, report_file_name, output_file_name])
 
-def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,changing_diam=True, min_diam = 1,count=0,soil_nodes=None,mp=True, fixing_graph = False):
-    
+def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta=0,changing_diam=True, min_diam = 1,count=0,soil_nodes=None,mp=True, fixing_graph = False, file_name = None, make_cluster = False):
     node_drainage_area = 2           # acres
     outlet_level = 1
     outlet_elev = 85               
@@ -628,13 +628,15 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,ch
     # output_df = output_df.astype({'soil_nodes_list':'object'})
     k = 0
     for _ in range(1):
-        net = hn.Storm_network(beta=beta, nodes_num = nodes_num, level = init_level, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
-    outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, count = count, soil_nodes = soil_nodes,changing_diam=changing_diam, min_diam = min_diam, fixing_graph = fixing_graph)
+        net = hn.Storm_network(beta = beta, nodes_num = nodes_num, level = init_level, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
+    outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, count = count, soil_nodes = soil_nodes, changing_diam = changing_diam, 
+    min_diam = min_diam, fixing_graph = fixing_graph, file_name = file_name, make_cluster = make_cluster)
         soil_node_in_set_check = prod([(node in net.gph.nodes) for node in net.soil_nodes])
         if soil_node_in_set_check == 0:
             print(net.soil_nodes)
             print(net.gph.nodes)
-        input_file_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(len(net.soil_nodes))+'-soil-nodes_'+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_beta'+str(beta)+'_'+str(i)+'_'+str(k)+'.inp'
+        input_file_name = f'dataset_{mean_rainfall_inch}-inch_{len(net.soil_nodes)}-GI_{antecedent_soil_moisture}-sm_beta-{beta}_{i}_{k}_start-dist-{make_cluster}.inp'
+        # input_file_name = 'dataset_'+str(round(mean_rainfall_inch,1))+'-inch_'+str(len(net.soil_nodes))+'-soil-nodes_'+'soil_moisture-'+str(round(antecedent_soil_moisture,1))+'_beta'+str(beta)+'_'+str(i)+'_'+str(k)+'.inp'
         # print('Permeable nodes count: ', len(net.soil_nodes), net.soil_nodes, 'Rainfall intensity: ', mean_rainfall_inch, 'Soil moisture: ', antecedent_soil_moisture)
         
         # output_df['soil_nodes_list'][k]=net.soil_nodes
@@ -647,7 +649,8 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,ch
     # print(output_df)
 
     if mp:
-        pickle_file_name = str(antecedent_soil_moisture)+'_'+str(mean_rainfall_inch)+'_'+str(beta)+'_'+str(min_diam)+'_'+str(i)+'.pickle'
+        pickle_file_name = f'{antecedent_soil_moisture}_{mean_rainfall_inch}-inch_beta-{beta}_{i}_start-cluster-{make_cluster}.pickle'
+        # pickle_file_name = str(antecedent_soil_moisture)+'_'+str(mean_rainfall_inch)+'_'+str(beta)+'_'+str(min_diam)+'_'+str(i)+'.pickle'
         f = open(pickle_file_name,'wb')
         pickle.dump(output_df, f)
         f.close()
@@ -655,41 +658,7 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_inch,nodes_num,i,beta,ch
         main_df = pd.concat([main_df, output_df], ignore_index=True)
         return main_df
 
-    def test_compare_diam():
-        fix_df = pd.DataFrame()
-        change_df = pd.DataFrame()
-        soil_nodes_list = [[0, 1, 2, 3, 4, 10, 11, 12, 13, 15, 20, 21, 22, 23, 24, 30, 31, 32, 33, 34, 
-        35, 36, 41, 42, 43, 51, 52, 53, 61, 62, 63, 70, 71, 72, 81], [5, 6, 7, 8, 9, 16, 17, 18, 19, 
-        25, 26, 27, 28, 29, 37, 38, 39, 44, 45, 46, 47, 48, 49, 54, 58, 59, 68, 69, 78, 79, 88, 89, 94, 
-        95, 96, 98, 99], [6, 7, 12, 13, 19, 20, 32, 33, 34, 42, 43, 56, 58, 59, 62, 71, 72, 74, 75, 
-        76, 77, 78, 81, 84, 88], [0, 1, 4, 5, 15, 17, 23, 25, 29, 30, 31, 36, 40, 44, 51, 53, 54, 63, 
-        64, 65, 67, 79, 82, 86, 89, 90, 91, 92, 94, 99], [59, 49, 39, 38, 37, 27, 28, 18, 19, 9, 8, 7, 
-        6, 5, 16, 26, 25, 17, 29, 69, 68, 78, 79, 88, 89, 98, 99]]
-        # for soil_nodes_group in soil_nodes_list:
-        for beta in beta_list:
-            for i in range(1):
-                for mean_rainfall_inch in mean_rainfall_set:
-                    # change_df = main(change_df, antecedent_soil_moisture=0.5, mean_rainfall_inch=mean_rainfall_inch, 
-                    # nodes_num=nodes_num,beta=beta,count=0, mp=False,min_diam=1, changing_diam=True,i=i)
-                    fix_df = main(fix_df, antecedent_soil_moisture=0.5, mean_rainfall_inch=mean_rainfall_inch, 
-                    nodes_num=nodes_num,beta=beta,count=0, mp=False,min_diam=2, changing_diam=False,i=i)
-        datafile_name_fix = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes_fixed_diam'+'.pickle'
-        datafile_name_change = dt_str + '_full_dataset_'+str(nodes_num)+'-nodes_changing_diam'+'.pickle'
-        fix_df.to_csv(path_or_buf = datafile_name_fix.replace('.pickle','.csv'))
-        f = open(datafile_name_fix,'wb')
-        pickle.dump(fix_df, f)
-        f.close()
-        change_df.to_csv(path_or_buf = datafile_name_change.replace('.pickle','.csv'))
-        f = open(datafile_name_change,'wb')
-        pickle.dump(change_df, f)
-        f.close()
-
 if __name__ == '__main__':
-    soil_moisture_list = np.linspace(0.0, 1.0, 1)
-    mean_rainfall_set = [1.69]#, 2.59, 3.29, 4.55]
-    nodes_num = 25
-    beta_list=[0, 0.3, 0.6, 0.9, 1.2]
-
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
     folder_name='./SWMM_'+dt_str
@@ -699,8 +668,14 @@ if __name__ == '__main__':
         pass    
     os.chdir(folder_name)
     main_df = pd.DataFrame()
-    for i in range(5):
-        main_df = main(main_df, antecedent_soil_moisture=0.5, mean_rainfall_inch=1.69, 
-                   i=1, nodes_num=nodes_num,beta=0.4,count=10, fixing_graph=True)
-    # print(main_df)
-    # print(datafile_name)
+
+    ## file names
+    #file_names = [r'../gibbs/100-node_beta-0.5graph_mp.pickle',r'../gibbs/100-node_beta-0.1graph_mp.pickle',]
+
+    main_df = main(main_df,antecedent_soil_moisture=0.5,mean_rainfall_inch=1.44, 
+        i=1,nodes_num=10,beta=0.5,count = 2, mp=False)
+    pickle_file_name = 'file.pickle'
+    f = open(pickle_file_name,'wb')
+    print(main_df.shape)
+    pickle.dump(main_df, f)
+    f.close()

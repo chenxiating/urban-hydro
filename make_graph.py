@@ -1,420 +1,360 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import matplotlib.ticker as mtick
 import matplotlib
-import pandas as pd
 import seaborn as sns
 import pickle
 import os
-import sys
-from statistics import StatisticsError
-from statistics import mean
+from matplotlib.ticker import FormatStrFormatter
+from matplotlib.patches import Patch
 
-matplotlib.rcParams['figure.figsize'] = (6, 4)
 
-# datafile_name = r'./SWMM_20210830-1058/20210830-1058_full_dataset_100-nodes.pickle' # This is only small rainfall, 10 + 20 % permeability 
-# datafile_name = r'./SWMM_20210831-0907/20210831-0907_full_dataset_100-nodes.pickle' # This is only heavy rainfall, 10 + 20 % permeability 
-datafile_name = r'./SWMM_20211002-1437/20211002-1437_full_dataset_100-nodes.pickle'
-datafile_name = r'./SWMM_20210825-1653/20210825-1653_full_dataset_100-nodes.pickle'
-# datafile_name = r'./SWMM_20211003-1553/20211003-1553_full_dataset_100-nodes.pickle'
-print("sys.argv is", sys.argv)
-print("datafile_name is", datafile_name)
-nodes_num = 100
-# graph_nodes_count_string = datafile_name[pos2:pos3] + '-Nodes Graph with Mean Rainfall Intensity of ' + datafile_name[pos0:pos1] + '\n'
 
-df = pickle.load(open(datafile_name, 'rb'))
-df.to_csv(datafile_name.replace('pickle','csv'))
-# df = pd.read_csv(datafile_name.replace('pickle','csv'))
-df.flood_duration_total_list = df.flood_duration_total_list/24
-df.cumulative_node_drainage_area = df.cumulative_node_drainage_area/df.soil_nodes_count
-print(df.head())
-
-# df.dropna(inplace=True)
-# print(df.head())
-
-# df.soil_clustering = df.soil_clustering/df.soil_nodes_count
-
-datafile_name = datafile_name[2:20]
-path="/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/figures/models/"+ datafile_name+"/"
-print(path)
-if not os.path.exists(path):
-    os.makedirs(path)
-# print(df.head())
+matplotlib.rcParams['figure.figsize'] = (6, 6)
+matplotlib.rc('font', family='sans-serif') 
+matplotlib.rc('font', serif='Arial') 
 
 label_dict = {'flood_duration_list':'Days with Flooding', 'flood_duration_total_list': 'Flooded Node-Day',
-    'max_flow_cfs':'Peak Flow Rate at Outlet (cfs)', 'soil_nodes_count':'% of GI Nodes', 'soil_node_distance_list': "Mean Distance from GI Nodes to Outlet", 
-    'soil_node_degree_list':'Neighbor Index', 'soil_nodes_total_upstream_area':'Cumulative Upstream Area','mean_rainfall': 'Mean Rainfall Intensity',
+    'max_flow_cfs':'Peak Flow Rate at Outlet\n(cfs)', 'soil_nodes_count':'% of GI Nodes', 'soil_node_distance_list': "Mean Distance from GI Nodes to Outlet", 
+    'soil_node_degree_list':'Neighbor Index', 'cumulative_node_drainage_area':'Cumulative Upstream Area','mean_rainfall': 'Mean Rainfall Intensity',
     'antecedent_soil':'Antecedent Soil Moisture', 'mean_disp_g':'Mean DG', 'mean_disp_kg': 'Mean DKG', 'max_disp_g':'Max DG', 
     'max_disp_kg':'Max DKG', 'mean_var_path_length':'Time Averaged <L>', 'max_var_path_length': 'L max', 'max_flood_nodes':'Number of Flooded Nodes',
     'max_flood_node_degree':'Average Connectedness when Highest Number of Nodes Flooded','max_flood_node_elev':'Average Distance to Outlet when Highest Number of Nodes Flooded',
-    'mean_flood_nodes_TI':'Average Distance to Outlet of Flood Node (at All Times)','total_flooded_vol_MG':'Total Flood Volume (MG)','total_outflow_vol_MG':'Total Outflow Volume (MG)',
+    'mean_flood_nodes_TI':'Average Distance to Outlet of Flood Node (at All Times)','total_flooded_vol_MG':'Total Flood Volume\n(MG)','total_outflow_vol_MG':'Total Outflow Volume (MG)',
     'cumulative_node_drainage_area':'Average Cumulative Upstream Area (Acres)','flood_node_degree_list':'Neighbor Index of Flood Nodes', 
-    'flood_node_distance_list':'Mean Distance from Flood Nodes to Outlet', 'soil_clustering':'GI Nodes Clustering Coefficient','beta':'beta'} 
-x_label_dict = {1.44:'1', 1.69:'2-Year', 2.15:'5', 2.59:'10-Year', 3.29:'25-Year', 
+    'flood_node_distance_list':'Mean Distance from Flood Nodes to Outlet', 'soil_clustering':'GI Nodes Clustering Coefficient','beta':r'Network Gibbs Parameter $\beta$', 
+    'path_diff':r'Network Path Difference $H$','rounded_path':'\nRounded Network Path Difference $H$','rounded_distance':'Rounded Mean Distance from GI Nodes to Outlet'} 
+rain_label_dict = {1.44:'1-Year', 1.69:'2-Year', 2.15:'5-Year', 2.59:'10-Year', 3.29:'25-Year', 
     3.89:'50\n2-Hour Storm Return Periods (Year)', 4.55:'100-Year', 5.27:'200', 6.32:'500', 7.19:'1000'}
-def two_figure_plot(df = df, y1_attribute = 'soil_node_distance_list', y2_attribute = 'soil_node_degree_list',
-xaxis_attribute = 'flood_duration_total_list', cmap_on = False, save_plot = True, cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
-    xaxis = df[xaxis_attribute]
-    xmax = max(xaxis) + 1
-    cmap0 = cm.get_cmap(cmap)
-    color_dict = {'color': cmap0(0.8), 'alpha': 0.3}
-    if cmap_on: 
-        color_dict = {'c': xaxis, 'alpha': 0.7, 'cmap': cmap}
-    xlabel = label_dict[xaxis_attribute]
 
+def set_box_plot_props(color='k'):
+    whp = dict(linewidth=0.3,color=color)
+    fp = dict(marker='o',markersize=1,markeredgecolor=color,
+    markerfacecolor=color,alpha=0.5)
+    bp = dict(linewidth=0,alpha=0.5,facecolor=color)
+    mp = dict(color=color)
+    ax_dict=dict(whiskerprops = whp,showcaps=False,flierprops = fp,medianprops=mp, boxprops=bp)
+    return ax_dict 
+
+def two_figure_sns_box_plot(df,y1_attribute = 'max_flow_cfs', y2_attribute = 'total_flooded_vol_MG', x_attribute = 'soil_nodes_count', sort_attribute = 'mean_rainfall', 
+ncols = 0, logx=False, title=None, datafile_name = None, draw_title = False, save_plot = True):
+    if ncols == 0:
+        ncols = len(set(df[sort_attribute]))
+    pane_set = list(set(df[sort_attribute]))
+    pane_set.sort()
+    # fig = plt.figure(figsize=(9,12))
     fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax_TI = fig.add_subplot(211)
-    ax_NI = fig.add_subplot(212)
-
-    ylim_min = min(min(df[y1_attribute]), min(df[y2_attribute])) 
-    ylim_max = max(max(df[y1_attribute]), max(df[y2_attribute])) 
-
-    c = xaxis
-    TI = ax_TI.scatter(xaxis,  df[y1_attribute], s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_TI.xaxis.tick_top()
-    ax_TI.set_ylabel(label_dict[y1_attribute])
-    ax_TI.set_xlim(left = -0.05, right = xmax)
-    ax_TI.set_ylim(bottom = ylim_min, top = ylim_max)
-    
-    NI = ax_NI.scatter(xaxis,  df[y2_attribute], s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_NI.set_ylabel(label_dict[y2_attribute])
-    ax_NI.set_xlim(left = -0.05, right = xmax)
-    ax_NI.set_ylim(bottom = ylim_min, top = ylim_max)
-    plt.tight_layout()    
-    if cmap_on: 
-        fig.subplots_adjust(top = 0.8, left =0.3)
-        cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
-        cbar = fig.colorbar(TI, cax=cbar_ax)
-        # fig.suptitle(graph_nodes_count_string + xlabel)
-    if title:
-        fig.suptitle(title)
-
-    ax.spines['top'].set_color('none')
-    ax.spines['bottom'].set_color('none')
-    ax.spines['left'].set_color('none')
-    ax.spines['right'].set_color('none')
-    ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
-    ax.set_xlabel(xlabel)
-    plt.tight_layout()
-
-    fig_name = datafile_name.replace(".pickle","") + xaxis_attribute + y1_attribute
-    plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
-    if save_plot:
-        plt.savefig(path + fig_name +'.png')
-        print('Plot is saved as', fig_name +'.png')
-
-def three_figure_plot(df = df, x1_attribute = 'soil_node_distance_list', x2_attribute = 'soil_node_degree_list', x3_attribute = 'soil_nodes_count', 
-yaxis_attribute = 'flood_duration_total_list', cmap_on = False, save_plot = True, cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
-    yaxis = df[yaxis_attribute]
-    ymax = max(yaxis)
-    cmap0 = cm.get_cmap(cmap)
-    color_dict = {'color': cmap0(0.8), 'alpha': 0.3}
-    # label_dict = {'flood_duration_list':'Days with Flooding', 'flood_duration_total_list': 'Average Days of Flooding per Node',
-    # 'outlet_water_level':'Water Level at Outlet (ft)', 'soil_nodes_count':'% GI Nodes', 'soil_node_distance_list': "Topography Index", 
-    # 'soil_node_degree_list':'Neighbor Index', 'soil_nodes_total_upstream_area':'Cumulative Area'} 
-    if cmap_on: 
-        color_dict = {'c': yaxis, 'alpha': 0.7, 'cmap': cmap}
-    ylabel = label_dict[yaxis_attribute]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax_TI = fig.add_subplot(311)
-    ax_NI = fig.add_subplot(312)
-    ax_nodes = fig.add_subplot(313)
-
-    c = yaxis
-    TI = ax_TI.scatter(df[x1_attribute], yaxis,  s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_TI.xaxis.tick_top()
-    ax_TI.set_xlabel(label_dict[x1_attribute])
-    ax_TI.xaxis.set_label_position('top')
-    ax_TI.set_ylim(bottom = -0.05, top = ymax)
-    
-    NI = ax_NI.scatter(df[x2_attribute], yaxis,  s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_NI.set_xlabel(label_dict[x2_attribute])
-    ax_NI.set_ylim(bottom = -0.05, top = ymax)
-
-    nodes_fig = ax_nodes.scatter(df[x3_attribute], yaxis,  s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_nodes.set_xlabel(label_dict[x3_attribute])
-    ax_nodes.xaxis.set_major_formatter(mtick.PercentFormatter())
-    ax_nodes.set_ylim(bottom = -0.05, top = ymax)
-
-    if cmap_on: 
-        fig.subplots_adjust(top = 0.8, left =0.3)
-        cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
-        cbar = fig.colorbar(TI, cax=cbar_ax)
-        # fig.suptitle(graph_nodes_count_string + ylabel)
-    
-    ax.spines['top'].set_color('none')
-    ax.spines['bottom'].set_color('none')
-    ax.spines['left'].set_color('none')
-    ax.spines['right'].set_color('none')
-    ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
-    ax.set_ylabel(ylabel)
-    plt.tight_layout()
-
-    fig_name = datafile_name.replace(".pickle","") + yaxis_attribute
-    plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
-    if title:
-        fig.suptitle(title)
-    if save_plot:
-        plt.savefig(path + fig_name +'.png')
-        print('Plot is saved as', fig_name +'.png')
-
-def four_figure_plot(df = df, x1_attribute = 'soil_node_distance_list', x2_attribute = 'soil_node_degree_list', x3_attribute = 'soil_nodes_count', 
-x4_attribute ='soil_nodes_total_upstream_area', yaxis_attribute = 'flood_duration_total_list', color_attribute = None, cmap_on = False, save_plot = True,
-cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
-    yaxis = df[yaxis_attribute]
-    ymax = max(yaxis)
-    cmap0 = cm.get_cmap(cmap)
-    color_dict = {'color': cmap0(0.8), 'alpha': 0.3}
-    if not color_attribute:
-        c = yaxis_attribute
-    else: 
-        c = df[color_attribute]
-    if cmap_on:
-        color_dict = {'c': c, 'alpha': 0.4, 'cmap': cmap}
-    ylabel = label_dict[yaxis_attribute]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax_TI = fig.add_subplot(411)
-    ax_NI = fig.add_subplot(412)
-    ax_nodes = fig.add_subplot(413)
-    ax_area = fig.add_subplot(414)
-
-    c = yaxis
-    TI = ax_TI.scatter(df[x1_attribute], yaxis,  s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_TI.xaxis.tick_top()
-    ax_TI.set_xlabel(label_dict[x1_attribute])
-    ax_TI.xaxis.set_label_position('top')
-    ax_TI.set_ylim(bottom = -0.05, top = ymax)
-    
-    NI = ax_NI.scatter(df[x2_attribute], yaxis,  s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_NI.set_xlabel(label_dict[x2_attribute])
-    ax_NI.set_ylim(bottom = -0.05, top = ymax)
-
-    nodes_fig = ax_nodes.scatter(df[x3_attribute], yaxis,  s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_nodes.set_xlabel(label_dict[x3_attribute])
-    ax_nodes.xaxis.set_major_formatter(mtick.PercentFormatter())
-    ax_nodes.set_ylim(bottom = -0.05, top = ymax)
-
-    area_fig = ax_area.scatter(df[x4_attribute], yaxis,  s = 5, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_area.set_xlabel(label_dict[x4_attribute])
-    ax_area.set_ylim(bottom = -0.05, top = ymax)
-    plt.tight_layout()
-
-    fig.subplots_adjust(top = 0.8)
-    if cmap_on:
-        fig.subplots_adjust(left = 0.3)
-        cbar_ax = fig.add_axes([0.85, 0.25, 0.05, 0.35])
-        cbar = fig.colorbar(TI, cax=cbar_ax)
-        cbar_ax.get_yaxis().labelpad = 15
-        cbar_ax.set_ylabel(label_dict[color_attribute], rotation=270)
-    if title:
-        fig.suptitle(title)
-
-    ax.spines['top'].set_color('none')
-    ax.spines['bottom'].set_color('none')
-    ax.spines['left'].set_color('none')
-    ax.spines['right'].set_color('none')
-    ax.tick_params(labelcolor='w', top=False, bottom=False, left=False, right=False)
-    ax.set_ylabel(ylabel)
-
-    fig_name = datafile_name.replace(".pickle","") + yaxis_attribute + str(title)
-    plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
-    if save_plot:
-        plt.savefig(path + fig_name +'.png')
-        print('Plot is saved as', fig_name +'.png')
-
-def two_axis_plot(df = df, xaxis_attribute = 'soil_nodes_count', yaxis_attribute = 'soil_node_distance_list', color_attribute = 'flood_duration_total_list', 
-size_attribute = None, cmap_on = True, save_plot = True, cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
-    if xaxis_attribute == 'soil_nodes_count':
-        xaxis = df[xaxis_attribute]/nodes_num*100
-    else: 
-        xaxis = df[xaxis_attribute]
-    yaxis = df[yaxis_attribute]
-
-    ymax = max(yaxis)
-
-    fig = plt.figure()
-    ax_double_axes = fig.add_subplot(111)  
-    
-    color_dict = {'alpha': 0.8}
-    if cmap_on:
-        color_dict['cmap'] = cmap
-        color_dict['c'] = df[color_attribute]
-        if cmap != 'plt.cm.viridis':
-            color_dict['edgecolor']='dimgray'
-            color_dict['linewidths']=0.5
-    else: 
-        color_dict['color'] = plt.cm.Greys(0.5)
-
-    if not size_attribute:
-        s = 10
-    else: 
-        s = df[size_attribute]
-    TI = ax_double_axes.scatter(xaxis, yaxis, s = s, marker = 's', **color_dict)#, edgecolor = 'k')
-    ax_double_axes.set_xlabel(label_dict[xaxis_attribute])
-    ax_double_axes.set_ylabel(label_dict[yaxis_attribute])
-    ax_double_axes.set_ylim(bottom = -0.05, top = ymax)
-    ax_double_axes.yaxis.tick_right()
-    ax_double_axes.yaxis.set_label_position('right')
-        # fig.suptitle(graph_nodes_count_string + ylabel)
-    plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
-
-    plt.tight_layout() 
-
-    fig.subplots_adjust(top = 0.8)
-    if title:
-        fig.suptitle(title)
-    if cmap_on:
-        fig.subplots_adjust(left = 0.3)
-        cbar_ax = fig.add_axes([0.1, 0.25, 0.05, 0.35])
-        cbar = fig.colorbar(TI, cax=cbar_ax)
-        cbar_ax.get_xaxis().labelpad = 15
-        cbar_ax.yaxis.tick_left()
-        cbar_ax.xaxis.set_label_position('top')
-        cbar_ax.set_xlabel(label_dict[color_attribute])
-    if save_plot:
-        fig_name = datafile_name.replace(".pickle","") + color_attribute + xaxis_attribute + yaxis_attribute + str(title)
-        plt.savefig(path + fig_name +'.png')
-        print('Plot is saved as '+ fig_name +'.png')
-
-def soil_box_plot(save_plot=False):
-    mean_rainfall_set = list(set(df.mean_rainfall) - set([0]))
-    mean_rainfall_set.sort()
-    mean_soil_set = list(set(df.antecedent_soil))
-    mean_soil_set
-    A = []
-    label = []
+    gs = fig.add_gridspec(2,ncols)
     k = 0
-    for i in mean_rainfall_set:
-        for j in mean_soil_set:
-            title_name = 'Rainfall '+ str(i) + ' in; Antecedent soil moisture '+ str(j)
-            # print(title_name)
-            is_set = (df.mean_rainfall == i) & (df.antecedent_soil == j)
-            df_plot = df.loc[is_set]
-            B = df_plot.flood_duration_total_list
-            label.append(str(round(i,1))+'" -'+str(round(j*100,0))+'%')
-            A.append(B)
-    plt.figure()
-    ax = plt.gca()
-    ax.boxplot(A)
-    ax.set_xticklabels(label,rotation=45, fontsize=6)
-    ax.set_xlabel(label_dict['antecedent_soil'])
-    ax.set_ylabel(label_dict['flood_duration_total_list'])
-    fig_name = datafile_name.replace(".pickle","") + 'soil_boxplot'
-    plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
-    if save_plot:
-        plt.savefig(path + fig_name +'.png')
-        print('Plot is saved as', fig_name +'.png')
+    ax_top_model = fig.add_subplot(gs[0,k])
+    model_axis_config(ax_top_model,ylabel=label_dict[y1_attribute],logx=logx)
+    ax_bottom_model = fig.add_subplot(gs[1,k])
+    model_axis_config(ax_bottom_model,ylabel=label_dict[y2_attribute],logx=logx)
+    fig.align_ylabels([ax_top_model,ax_bottom_model])
+    fig.add_subplot(111,frameon=False)
+    plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+    plt.xlabel(label_dict[x_attribute],fontweight='bold')
 
-
-def multi_rainfall_figure_plot(df = df, ncols = 10, nrows = 1, xaxis_attribute = 'soil_node_distance_list', yaxis_attribute = 'flood_duration_total_list', 
-color_attribute = 'soil_nodes_count', cmap_on = True, kde = False,save_plot = False,fitline=False, cmap = plt.cm.viridis, datafile_name = datafile_name, title = None):
-    # print(df)
-    k = 0
-    yaxis = df[yaxis_attribute]
-    ymax = max(yaxis)
-    ymin = min(yaxis)
-    cmap0 = cm.get_cmap(cmap)
-    color_dict = {'color': cmap0(0.8), 'alpha': 0.3}
-    if not color_attribute:
-        c = yaxis_attribute
-    else: 
-        c = round(df[color_attribute], -1)
-    if cmap_on:
-        color_dict = {'c': c, 'alpha': 0.6, 'cmap': cmap}
-    ylabel = label_dict[yaxis_attribute]
-    fig, axes = plt.subplots(ncols=ncols, nrows=nrows, sharey=True, sharex=True,figsize=(12,8))
-    if ncols == 1:
-        ax_plt = axes
-    else: 
-        ax_plt = axes[k]
-    if kde is True:
-        fig.suptitle('Return Periods of 2-Hour Storm')
-    else: 
-        fig.suptitle(label_dict[xaxis_attribute])
-    mean_rainfall_set = list(set(df.mean_rainfall) - set([0]))
-    mean_rainfall_set.sort()
-    ax_plt.set_ylabel(ylabel)
-    ax_plt.get_yaxis().labelpad = 10
-    vmin = min(df[color_attribute])
-    vmax = max(df[color_attribute])
-    n = len(mean_rainfall_set)
-    color_iteration = np.linspace(vmin, vmax, n, endpoint=True)
-    for i in mean_rainfall_set:
-        # x_label = str(round(i,1)) + '"'
-        x_label = x_label_dict[i]
-        ax_plt.grid(which = 'both', axis = 'both', alpha = 0.2)
-        ax_plt.set_xlabel(x_label)
-        ax_plt.xaxis.tick_top()
-        plt.setp(ax_plt.spines.values(), alpha = 0.2)
-        ax_plt.tick_params(labelcolor='w',top=False, bottom=False, left=False, right=False)
-        ax_plt.set_ylim([ymin, ymax])
-        # axes[k].set_xlim([0, xmax])
-        x_centroid_list = []
-        y_centroid_list = []
-        centroid_color = []
-        
-        for j in color_iteration:
-            line_color = plt.cm.viridis(j/(vmax-vmin))
-            is_set = (df.mean_rainfall == i) & ((df[color_attribute] >= j) & (df[color_attribute] < (j+color_iteration[1]-color_iteration[0])))
-            df_plot = df.loc[is_set]
-
-            # c = round(df_plot[color_attribute], -1)
-            c = df_plot[color_attribute]
-            if cmap_on:
-                color_dict = {'c': c, 'alpha': 0.3}
+    for i in pane_set:
+        if sort_attribute == 'mean_rainfall':
+            rain_label = rain_label_dict[i]
+            hue_attr = 'path_diff'
+        elif sort_attribute == 'path_diff':
+            rain_label = rf'$H(s) =$ {int(i)}'
+            hue_attr = 'mean_rainfall'
+        is_set = (df[sort_attribute] == i)
+        df_plot = df.loc[is_set]
+        ax_top = fig.add_subplot(gs[0,k],sharex=ax_top_model,sharey=ax_top_model)        
+        ax_top.set_title(rain_label,fontsize=10)
+        ax_bottom = fig.add_subplot(gs[1,k],sharex=ax_bottom_model,sharey=ax_bottom_model)
+        x_list = list(set(df[x_attribute]))
+        x_list.sort() 
+        pos = np.arange(0,6,1)
+        i = -0.2
+        hue_att = list(set(df_plot[hue_attr]))
+        hue_att.sort()
+        for hue in hue_att:
+            y1_plot = list()
+            y2_plot = list()
+            x_att = list(set(df_plot[x_attribute]))
+            x_att.sort()
+            for x in x_att:
+                df_a = df_plot[(df_plot[hue_attr] == hue) & (df_plot[x_attribute] == x)]
+                y1_plot.append(df_a[y1_attribute])
+                y2_plot.append(df_a[y2_attribute])
+            top_boxes = ax_top.boxplot(y1_plot, 
+                patch_artist=True,
+                positions=pos+i,
+                widths = 0.4,
+                **set_box_plot_props(color='#1b699e'))
+                # **set_box_plot_props(color='#144c73'))
             
-            if kde: 
-                if np.var(df_plot[yaxis_attribute]) > 0:
-                    try: 
-                        sns.kdeplot(y=df_plot[yaxis_attribute],color=line_color,ax=ax_plt,thresh=0.8)
-                    except np.linalg.LinAlgError("singular matrix"): 
-                        pass
-            else:
-                ax_plt.scatter(df_plot[xaxis_attribute], df_plot[yaxis_attribute], s = 10, marker = 's', vmin = vmin, vmax = vmax, **color_dict)
-                try:
-                    x_centroid_list.append(mean(df_plot[xaxis_attribute][df_plot[xaxis_attribute]>0]))
-                except StatisticsError:
-                    x_centroid_list.append(0)
-                try: 
-                    y_centroid_list.append(mean(df_plot[yaxis_attribute][df_plot[yaxis_attribute]>0]))
-                except StatisticsError:
-                    y_centroid_list.append(0)
-                centroid_color.append(j)
-
-            if fitline:
-                try:
-                    m,b = np.polyfit(df_plot[xaxis_attribute], df_plot[yaxis_attribute],1)
-                    ax_plt.plot(df_plot[xaxis_attribute], m*df_plot[xaxis_attribute]+b,color=line_color)
-                    x_text = max(df_plot[xaxis_attribute])
-                    y_text = m*x_text+b
-                    plt.text(x_text, y_text, r'$m =$'+f'{round(m,2)}',ha = 'left', va='bottom', 
-                    transform = ax_plt.transData,color = line_color)
-                except TypeError:
-                    pass
-
-        scatter_fig = ax_plt.scatter(x_centroid_list, y_centroid_list, c = centroid_color, s = 5*ncols, marker = 'o',edgecolor = 'w', vmin = vmin, vmax = vmax)
-        xmax = max(df[xaxis_attribute])
-        xmax = 8
-        # print(xaxis_attribute, yaxis_attribute,xmax)
-        ax_plt.set_xlim([0, xmax])
-
-        if ncols > 1:
-            k += 1
-            try: 
-                ax_plt = axes[k]
-            except IndexError: 
-                pass
-            axes[0].tick_params(labelcolor ='k')
-        else: 
-            ax_plt.tick_params(labelcolor ='k')
+            bottom_boxes = ax_bottom.boxplot(y2_plot, 
+                patch_artist=True,
+                positions=pos+i,
+                widths = 0.4,
+                **set_box_plot_props(color='#c15a00'))
+            i +=0.4
+        for box in top_boxes['boxes']:
+            box.set(facecolor = '#82bfe9')
+        for m in top_boxes['medians']:
+            m.set(color='#419ede')
         
-    plt.tight_layout(w_pad= 0.0)
+        for box in bottom_boxes['boxes']:
+            box.set(facecolor = '#ffd1a9')
+        for m in bottom_boxes['medians']:
+            m.set(color='#ff9a42')
+
+        for ax in [ax_top, ax_bottom]:
+            ax.set_xticks(np.arange(0,6,1),minor=False)
+            ax.set_xticks(np.arange(0,5,1)+0.5,minor=True)
+            # ax.grid(True,which='minor',linewidth = 1, alpha = 0.5)
+            ax.tick_params(which='minor',color='w')
+        ax_bottom.set_xticklabels(np.arange(0,60,10))
+        plt.setp(ax_bottom.get_xticklabels(), fontsize=8)
+        axis_config(ax_top,bottom=False,left=False)
+        axis_config(ax_bottom,left=False)
+        k +=1
+    
+    plt.subplots_adjust(wspace=0, hspace=0, top =0.85)
+    low_H1 = Patch(fc = '#1b699e',linewidth=0,alpha=0.5)
+    low_H2 = Patch(fc = '#c15a00',linewidth=0,alpha=0.5)
+    high_H1 = Patch(fc = '#82bfe9',linewidth=0,alpha=0.5)
+    high_H2 = Patch(fc = '#ffd1a9',linewidth=0,alpha=0.5)
+    handles = ((low_H1, high_H1),(low_H2, high_H2),)
+    labels = ['$H(s)=28.0$','$H(s)=74.0$',]
+    by_label = dict(zip(labels, handles))
+    # plt.legend(by_label.values(),by_label.keys(),frameon=False,
+    # bbox_to_anchor=(-0.,2.25),loc='upper center',ncol = len(labels), borderaxespad=0.)
+    plt.legend(handles=(low_H1, high_H1,low_H2, high_H2),
+        labels=['','','$H(s)=28.0$','$H(s)=74.0$'],
+        frameon=False,
+        bbox_to_anchor=(-0.,2.25),
+        numpoints=1, 
+        ncol=2, handletextpad=0.5, handlelength=1.0, columnspacing=-0.5,
+        loc='upper center')
+
+
+    # pa1 = Patch(facecolor='red', edgecolor='black')
+    # pa2 = Patch(facecolor='blue', edgecolor='black')
+    # pa3 = Patch(facecolor='green', edgecolor='black')
+    # #
+    # pb1 = Patch(facecolor='pink', edgecolor='black')
+    # pb2 = Patch(facecolor='orange', edgecolor='black')
+    # pb3 = Patch(facecolor='purple', edgecolor='black')
+
+    # ax.legend(handles=[pa1, pb1, pa2, pb2, pa3, pb3],
+    #         labels=['', '', '', '', 'First', 'Second'],
+    #         ncol=3, handletextpad=0.5, handlelength=1.0, columnspacing=-0.5,
+    #         loc='center', fontsize=16)
+
+
+
+
+    if draw_title:
+        fig.suptitle('2-Hour Storm Return Periods',fontweight='bold')
+        plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
+
+
+def model_axis_config(axis,logx = False,ylabel = None):
+    axis.tick_params(labelcolor='k',top=False, bottom=False, left=False, right=False, labelbottom = False)
+    plt.setp(axis.spines.values(), alpha = 0)
+    # for _, spine in axis.spines.items():
+    #     spine.set_visible(False)
+    axis.margins(x=0.2,y=0.1)
+    if ylabel:
+        axis.set_ylabel(ylabel,fontsize=10,fontweight='bold')
+    if logx:
+        axis.set_xscale('log')
+
+def axis_config(axis, bottom = True, left = False, sns_box = False):
+    
+    plt.setp(axis.get_xticklabels(), fontsize=8)
+    axis.tick_params(labelcolor='k',labeltop=False, labelleft=left, labelright=False, labelbottom=bottom)
+    plt.xticks(rotation=45)
+    axis.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+    plt.setp(axis.spines.values(), alpha = 0.2)
+    axis.grid(which = 'major', axis = 'y', alpha = 0.2)
+    axis.set(xlabel=None,ylabel=None)
+    
+    try: 
+        axis.get_legend().remove()
+    except AttributeError:
+        pass
+
+def trendline(x,y,axis,c):
+    m,b = np.polyfit(x, y, 1)
+    x_array = np.sort(np.array(x))
+    axis.plot(x_array,m*x_array+b,c=c)
+
+def two_figure_strip_plot(df, ncols = 0, sort_attribute='mean_rainfall', x_attribute = 'soil_nodes_count', y1_attribute = 'max_flow_cfs', y2_attribute = 'total_flooded_vol_MG', 
+color_attribute = 'soil_nodes_count', cmap_on = True, save_plot = False,draw_trendline=False, logx = False, cmap = plt.cm.viridis, datafile_name = None, draw_title = False, title = None):
+    if ncols == 0:
+        ncols = len(set(df[sort_attribute]))
+    column_set = list(set(df[sort_attribute]))
+    column_set.sort()
+    # fig = plt.figure(figsize=(9,12))
+    fig = plt.figure()
+    gs = fig.add_gridspec(2,ncols)
+    k = 0
+    title_phrase=''
+    ax_top_model = fig.add_subplot(gs[0,k])
+    model_axis_config(ax_top_model,ylabel=label_dict[y1_attribute],logx = logx)
+    ax_bottom_model = fig.add_subplot(gs[1,k])
+    model_axis_config(ax_bottom_model,ylabel=label_dict[y2_attribute],logx = logx)
+    fig.align_ylabels([ax_top_model,ax_bottom_model])
+    fig.add_subplot(111,frameon=False)
+    plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+    plt.xlabel(label_dict[x_attribute],fontweight='bold')
+    # set up color schemes
+    c = df[color_attribute]
+    if sort_attribute=='mean_rainfall':
+        title = '2-Hour Storm Return Periods'
+    elif sort_attribute == 'soil_nodes_count':
+        title = f'{label_dict[sort_attribute]}'
+    # color_iteration = np.linspace(min(c), max(c), len(set(c)), endpoint=True)
+    for i in column_set:
+        if sort_attribute=='mean_rainfall':
+            top_label = rain_label_dict[i]
+        elif sort_attribute == 'soil_nodes_count':
+            top_label = f'{i}%'
+        ax_top = fig.add_subplot(gs[0,k],sharex=ax_top_model,sharey=ax_top_model)
+        ax_top.set_title(top_label,fontsize=10)
+        ax_bottom = fig.add_subplot(gs[1,k],sharex=ax_bottom_model,sharey=ax_bottom_model)
+
+        for x in set(df[color_attribute]):
+            # print(set(df[color_attribute]))
+            if sort_attribute == 'soil_nodes_count':
+                is_set = (df[sort_attribute] == i)
+                rainfall= list(set(df.mean_rainfall))[0]
+                title_phrase = f'{rain_label_dict[rainfall]} 2-Hour Storm \n'
+            else:
+                is_set = (df[sort_attribute] == i)
+            if color_attribute == 'path_diff':
+                x = 0.5*(min(df.soil_nodes_count) + max(df.soil_nodes_count))
+                title_phrase = f'{int(x)}% GI Nodes \n'
+            df_plot = df.loc[is_set]
+            if (len(set(df[color_attribute])) > 1) and cmap_on: 
+                color_dict = dict(c=df_plot[color_attribute], alpha=0.8, cmap=cmap, vmin=min(c),vmax=max(c))
+                line_color = plt.cm.viridis((x-min(c))/(max(c)-min(c)))
+            else: 
+                line_color = 'C0'
+                color_dict = dict(color=line_color, alpha=0.8)
+                cmap_on = False
+        ax_top = sns.boxplot(data=df_plot,x=x_attribute,y=y1_attribute,ax=ax_top,**set_box_plot_props(color='C0'))
+        # ax_top = sns.stripplot(data=df_plot,x=x_attribute,y=y1_attribute,ax=ax_top,color='C0',size=2)
+        ax_bottom= sns.boxplot(data=df_plot,x=x_attribute,y=y2_attribute,ax=ax_bottom,**set_box_plot_props(color='C1'))
+        # ax_bottom = sns.stripplot(data=df_plot,x=x_attribute,y=y2_attribute,ax=ax_bottom,color='C1',size=2)
+        axis_config(ax_top,bottom=False)
+        axis_config(ax_bottom)
+        if draw_trendline:
+            trendline(df_plot[x_attribute], df_plot[y1_attribute], ax_top,c=line_color)
+            trendline(df_plot[x_attribute], df_plot[y2_attribute], ax_bottom,c=line_color)
+        k +=1
+    
+    if len(set(df.soil_nodes_count)) == 1:
+        title = title_phrase + title
+        x_attribute = f'{str(set(df.soil_nodes_count))}_{x_attribute}'
+    
+    if len(set(df.mean_rainfall)) == 1:
+        title = title_phrase + title
+        x_attribute = f'{str(set(df.mean_rainfall))}_{x_attribute}'
+    
+    if len(set(df.path_diff)) == 1:
+        title_phrase = rf'$H(s)$ = {[int(x) for x in set(df.path_diff)][0]}' + ',\t'
+        title = title_phrase + title
+        x_attribute = f'{str(set(df.path_diff))}_{x_attribute}'
+        
+    plt.subplots_adjust(wspace=0, hspace=0)
+    plt.setp(ax_bottom.get_xticklabels(), fontsize=8)
+    fig_name = f'{datafile_name.replace(".pickle","")}_strip_{x_attribute}_{y1_attribute}_{y2_attribute}'
+    if draw_title:
+        fig.suptitle(title,fontweight='bold')
+        plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
+    if save_plot:
+        path="/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/figures/models/"+ datafile_name+"/"
+        plt.savefig(path + fig_name +'.png')
+        print('Plot is saved as', fig_name +'.png')
+
+def two_figure_scatter_plot(df, ncols = 0, sort_attribute='mean_rainfall', x_attribute = 'soil_clustering', y1_attribute = 'max_flow_cfs', y2_attribute = 'total_flooded_vol_MG', 
+color_attribute = 'soil_nodes_count', cmap_on = True, save_plot = False,draw_trendline=False, logx = False, cmap = plt.cm.viridis, datafile_name = None, title = None):
+    if ncols == 0:
+        ncols = len(set(df[sort_attribute]))
+    column_set = list(set(df[sort_attribute]))
+    column_set.sort()
+    fig = plt.figure(figsize=(9,12))
+    gs = fig.add_gridspec(2,ncols)
+    k = 0
+    title_phrase=''
+    ax_top_model = fig.add_subplot(gs[0,k])
+    model_axis_config(ax_top_model,ylabel=label_dict[y1_attribute],logx = logx)
+    ax_bottom_model = fig.add_subplot(gs[1,k])
+    model_axis_config(ax_bottom_model,ylabel=label_dict[y2_attribute],logx = logx)
+    fig.align_ylabels([ax_top_model,ax_bottom_model])
+    fig.add_subplot(111,frameon=False)
+    plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+    plt.xlabel(label_dict[x_attribute],fontweight='bold')
+    # set up color schemes
+    c = df[color_attribute]
+    if sort_attribute=='mean_rainfall':
+        title = '2-Hour Storm Return Periods'
+    elif sort_attribute == 'soil_nodes_count':
+        title = f'{label_dict[sort_attribute]}'
+    # color_iteration = np.linspace(min(c), max(c), len(set(c)), endpoint=True)
+    for i in column_set:
+        if sort_attribute=='mean_rainfall':
+            top_label = rain_label_dict[i]
+        elif sort_attribute == 'soil_nodes_count':
+            top_label = f'{i}%'
+        ax_top = fig.add_subplot(gs[0,k],sharex=ax_top_model,sharey=ax_top_model)
+        ax_top.set_title(top_label,fontsize=10)
+        ax_bottom = fig.add_subplot(gs[1,k],sharex=ax_bottom_model,sharey=ax_bottom_model)
+        axis_config(ax_top,bottom=False)
+        axis_config(ax_bottom)
+        for x in set(df[color_attribute]):
+            # print(set(df[color_attribute]))
+            if sort_attribute == 'soil_nodes_count':
+                is_set = (df[sort_attribute] == i)
+                rainfall= list(set(df.mean_rainfall))[0]
+                title_phrase = f'{rain_label_dict[rainfall]} 2-Hour Storm \n'
+            else:
+                is_set = (df[sort_attribute] == i) & (df[color_attribute] == x) 
+            if color_attribute == 'path_diff':
+                x = 0.5*(min(df.soil_nodes_count) + max(df.soil_nodes_count))
+                title_phrase = f'{int(x)}% GI Nodes \n'
+            df_plot = df.loc[is_set]
+            if (len(set(df[color_attribute])) > 1) and cmap_on: 
+                color_dict = dict(c=df_plot[color_attribute], alpha=0.8, cmap=cmap, vmin=min(c),vmax=max(c))
+                line_color = plt.cm.viridis((x-min(c))/(max(c)-min(c)))
+            else: 
+                line_color = 'C0'
+                color_dict = dict(color=line_color, alpha=0.8)
+                cmap_on = False
+                # title_phrase = f'{int(x)}% GI Nodes \n'
+            scatter_fig = ax_top.scatter(df_plot[x_attribute], df_plot[y1_attribute],s = 5, **color_dict)
+            ax_bottom.scatter(df_plot[x_attribute], df_plot[y2_attribute],s = 5, color = 'C1')
+            if draw_trendline:
+                trendline(df_plot[x_attribute], df_plot[y1_attribute], ax_top,c=line_color)
+                trendline(df_plot[x_attribute], df_plot[y2_attribute], ax_bottom,c=line_color)
+        k +=1
+    
+    if len(set(df.soil_nodes_count)) == 1:
+        title = title_phrase + title
+        x_attribute = f'{str(set(df.soil_nodes_count))}_{x_attribute}'
+    
+    if len(set(df.mean_rainfall)) == 1:
+        title = title_phrase + title
+        x_attribute = f'{str(set(df.mean_rainfall))}_{x_attribute}'
+    
+    if len(set(df.path_diff)) == 1:
+        title_phrase = rf'$H(s)$ = {[int(x) for x in set(df.path_diff)][0]}' + ',\t'
+        title = title_phrase + title
+        x_attribute = f'{str(set(df.path_diff))}_{x_attribute}'
+        
+    plt.subplots_adjust(wspace=0, hspace=0)
+    # plt.setp(ax_bottom, xticks=[y + 1 for y in range(len(x_list))],
+    # xticklabels=list(str(int(x)) for x in x_list))
+    # plt.setp(ax_bottom.get_xticklabels(), fontsize=8)
+
     if cmap_on:
         fig.subplots_adjust(left = 0.15, right = 0.8)
         cbar_ax = fig.add_axes([0.85, 0.25, 0.05, 0.35])
@@ -423,24 +363,19 @@ color_attribute = 'soil_nodes_count', cmap_on = True, kde = False,save_plot = Fa
         cbar_ax.set_ylabel(label_dict[color_attribute], rotation=270)
         # cbar_ax.yaxis.set_label_position('left')
         # cbar_ax.yaxis.tick_left()
-    
-    if title:
-        fig.suptitle(title)
-    if kde: 
-        fig_name = datafile_name.replace(".pickle","") + '_KDE_'+yaxis_attribute
-    elif ncols == 1:
-        fig_name = datafile_name.replace(".pickle","") + f'_{i}-inch_{yaxis_attribute}'
-    else:
-        fig_name = datafile_name.replace(".pickle","") + xaxis_attribute + yaxis_attribute
+    fig.suptitle(title,fontweight='bold')
+    fig_name = f'{datafile_name.replace(".pickle","")}_scatter_{x_attribute}_{y1_attribute}_{y2_attribute}'
     plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
     if save_plot:
+        path="/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/figures/models/"+ datafile_name+"/"
         plt.savefig(path + fig_name +'.png')
         print('Plot is saved as', fig_name +'.png')
 
 def test_one_permeability(df, soil_nodes_count, x = 'soil_node_degree_list', y = 'max_flood_nodes',title=None,save_plot = False):
     is_set = (df.soil_nodes_count > soil_nodes_count - 10) & (df.soil_nodes_count <= soil_nodes_count)
     df1 = df.loc[is_set]
-    _ = plt.figure(figsize=(6,8))
+    # _ = plt.figure(figsize=(6,8))
+    _ = plt.figure()
     ax = plt.axes()
     mean_rainfall_set = list(set(df1.mean_rainfall) - set([0]))
     mean_rainfall_set.sort()
@@ -487,34 +422,74 @@ def test_one_permeability(df, soil_nodes_count, x = 'soil_node_degree_list', y =
         plt.savefig(path + fig_name +'.png')
         print('Plot is saved as', fig_name +'.png')
 
-def beta_figure(df, ncols=1):
-    fig = plt.figure()
-    ncols = len(set(df.mean_rainfall))
-    gs=fig.add_gridspec(1,ncols)
-    for i in range(ncols):
-        mean_rainfall = list(set(df.mean_rainfall))[i]
-        ax = fig.add_subplot(gs[:,i])
-        df_plt = df[(df.mean_rainfall == mean_rainfall)]
-        ax.scatter(df_plt.beta, df_plt.flood_duration_total_list)
-        ax.set_xlabel(str(mean_rainfall))
-    plt.legend(['0.2','0.5','0.8'])
+
+
+def initialize(datafile_name):
+    nodes_num = 100
+    df = pickle.load(open(datafile_name, 'rb'))
+    df.to_csv(datafile_name.replace('pickle','csv'))
+    # df = pd.read_csv(datafile_name.replace('pickle','csv'))
+    df.flood_duration_total_list = df.flood_duration_total_list/24
+    df.cumulative_node_drainage_area = df.cumulative_node_drainage_area/df.soil_nodes_count
+    df.soil_nodes_count = df.soil_nodes_count.astype(int)
+    # print(df.head())
+
+    # df.dropna(inplace=True)
+    # print(df.head())
+    # df.soil_clustering = df.soil_clustering/df.soil_nodes_count
+    path="/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/figures/models/"+ datafile_name+"/"
+    # print(path)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return df
 
 if __name__ == '__main__':
+    ## Initialization:
+    # datafile_name = r'./gibbs/20211201_multi_beta_fixed_diam.pickle'
+    # datafile_name = r'./SWMM_20211107-1609/20211108-1036_full_dataset_100-nodes.pickle'
+    # datafile_name = r'./SWMM_20211130-distance/compiled.pickle'
+    path = r'/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/writing/GI_network/figures/'
     
-    # beta_figure(df)
-    is_set = (df.mean_rainfall == 1.69) | (df.mean_rainfall == 2.59) | (df.mean_rainfall == 3.29 ) | (df.mean_rainfall == 4.55)
-    df_plot = df.loc[is_set]
-    # two_axis_plot(df = df, xaxis_attribute='soil_node_distance_list', yaxis_attribute='soil_clustering')
-    for y in ['max_flow_cfs']:#,'max_flow_cfs']:
-        # for y in ['flood_duration_total_list','max_flood_nodes','total_flooded_vol_MG','max_flow_cfs','total_outflow_vol_MG','flood_node_degree_list', 'flood_node_distance_list']:#, 'mean_var_path_length', 'mean_disp_kg', 'mean_disp_g']:
-        multi_rainfall_figure_plot(df=df_plot, ncols = 4, nrows = 1, yaxis_attribute = y, cmap_on = True, save_plot=True,kde=True)
-    #     for x in ['soil_clustering','cumulative_node_drainage_area','soil_node_degree_list','soil_node_distance_list']:#,'mean_flood_nodes_TI']:
-    # #     # for x in ['soil_node_degree_list']:
-    #         # test_one_permeability(df=df, x=x, y=y, save_plot=True)
-    #         multi_rainfall_figure_plot(df=df_plot, ncols = 4, nrows = 1, xaxis_attribute = x, yaxis_attribute = y, cmap_on = True, save_plot=True)
-    # test_one_permeability(df=df, soil_nodes_count = 30, x= 'soil_clustering',y='flood_node_degree_list', title = f'Permeability at {30}%', save_plot=False)
-    # permeability_marker = [10, 20, 30, 40]
-    # for i in permeability_marker:
-    #     for x in ['soil_clustering']:#,'soil_node_degree_list','soil_node_distance_list']:
-    #         test_one_permeability(df=df, soil_nodes_count = i, x=x, y='max_flow_cfs', save_plot=False,title = f'Permeability at {i}%')
+    def round_path(df_raw):
+        n = 400
+        rainfall_list = [1.69, 2.59, 3.29,4.55]
+        print(f'min diam is {set(df_raw.min_diam)}')
+        df = df_raw[(df_raw.mean_rainfall.isin(rainfall_list))]
+        df["rounded_path"] = round(df.path_diff/n)*n
+        df["rounded_path"] = df["rounded_path"].astype(int)
+        print(df.head())
+        return df
+
+    ## Network structure 
+    fixed_diam = r'./data_beta_generator/20211010_fixing_diam.pickle'
+    df0 = initialize(fixed_diam)
+    df = round_path(df0[df0.changing_diam == 0])
+    two_figure_strip_plot(df, x_attribute='rounded_path',sort_attribute = 'mean_rainfall', datafile_name='')
+    plt.savefig(path+"network_structure.png")
+
+    ## Interaction between network and green infrastructure
+    datafile_name= r'./SWMM_20211107-1609/20211108-1036_full_dataset_100-nodes.pickle'
+    df = initialize(datafile_name)
+    two_figure_sns_box_plot(df[df.mean_rainfall.isin([2.15,3.29])],datafile_name = datafile_name[2:20])
+    plt.savefig(path+"GI_network_interaction.png")
+
+    ## Green infrastructure number
+    two_figure_strip_plot(df[df.mean_rainfall.isin([1.69, 2.59, 3.29, 4.55]) & (df.path_diff == 28)],
+    save_plot=True, datafile_name = datafile_name[2:20])
+    plt.savefig(path+"GI_number.png")
+    
+    ## GI placement
+    def round_distance(df):
+        n = 3
+        df["rounded_distance"] = np.ceil(df.soil_node_distance_list/n)*n
+        df["rounded_distance"] = df["rounded_distance"].astype(int)
+        
+        print(df.head())
+
+    GI_placement_datafile_name = r'./SWMM_placement_28_20221030/GI_distance_summary.pickle'
+    df = initialize(GI_placement_datafile_name)
+    round_distance(df)
+    two_figure_strip_plot(df, x_attribute = 'rounded_distance', save_plot=False, datafile_name = 'GI_placement')
+    plt.savefig(path+'GI_placement28_new_rainfalls.png')
+ 
     plt.show()

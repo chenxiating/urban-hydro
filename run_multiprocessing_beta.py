@@ -26,8 +26,9 @@ def mp_loop(nodes_num, beta_list):
     mean_rainfall_set = [1.69, 2.59, 3.29, 4.55]
     pool = mp.Pool(processes=mp.cpu_count())
     main_df = None
-    for min_diam in [1,2,4]:
-        for changing_diam in [0,1]:
+    # for min_diam in [1,2,4]:
+    for min_diam in [4]:
+        for changing_diam in [0]:
             for i in range(100):
                 # for antecedent_soil_moisture in soil_moisture_list:
                 for mean_rainfall_inch in mean_rainfall_set:

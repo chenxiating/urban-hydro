@@ -17,6 +17,7 @@ from networkx.drawing.nx_agraph import graphviz_layout
 import pickle
 import pandas as pd
 import os
+from multiprocessing import current_process, cpu_count
 
 
 def handler(signum, frame):
@@ -25,13 +26,14 @@ def handler(signum, frame):
 
 class Uniform_network:
     
-    def __init__(self, m, n, beta, mode='uniform',outlet_point = None, input_matrix = None): 
+    def __init__(self, m, n, beta, deltaH = None, mode='Gibbs',outlet_point = None, input_matrix = None, k = 1): 
         # m: number of rows (indexed by i)
         # n: number of columns (indexed by j)
         # (i,j) coordinates gives item (1+j)+i*n in adjacency matrix
         self.m = m
         self.n = n
         self.beta = beta
+        self.deltaH = deltaH
         if mode == 'uniform':
             self.beta = 0
         
@@ -56,10 +58,12 @@ class Uniform_network:
         
         if input_matrix is not None:
             self.matrix = input_matrix
+            self.path_diff = self.calculate_path_diff(self.matrix)
         else: 
             self.possible_edges = list(list_set)
             self.outlet_point=outlet_point
-            self.generate_tree(k=5*self.n**3,outlet_point=self.outlet_point,input_matrix=input_matrix)
+            self.generate_tree(k = k,outlet_point=self.outlet_point)
+            # k = 5*self.n**3 
         self.path_diff = self.calculate_path_diff(self.matrix)
         self.find_outlet_point()
 #       # number of adjacency nodes 
@@ -204,23 +208,34 @@ class Uniform_network:
 
     def generate_Gibbs(self, k):
         """reiterate steps to make one Gibbs graph"""
+        """k: number of trees"""
         deltaH_list = []
-        burntime=3*k/4
+        # burntime=3*k/4
+        burntime = 0.5*self.n**3 
+        i = 0
         # if k < burntime: 
         #     raise ValueError('Iteration number is less than burntime.')
-        for i in range(k):
+        #for i in range(k):
+        while i <= burntime:
+            i +=1
             s1_matrix = self.matrix.copy()
             r = self.random_next_edge()
             s2_matrix = self.matrix.copy()
-            H_diff = self.calculate_path_diff(s2_matrix) - self.calculate_path_diff(s1_matrix)
+            H_diff = float(self.calculate_path_diff(s2_matrix) - self.calculate_path_diff(s1_matrix))
             threshold = 1/r*min(1, np.exp(-self.beta*H_diff))
 
-            # decide whether to take x as the new network
+            # x is a unif var to decide whether to take s2_matrix as the new network
             x = random.random()
             if x > threshold:
-                self.matrix = s1_matrix                
-            if i > burntime: 
-                deltaH_list.append(self.calculate_path_diff(self.matrix))
+                self.matrix = s1_matrix
+                if self.deltaH:
+                    deltaH_threshold = self.n * self.m/10
+                    path_diff = self.calculate_path_diff(self.matrix)
+                    if (path_diff > (self.deltaH - deltaH_threshold)) & (path_diff < (self.deltaH + deltaH_threshold)):
+                        deltaH_list.append(self.calculate_path_diff(self.matrix))
+                        break
+            # if i > burntime: 
+            deltaH_list.append(self.calculate_path_diff(self.matrix))
         return np.array(deltaH_list)
 
     def tree_structure_check(self):
@@ -228,51 +243,8 @@ class Uniform_network:
         G = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         return nx.is_tree(G) and max(d for n, d in G.out_degree()) <= 1
     
-    # def calculate_norm_coef(self):
-    #     """calculate the normalization constant (norm_coef) and all possible degrees (r) for all adjacent graphs in a tree"""
-    #     """8/4: actually wrong. we are not only interested in adjacent graphs, but also all other graphs."""
-    #     # edges where a new edge can be added to create loop
-    #     s1_matrix = self.matrix.copy()
-    #     open_edges = self.open_edges()
-    #     norm_coef = 0
-    #     H_diff = self.calculate_path_diff(self.matrix)
-    #     exp_coef = np.exp(-self.beta*(H_diff))
-    #     norm_coef = norm_coef + exp_coef
-    #     # print(f'Delta H is {round(H_diff,2)}, and normalization coef now is {round(norm_coef,2)}.')
-    #     # self.draw_tree2(s1_matrix=s1_matrix)
-    #     # plt.show()
-    #     r = 1
-    #     for v0, v1 in open_edges:
-    #         self.matrix[v0, v1] = 1
-    #         # check where the loop is in graph
-    #         G = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
-    #         # loops = nx.find_cycle(G, orientation="ignore")
-    #         try: 
-    #             [(v_from, v_to)] = [(v_from, v_to) for (v_from, v_to) in G.edges if (v_from == v0) and (v_to != v1)]
-    #         except ValueError:
-    #             in_outlet = [(v_from, v_to) for (v_from, v_to) in G.edges if (v_to == v0)]
-    #             random.shuffle(in_outlet)  
-    #             (v_from, v_to) = random.choice(in_outlet)
-    #         # select an old edge within the loop to be removed
-    #         self.matrix[v_from, v_to] = 0 # remove an edge in the loop
 
-    #         if self.tree_structure_check():
-    #             r = r + 1
-    #             H_diff = self.calculate_path_diff(self.matrix)
-    #             exp_coef = np.exp(-self.beta*(H_diff))
-    #             norm_coef = norm_coef + exp_coef
-    #             # print(f'Delta H is {round(H_diff,2)}, and normalization coef now is {round(norm_coef,2)}.')
-    #             # self.draw_tree2(s1_matrix=s1_matrix, title=f'iteration {r}')
-    #             # plt.show()
-    #             self.matrix = s1_matrix.copy()      
-    #         else:
-    #             # if the new tree doesn't retain old structure, add the edge back in
-    #             # self.draw_tree2(s1_matrix=s1_matrix)
-    #             self.matrix[v_from, v_to] = 1 
-    #             self.matrix[v0, v1] = 0
-    #     return norm_coef, r
-
-    def generate_tree(self, k, input_matrix, outlet_point = None):
+    def generate_tree(self, k, outlet_point = None, export=True):
         """do random walk from given point until boundary is hit, or until all nodes have been visited
         initialize first point, generate tree until hitting dead end, initialize next point"""
         start = time.perf_counter()
@@ -298,15 +270,28 @@ class Uniform_network:
         
         try:
             self.deltaH_list = self.generate_Gibbs(k=k)
-            # self.path_diff = self.calculate_path_diff(self.matrix)
+            # self.generate_Gibbs(k=k)
+            self.path_diff = self.calculate_path_diff(self.matrix)
             finish = time.perf_counter()
-            print(f'{k}-iteration beta = {self.beta} Gibbs graph, finished in {round(finish-start,2)} seconds(s)')
+            cp = str(current_process())
+            cp_name = cp[cp.find('name=')+6:cp.find(' parent=')-1]
+            print(f'{k}-trees beta = {self.beta} Gibbs graph with path diff = {self.path_diff}, finished in {round(finish-start,2)} seconds(s) at {cp_name}')
+            if self.deltaH: 
+                deltaH_threshold = self.n * self.m/10
+                if (self.calculate_path_diff(self.matrix) > (self.deltaH - deltaH_threshold)) & (self.calculate_path_diff(self.matrix) < (self.deltaH + deltaH_threshold)):
+                    # print(f'{k}-trees beta = {self.beta} Gibbs graph with path diff = {self.path_diff}, finished in {round(finish-start,2)} seconds(s)')
+                    self.export_tree()
+                else: 
+                    self.generate_Gibbs(k=k)
+            elif export:
+                print('Exporting tree')
+                self.export_tree()
             return self
         except RecursionError:
             self.open_nodes = self.grid_nodes.copy()
             self.matrix = np.zeros((self.m*self.n, self.m*self.n))
             print('Generating new tree')
-            self.generate_tree()     
+            self.generate_tree() 
 
     def draw_tree(self,title=None,dist_label=True,save=False):
         fig = plt.figure(figsize=(6,6))
@@ -358,9 +343,9 @@ class Uniform_network:
         G = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
         node_color_dict = {node: 'C0' for node in G.nodes}
         node_size_dict = {node: small_node_size for node in G.nodes}
-        node_color_dict.update({node: 'C2' for node in [1, 3, 5, 10, 16, 20, 22]})
-        print(node_color_dict)
-        node_size_dict.update({node: small_node_size*5 for node in [1, 3, 5, 10, 16, 20, 22]})
+        # node_color_dict.update({node: 'C2' for node in [1, 3, 5, 10, 16, 20, 22]})
+        # print(node_color_dict)
+        # node_size_dict.update({node: small_node_size*5 for node in [1, 3, 5, 10, 16, 20, 22]})
         node_color_dict[outlet_point_k] = 'C1'
         node_size_dict[outlet_point_k] = small_node_size*5
         node_color = list(node_color_dict.values())
@@ -473,7 +458,9 @@ class Uniform_network:
     
     def export_tree(self, i=0, name = None):
         if not name:
-            name = f'{self.n}-grid_{i}.pickle'
+            self_name = str(self)
+            ID = self_name[self_name.find('x')-1:]
+            name = f'{self.n}-grid_beta-{self.beta}_dist-{self.path_diff}_ID-{ID}.pickle'
         f = open(name,'wb')
         pickle.dump(self.matrix,f)
         f.close()
@@ -535,7 +522,7 @@ def test(size, beta=0.5, tree_num = 1000):
         uni = Uniform_network(size, size, beta=beta,mode="Gibbs")
         # ax1.plot(deltaH_list,alpha = 0.1, color = 'C0')
         all_deltaH_list.append(uni.deltaH_list)
-    uni.export_tree(i = beta)
+    uni.export_tree(i = i)
     gibbs_pdf(uni.beta,all_deltaH_list)
     name = f'deltaH_beta{uni.beta}.pickle'
     f = open(name,'wb')
@@ -551,12 +538,14 @@ def main(size, beta, outlet_point, mode = "Gibbs",input_matrix = None):
 
 #%%
 if __name__ == '__main__':
-    # tree = test(size = 10, beta = 0.6, tree_num = 1000)
+    # tree = test(size = 10, beta = 0.5, tree_num = 1000)
     # main(10,0.8,"Gibbs")
     # plt.show()
     # uni = Uniform_network(5, 5, beta=0., outlet_point = (0,0), mode='Gibbs')
-    gibbs = Uniform_network(5, 5, beta=0.2, outlet_point = (0,0), mode='Gibbs')
-    # uni.draw_tree_with_distance()
-    # uni.draw_tree()
+    gibbs = Uniform_network(10, 10, beta=0.5, deltaH=10, outlet_point = (0,0), mode='Gibbs')
+    gibbs.export_tree()
     gibbs.draw_tree_with_distance()
+    _ = plt.figure()
+    print(gibbs.deltaH_list)
+    plt.plot(gibbs.deltaH_list)
     plt.show()

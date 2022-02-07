@@ -1,4 +1,5 @@
-from typing import KeysView
+from typing import KeysView, Type
+from networkx.algorithms import cluster
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -20,22 +21,26 @@ import Gibbs
 
 class Storm_network:
 
-    def __init__(self, nodes_num, beta = 0.5, n = 0.01, min_diam = 1, changing_diam = True, soil_depth = 0, 
-slope = 0.008, elev_min = 90, elev_max = 100, level = 0.5, node_drainage_area = 1.5, node_manhole_area = 50, conductivity = 0.5,
-outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fixing_graph = False):
+    def __init__(self, nodes_num, beta = 0.5, n = 0.01, min_diam = 1, changing_diam = True, soil_depth = 0, slope = 0.008, elev_min = 90, 
+elev_max = 100, level = 0.5, node_drainage_area = 1.5, node_manhole_area = 50, conductivity = 0.5, outlet_elev = 85, outlet_level = 1, 
+outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fixing_graph = False, file_name = None, make_cluster = None):
         """ create a random network with different properties. the slope has been defaulted to be the same in
         the entire network, and the diameter is defaulted to go up as the network is further away from the
         outlet. conductivity should somehow link to the porosity of soil. node drainage area set in acre.
         """
-        self.beta = beta
+        if file_name:
+            beta = file_name[file_name.find('beta-')+len('beta-'):file_name.find('beta-')+len('beta-')+2]
+        self.beta = float(beta)
+        self.count = count
         # initialize graph
         # gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
         # self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
         self.n = int(np.sqrt(nodes_num))
-        if fixing_graph:
-            file_name = f'{nodes_num}-node_graph_mp.pickle'
+        if fixing_graph or file_name:
+            if not file_name:
+                file_name = f'{nodes_num}-node_graph_mp.pickle'
             try: 
-                path = rf'./{file_name}'
+                path = rf'{file_name}'
                 input_matrix = np.array(pickle.load(open(path,'rb')))
                 #self.network = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0),input_matrix=input_matrix)
                 self.generate_graph(input_matrix=input_matrix)
@@ -71,9 +76,13 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
         self.flood_nodes = None
         self.soil_nodes = ()
 
-        if soil_nodes:
+        if make_cluster:
+            starting_dist = make_cluster
+            self.make_dist_cluster(starting_dist)
+        elif soil_nodes:
             self.soil_nodes = soil_nodes
-        self.random_sample_soil_nodes(count=count)
+        else:
+            self.random_sample_soil_nodes(count=count)
         
         if outlet_elev: 
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_elev}, 'elev')
@@ -88,6 +97,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
             a = dict(zip(["n", "length",'conductivity'], [n, length, conductivity]))
             b = dict(zip([k], [a]))
             nx.set_edge_attributes(self.gph, b)
+        
         if changing_diam:
             for k in nx.topological_sort(self.gph):
                 if k == self.outlet_node:
@@ -106,19 +116,26 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                     # print('diameter calculated', Dr)
         else:
             nx.set_edge_attributes(self.gph, {edge: {'diam':min_diam} for edge in self.gph.edges})
+        
         if outlet_level: 
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_level}, "level")
         else:
             outlet_level = self.gph.nodes[self.outlet_node]['level']
+        
         if outlet_node_drainage_area: 
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_node_drainage_area}, "node_drainage_area")
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_node_drainage_area}, "node_manhole_area")
         return
 
-    def generate_graph(self,file_name = None, input_matrix = None):
-        self.network = Gibbs.main(size=self.n, beta = self.beta, mode="Gibbs",outlet_point = (0,0),input_matrix=input_matrix)
-        if file_name: 
-            self.network.export_tree(name=file_name)
+    def generate_graph(self, input_matrix = None):
+        if input_matrix is None:
+            outlet_point = (0,0)
+        else: 
+            outlet_point = None
+        self.network = Gibbs.main(size=self.n, beta = self.beta, mode="Gibbs",outlet_point = outlet_point,input_matrix=input_matrix)
+        if input_matrix is None: 
+            self.network.export_tree()
+            print("Exported tree in hydro_network.generate_graph")
 
     def get_coordinates(self):
         # convert matrix index to (i,j)  coordinates
@@ -200,6 +217,11 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
     #     soil_nodes_combo_count = len(soil_nodes_combo)
     #     return soil_nodes_combo, soil_nodes_combo_count
     
+    def make_dist_dict(self):
+        dist_dict = {k:(len(nx.shortest_path(self.gph, source=k, target = self.outlet_node)) - 1) for k in self.gph.nodes}
+        dist_dict = dict(sorted(dist_dict.items(), key=lambda item: item[1]))
+        return dist_dict
+
     def calc_node_distance(self,type = 'soil'):
         if type == 'flood':
             nodes = self.flood_nodes
@@ -215,6 +237,11 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                 total_path = total_path + each_path
             node_elev = total_path/nodes_length
             return node_elev
+    
+    def make_degree_dict(self):
+        degrees = dict(self.gph.degree())
+        degrees = dict(sorted(degrees.items(), key=lambda item: item[1]))
+        return degrees
     
     def calc_node_degree(self,type = 'soil'):
         if type == 'flood':
@@ -260,69 +287,65 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
             path_dict[node] = path_attr
         nx.set_node_attributes(self.gph, path_dict, path_attr_name)
         return path_dict
+    
+    def iter_nodes(self, nodes, nodes_to_search = None, dir = 'ds'):
+        big_group = {}
+        us_nodes = {}
+        ds_nodes = {}
+        
+        def edge_dir(node, dir):
+            """Look for upstream incoming or downstream outgoing edge"""
+            if dir == 'ds':
+                return self.gph.out_edges(node)
+            else: 
+                return self.gph.in_edges(node)
+        
+        def search_ds_neighbor(leaf):
+            n = 1
+            edges = edge_dir(leaf,dir) # Look for downstream edge
+            ds_nodes[leaf] = [edge[n] for edge in edges]
+            gi_node = list(root for root in ds_nodes[leaf] if root in nodes)
+            if len(gi_node) > 0:
+                search_node = gi_node[0]
+                root = search_ds_neighbor(search_node)
+            else:
+                root = leaf
+                big_group[root] = 1
+                return root
+            return root
+
+        def search_us_neighbor(root, to_add = 0):
+            n = 0
+            edges = edge_dir(root,'us') # Look for upstream edge
+            us_nodes[root] = [edge[n] for edge in edges]
+            gi_nodes = list(node for node in us_nodes[root] if node in nodes)
+            to_add += len(gi_nodes)
+            if len(gi_nodes) > 0:
+                for gi_node in gi_nodes:
+                    # nodes.remove(gi_node)
+                    to_add = search_us_neighbor(gi_node, to_add=to_add)
+            return to_add
+        if nodes_to_search is None:
+            nodes_to_search = nodes
+        
+        for node in nodes_to_search:
+            if (node in us_nodes.values()) or (node in big_group.keys()):
+                pass
+            root = search_ds_neighbor(node)
+            to_add = search_us_neighbor(root)
+            big_group[root] += to_add
+        # print(big_group, self.soil_nodes)
+        return big_group
 
     def calc_node_clustering(self,type = 'soil'):
         clustering_coef = 0
-        us_nodes = {}
-        ds_nodes = {}
-        big_group = {}
         self.soil_node_cluster = []
-
         if type == 'flood':
             nodes = list(self.flood_nodes).copy()
         else: 
             nodes = list(self.soil_nodes).copy()
-        
-        def iter_nodes(nodes, dir = 'ds'):
-            
-            def edge_dir(node, dir):
-                """Look for upstream incoming or downstream outgoing edge"""
-                if dir == 'ds':
-                    return self.gph.out_edges(node)
-                else: 
-                    return self.gph.in_edges(node)
-            
-            def search_ds_neighbor(leaf):
-                n = 1
-                edges = edge_dir(leaf,dir) # Look for downstream edge
-                ds_nodes[leaf] = [edge[n] for edge in edges]
-                gi_node = list(root for root in ds_nodes[leaf] if root in nodes)
-                if len(gi_node) > 0:
-                    search_node = gi_node[0]
-                    root = search_ds_neighbor(search_node)
-                else:
-                    root = leaf
-                    big_group[root] = 1
-                    return root
-                # try: 
-                #     nodes.remove(root)
-                # except ValueError:
-                #     print(root)
-                return root
-
-            def search_us_neighbor(root, to_add = 0):
-                n = 0
-                edges = edge_dir(root,'us') # Look for upstream edge
-                us_nodes[root] = [edge[n] for edge in edges]
-                gi_nodes = list(node for node in us_nodes[root] if node in nodes)
-                to_add += len(gi_nodes)
-                if len(gi_nodes) > 0:
-                    for gi_node in gi_nodes:
-                        # nodes.remove(gi_node)
-                        to_add = search_us_neighbor(gi_node, to_add=to_add)
-                return to_add
-            
-            for node in nodes:
-                if (node in us_nodes.values()) or (node in big_group.keys()):
-                    pass
-                root = search_ds_neighbor(node)
-                to_add = search_us_neighbor(root)
-                big_group[root] += to_add
-            # print(big_group, self.soil_nodes)
-            return big_group
-
         if len(self.soil_nodes) > 0:
-            iter_nodes(nodes=nodes,dir='ds')
+            big_group=self.iter_nodes(nodes=nodes,dir='ds')
             self.soil_node_cluster = big_group.values()
             cluster_hist = Counter(self.soil_node_cluster)
             # clustering_coef = sum(a/len(self.soil_nodes) for a in big_group.values() if a > 1)/len(big_group)
@@ -332,9 +355,108 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
             clustering_coef = 1/len(self.soil_nodes) * sum(i*cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys())
             # print(f'Clustering coefficient is {clustering_coef}')
             # SHOULD THIS BE ADJUSTED DEPENDING ON HOW LARGE THE GRID IS?
-        
         return clustering_coef
     
+    def make_dist_cluster(self, starting_dist):
+        dist_dict = self.make_dist_dict()
+        count = self.count
+
+        def flatten(x):
+            result = []
+            for el in x:
+                if hasattr(el, "__iter__") and not isinstance(el, str):
+                    result.extend(flatten(el))
+                else:
+                    result.append(el)
+            return result
+
+        def make_list(starting_dist):
+            sub = [i for i in dist_dict if dist_dict[i] == starting_dist]
+            if sub == []:
+                return
+            soil_nodes_list = sub
+            return soil_nodes_list
+        
+        soil_nodes_list = make_list(starting_dist)
+        new_starting_dist = starting_dist
+        if count:
+            while len(soil_nodes_list) < count:
+                deficit = count - len(soil_nodes_list)
+                new_starting_dist += 1
+                # soil_nodes_list = list(set(soil_nodes_list + make_list(new_starting_dist)))
+                try: 
+                    soil_nodes_list = soil_nodes_list + list(set(make_list(new_starting_dist))-set(soil_nodes_list))[:deficit]
+                    # soil_nodes_list = list(set(soil_nodes_list + make_list(new_starting_dist)))
+
+                except TypeError:
+                    new_starting_dist = starting_dist
+                    while len(soil_nodes_list) < count:
+                        new_starting_dist = new_starting_dist - 1
+                        soil_nodes_list = soil_nodes_list + list(set(make_list(new_starting_dist))-set(soil_nodes_list))[:deficit]
+                        # soil_nodes_list = list(set(soil_nodes_list + make_list(new_starting_dist)))
+            soil_nodes_list = soil_nodes_list[:count]
+        self.soil_nodes = soil_nodes_list
+        # print(self.soil_nodes)
+                
+    # def make_cluster(self, starting_dist, size):
+    #     dist_dict = self.make_dist_dict()
+    #     count = self.count
+
+    #     def flatten(x):
+    #         result = []
+    #         for el in x:
+    #             if hasattr(el, "__iter__") and not isinstance(el, str):
+    #                 result.extend(flatten(el))
+    #             else:
+    #                 result.append(el)
+    #         return result
+
+    #     def make_list(starting_dist):
+    #         sub = [i for i in dist_dict if dist_dict[i] == starting_dist]
+    #         us_nodes = {k:k for k in sub}
+    #         for root in sub:
+    #             # n = size
+    #             edges = self.gph.in_edges(root)
+    #             if len(edges) > 0: 
+    #                 if type(us_nodes[root]) is list:
+    #                     to_add = us_nodes[root]
+    #                 else:
+    #                     to_add = [us_nodes[root]]
+    #                 to_add = search_us_neighbor(to_add,root)
+    #                 us_nodes[root] = to_add 
+    #             else: 
+    #                 us_nodes.pop(root)
+    #                 pass   
+                
+    #         soil_nodes_list = flatten([i for i in us_nodes.values()])
+    #         return soil_nodes_list
+        
+    #     def search_us_neighbor(to_add,root):
+    #         edges = self.gph.in_edges(root)
+    #         if len(edges) == 0:
+    #             return to_add
+    #         else:
+    #             for edge in edges:
+    #                 to_add.append(edge[0])
+    #             n = (size - len(to_add))*(len(edges) > 0)
+    #             while n > 0:
+    #                 for edge in edges:
+    #                     # print('root', root, 'us node', edge[0], 'to_add',to_add)
+    #                     old_to_add = to_add
+    #                     to_add = search_us_neighbor(to_add,edge[0])
+    #                     n = (size - len(to_add))*((len(old_to_add) - len(to_add)) != 0)
+    #             return to_add
+        
+    #     soil_nodes_list = make_list(starting_dist)
+    #     if count:
+    #         while len(soil_nodes_list) < count:
+    #             starting_dist -= size
+    #             soil_nodes_list = list(set(soil_nodes_list + make_list(starting_dist)))
+    #         print(soil_nodes_list)
+    #         soil_nodes_list = soil_nodes_list[:count]
+    #     self.soil_nodes = soil_nodes_list
+    #     # print(self.soil_nodes)
+
     def calc_upstream_cumulative_area(self,accum_attr='node_drainage_area', cumu_attr_name=None):
         if cumu_attr_name is None:
             cumu_attr_name = 'cumulative_{}'.format(accum_attr)
@@ -438,7 +560,7 @@ outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, seed = Non
                 node_size.append(node_size_og*2)
                 node_label[node]=str(node)
             else:
-                node_color.append('C0')
+                node_color.append('#a5d1f0')
                 node_size.append(node_size_og)
 
         # _, ax0 = plt.subplots(1,2, gridspec_kw={'width_ratios': [2, 3]})
