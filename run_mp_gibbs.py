@@ -1,3 +1,4 @@
+from this import d
 import Gibbs
 import pandas as pd
 import pickle
@@ -11,10 +12,11 @@ from scipy.special import factorial
 
 def simulation(uni):
     # Gibbs.main(size = size,beta = beta)
-    deltaH_list = uni.generate_tree(mode='Gibbs',k=4000)
-    return deltaH_list
+    tree = uni.generate_tree(mode='Gibbs',k=4000)
+    deltaH = tree.path_diff
+    return deltaH
 
-def generate_starting_tree(size,beta,deltaH=30,tree_count=100):
+def generate_starting_tree(size,beta,deltaH=None,tree_count=1000):
     my_trees = []
     tree_pool = mp.Pool(processes=mp.cpu_count())
     for _ in range(tree_count):
@@ -35,7 +37,9 @@ if __name__ == '__main__':
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
     size = 10
-    beta_list = np.array([2, 4])
+    beta_list = np.array([0.2, 0.4, 0.6, 0.8])
+    # beta_list = np.array([0.2])
+
     dir_name =  f'gibbs{size}_{dt_str}'
 
     try: 
