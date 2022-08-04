@@ -59,14 +59,14 @@ class Uniform_network:
         
         if input_matrix is not None:
             self.matrix = input_matrix
-            self.path_diff = self.calculate_path_diff(self.matrix)
+            # self.path_diff = self.calculate_path_diff(self.matrix)
         else: 
             self.possible_edges = list(list_set)
             self.outlet_point=outlet_point
             self.generate_tree()
-            # k = 5*self.n**3 
         self.path_diff = self.calculate_path_diff(self.matrix)
         self.find_outlet_point()
+
 #       # number of adjacency nodes 
 #        self.n_adjacent = 4 * np.ones((m,n))
 #        self.n_adjacent[0,:], self.n_adjacent[-1,:], self.n_adjacent[:,0], self.n_adjacent[:,-1] = 3,3,3,3
@@ -252,7 +252,7 @@ class Uniform_network:
         """deltaH_list: records all the H iterated while generating graph"""
         deltaH_list = []
         # burntime=3*k/4
-        burntime = 0.5*self.n**3 
+        burntime = 0.5*self.n**4 
         i = 0
         # if k < burntime: 
         #     raise ValueError('Iteration number is less than burntime.')
@@ -269,17 +269,24 @@ class Uniform_network:
             x = random.random()
             if x > threshold:
                 self.matrix = s1_matrix
-                if self.deltaH:
-                    # deltaH_threshold = self.n * self.m/10
-                    deltaH_threshold = 1
-                    path_diff = self.calculate_path_diff(self.matrix)
-                    if (path_diff > (self.deltaH - deltaH_threshold)) & (path_diff < (self.deltaH + deltaH_threshold)):
-                        deltaH_list.append(self.calculate_path_diff(self.matrix))
-                        print(f"We are done here! Delta H = {self.deltaH}")
-                        break
+                if self.pass_deltaH_threshold():
+                    deltaH_list.append(self.calculate_path_diff(self.matrix))
+                    print(f"We passed delta H requirements and are done here! Delta H = {self.deltaH}")
+                    break
             # if i > burntime: 
-            deltaH_list.append(self.calculate_path_diff(self.matrix))
+        deltaH_list.append(self.calculate_path_diff(self.matrix))
+        # print(f"Done without checking delta H! Delta H = {self.calculate_path_diff(self.matrix)}") # DEBUG!
         return np.array(deltaH_list)
+
+    def pass_deltaH_threshold(self, msg = None):
+        if self.deltaH:
+            deltaH_threshold = 1
+            path_diff = self.calculate_path_diff(self.matrix)
+            if msg:
+                print(msg)
+            return (path_diff > (self.deltaH - deltaH_threshold)) & (path_diff < (self.deltaH + deltaH_threshold))
+        else: 
+            return False
 
     def is_tree_structure(self):
         """check if the tree retains original structure after 'minimal change' process """
@@ -299,7 +306,6 @@ class Uniform_network:
             self.outlet_point = random.choice(self.open_nodes)
         
         # update open_nodes 
-        # print(self.open_nodes, self.outlet_point)
         self.open_nodes.remove(self.outlet_point)
         
         # build the first branch first 
@@ -320,46 +326,13 @@ class Uniform_network:
         cp = str(current_process())
         cp_name = cp[cp.find('name=')+6:cp.find(' parent=')-1]
         print(f'beta = {self.beta} Gibbs graph with path diff = {self.path_diff}, finished in {round(finish-start,2)} seconds(s) at {cp_name}')
-        if self.deltaH: 
-            deltaH_threshold = self.n * self.m/10
-            if (self.calculate_path_diff(self.matrix) > (self.deltaH - deltaH_threshold)) & (self.calculate_path_diff(self.matrix) < (self.deltaH + deltaH_threshold)):
-                # print(f'{k}-trees beta = {self.beta} Gibbs graph with path diff = {self.path_diff}, finished in {round(finish-start,2)} seconds(s)')
-                print('We are exporting trees here!') # DEBUG!
+        if self.pass_deltaH_threshold(msg = "in generate tree"):
+            if export:
                 self.export_tree()
-            else: 
-                print(f'We did not reach the threshold of {self.deltaH} +/- {deltaH_threshold}. We are generating trees here!') # DEBUG!
-                # self.generate_tree()
-        elif export:
-            print('Exporting tree')
-            self.export_tree()
-        print(f'Path difference is {self.path_diff}')
+        elif self.deltaH:
+            print(f'We did not reach the delta H threshold. We are generating trees here!') # DEBUG!
+            # self.generate_tree()
 
-        # ### DEBUG!!
-        # try:
-        #     self.deltaH_list = self.generate_Gibbs(k=k)
-        #     # self.generate_Gibbs(k=k)
-        #     self.path_diff = self.calculate_path_diff(self.matrix)
-        #     finish = time.perf_counter()
-        #     cp = str(current_process())
-        #     cp_name = cp[cp.find('name=')+6:cp.find(' parent=')-1]
-        #     print(f'{k}-trees beta = {self.beta} Gibbs graph with path diff = {self.path_diff}, finished in {round(finish-start,2)} seconds(s) at {cp_name}')
-        #     if self.deltaH: 
-        #         deltaH_threshold = self.n * self.m/10
-        #         if (self.calculate_path_diff(self.matrix) > (self.deltaH - deltaH_threshold)) & (self.calculate_path_diff(self.matrix) < (self.deltaH + deltaH_threshold)):
-        #             # print(f'{k}-trees beta = {self.beta} Gibbs graph with path diff = {self.path_diff}, finished in {round(finish-start,2)} seconds(s)')
-        #             self.export_tree()
-        #         else: 
-        #             self.generate_tree(k=k)
-        #     elif export:
-        #         print('Exporting tree')
-        #         self.export_tree()
-        #     print(f'Path difference is {self.path_diff}')
-        # except RecursionError:
-        #     self.open_nodes = grid_copy
-        #     self.matrix = np.zeros((self.m*self.n, self.m*self.n))
-        #     print('Generating new tree')
-        #     self.generate_tree(k=k) 
-        # ### END DEBUG!!
         return self.path_diff
 
     def draw_tree(self,title=None,dist_label=True,save=False,starting_coord=None):
@@ -530,6 +503,7 @@ class Uniform_network:
             plt.savefig(f'./tree_size{self.n}by{self.m}_beta{self.beta}.png')
     
     def export_tree(self, i=0, name = None):
+        print("Exporting tree")
         if not name:
             self_name = str(self)
             ID = self_name[self_name.find('x')-1:]
@@ -615,6 +589,6 @@ if __name__ == '__main__':
     # path_diff_list = []
     for beta_val in [0.01,0.9]:
         gibbs = Uniform_network(5, 5, beta=beta_val, outlet_point = (0,0), mode='Gibbs')
-        gibbs.draw_tree(dist_label=False, starting_coord=(3,3))
-        plt.savefig(f'/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/writing/GI_network/figures/demo_beta_{beta_val}.png')
+        # gibbs.draw_tree(dist_label=False, starting_coord=(3,3))
+        # plt.savefig(f'/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/writing/GI_network/figures/demo_beta_{beta_val}.png')
     plt.show()
