@@ -1,4 +1,3 @@
-from sklearn import tree
 import Gibbs
 import pandas as pd
 import pickle
@@ -12,7 +11,7 @@ from scipy.special import factorial
 
 def simulation(uni):
     # Gibbs.main(size = size,beta = beta)
-    deltaH_list = uni.generate_tree(k=4000)
+    deltaH_list = uni.generate_tree()
     return deltaH_list
 
 def generate_starting_tree(size,beta,deltaH,tree_count=10):
@@ -41,7 +40,7 @@ if __name__ == '__main__':
     dt_str = today.strftime("%Y%m%d-%H%M")
     size = 10
     beta_list = np.array([0.5])
-    deltaH = 30
+    deltaH = 28
     dir_name =  f'gibbs{size}_{dt_str}'
 
     try: 
@@ -51,7 +50,7 @@ if __name__ == '__main__':
         os.chdir(dir_name)
 
     start0 = time.perf_counter()
-    test(size=size,beta=1.2,deltaH=25,tree_count=100)
+    test(size=size,beta=0.8,deltaH=deltaH,tree_count=100)
     # # mp_loop(size)
     # for beta in beta_list:
     #     start1 = time.perf_counter()

@@ -26,16 +26,12 @@ def mp_loop(nodes_num, beta_list):
     mean_rainfall_set = [1.69, 2.59, 3.29, 4.55]
     pool = mp.Pool(processes=mp.cpu_count())
     main_df = None
-    # for min_diam in [1,2,4]:
-    for min_diam in [4]:
+    for min_diam in [2]:
         for changing_diam in [0]:
             for i in range(100):
-                # for antecedent_soil_moisture in soil_moisture_list:
                 for mean_rainfall_inch in mean_rainfall_set:
                     for beta in beta_list:
-                    #for count in [0,10,20,30,40,50]:
                         pool.apply_async(simulation, args=(main_df,mean_rainfall_inch,nodes_num,beta,i,min_diam,changing_diam))
-                        # pool.apply_async(simulation)
     pool.close()
     pool.join()
 

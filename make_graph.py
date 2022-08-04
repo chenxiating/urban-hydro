@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import seaborn as sns
+import pandas as pd
 import pickle
 import os
 from matplotlib.ticker import FormatStrFormatter
@@ -36,7 +37,7 @@ def set_box_plot_props(color='k'):
     return ax_dict 
 
 def two_figure_sns_box_plot(df,y1_attribute = 'max_flow_cfs', y2_attribute = 'total_flooded_vol_MG', x_attribute = 'soil_nodes_count', sort_attribute = 'mean_rainfall', 
-ncols = 0, logx=False, title=None, datafile_name = None, draw_title = False, save_plot = True):
+ncols = 0, logx=False, pos = np.arange(0,6,1), datafile_name = None, draw_title = False, save_plot = True):
     if ncols == 0:
         ncols = len(set(df[sort_attribute]))
     pane_set = list(set(df[sort_attribute]))
@@ -68,10 +69,11 @@ ncols = 0, logx=False, title=None, datafile_name = None, draw_title = False, sav
         ax_bottom = fig.add_subplot(gs[1,k],sharex=ax_bottom_model,sharey=ax_bottom_model)
         x_list = list(set(df[x_attribute]))
         x_list.sort() 
-        pos = np.arange(0,6,1)
+        # pos = np.arange(0,6,1)
         i = -0.2
         hue_att = list(set(df_plot[hue_attr]))
         hue_att.sort()
+        labels = ['','']
         for hue in hue_att:
             y1_plot = list()
             y2_plot = list()
@@ -94,6 +96,7 @@ ncols = 0, logx=False, title=None, datafile_name = None, draw_title = False, sav
                 widths = 0.4,
                 **set_box_plot_props(color='#c15a00'))
             i +=0.4
+            labels.append(f'$H(s)$={hue}')
         for box in top_boxes['boxes']:
             box.set(facecolor = '#82bfe9')
         for m in top_boxes['medians']:
@@ -105,11 +108,10 @@ ncols = 0, logx=False, title=None, datafile_name = None, draw_title = False, sav
             m.set(color='#ff9a42')
 
         for ax in [ax_top, ax_bottom]:
-            ax.set_xticks(np.arange(0,6,1),minor=False)
-            ax.set_xticks(np.arange(0,5,1)+0.5,minor=True)
+            ax.set_xticks(np.arange(0,len(x_att),1),minor=False)
             # ax.grid(True,which='minor',linewidth = 1, alpha = 0.5)
             ax.tick_params(which='minor',color='w')
-        ax_bottom.set_xticklabels(np.arange(0,60,10))
+        ax_bottom.set_xticklabels(x_att)
         plt.setp(ax_bottom.get_xticklabels(), fontsize=8)
         axis_config(ax_top,bottom=False,left=False)
         axis_config(ax_bottom,left=False)
@@ -121,34 +123,17 @@ ncols = 0, logx=False, title=None, datafile_name = None, draw_title = False, sav
     high_H1 = Patch(fc = '#82bfe9',linewidth=0,alpha=0.5)
     high_H2 = Patch(fc = '#ffd1a9',linewidth=0,alpha=0.5)
     handles = ((low_H1, high_H1),(low_H2, high_H2),)
-    labels = ['$H(s)=28.0$','$H(s)=74.0$',]
+    # labels = ['$H(s)=28.0$','$H(s)=74.0$',]
     by_label = dict(zip(labels, handles))
     # plt.legend(by_label.values(),by_label.keys(),frameon=False,
     # bbox_to_anchor=(-0.,2.25),loc='upper center',ncol = len(labels), borderaxespad=0.)
     plt.legend(handles=(low_H1, high_H1,low_H2, high_H2),
-        labels=['','','$H(s)=28.0$','$H(s)=74.0$'],
+        labels=labels,
         frameon=False,
         bbox_to_anchor=(-0.,2.25),
         numpoints=1, 
         ncol=2, handletextpad=0.5, handlelength=1.0, columnspacing=-0.5,
         loc='upper center')
-
-
-    # pa1 = Patch(facecolor='red', edgecolor='black')
-    # pa2 = Patch(facecolor='blue', edgecolor='black')
-    # pa3 = Patch(facecolor='green', edgecolor='black')
-    # #
-    # pb1 = Patch(facecolor='pink', edgecolor='black')
-    # pb2 = Patch(facecolor='orange', edgecolor='black')
-    # pb3 = Patch(facecolor='purple', edgecolor='black')
-
-    # ax.legend(handles=[pa1, pb1, pa2, pb2, pa3, pb3],
-    #         labels=['', '', '', '', 'First', 'Second'],
-    #         ncol=3, handletextpad=0.5, handlelength=1.0, columnspacing=-0.5,
-    #         loc='center', fontsize=16)
-
-
-
 
     if draw_title:
         fig.suptitle('2-Hour Storm Return Periods',fontweight='bold')
@@ -450,33 +435,33 @@ if __name__ == '__main__':
     # datafile_name = r'./SWMM_20211130-distance/compiled.pickle'
     path = r'/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/writing/GI_network/figures/'
     
-    def round_path(df_raw):
-        n = 400
-        rainfall_list = [1.69, 2.59, 3.29,4.55]
-        print(f'min diam is {set(df_raw.min_diam)}')
-        df = df_raw[(df_raw.mean_rainfall.isin(rainfall_list))]
-        df["rounded_path"] = round(df.path_diff/n)*n
-        df["rounded_path"] = df["rounded_path"].astype(int)
-        print(df.head())
-        return df
+    # def round_path(df_raw):
+    #     n = 400
+    #     rainfall_list = [1.69, 2.59, 3.29,4.55]
+    #     print(f'min diam is {set(df_raw.min_diam)}')
+    #     df = df_raw[(df_raw.mean_rainfall.isin(rainfall_list))]
+    #     df["rounded_path"] = round(df.path_diff/n)*n
+    #     df["rounded_path"] = df["rounded_path"].astype(int)
+    #     print(df.head())
+    #     return df
 
-    ## Network structure 
-    fixed_diam = r'./data_beta_generator/20211010_fixing_diam.pickle'
-    df0 = initialize(fixed_diam)
-    df = round_path(df0[df0.changing_diam == 0])
-    two_figure_strip_plot(df, x_attribute='rounded_path',sort_attribute = 'mean_rainfall', datafile_name='')
-    plt.savefig(path+"network_structure.png")
+    # ## Network structure 
+    # fixed_diam = r'./data_beta_generator/20211010_fixing_diam.pickle'
+    # df0 = initialize(fixed_diam)
+    # df = round_path(df0[df0.changing_diam == 0])
+    # two_figure_strip_plot(df, x_attribute='rounded_path',sort_attribute = 'mean_rainfall', datafile_name='')
+    # plt.savefig(path+"network_structure.png")
 
-    ## Interaction between network and green infrastructure
-    datafile_name= r'./SWMM_20211107-1609/20211108-1036_full_dataset_100-nodes.pickle'
-    df = initialize(datafile_name)
-    two_figure_sns_box_plot(df[df.mean_rainfall.isin([2.15,3.29])],datafile_name = datafile_name[2:20])
-    plt.savefig(path+"GI_network_interaction.png")
+    # ## Interaction between network and green infrastructure
+    # datafile_name= r'./SWMM_20211107-1609/20211108-1036_full_dataset_100-nodes.pickle'
+    # df = initialize(datafile_name)
+    # two_figure_sns_box_plot(df[df.mean_rainfall.isin([1.69,3.29])],datafile_name = datafile_name[2:20])
+    # plt.savefig(path+"GI_network_interaction.png")
 
-    ## Green infrastructure number
-    two_figure_strip_plot(df[df.mean_rainfall.isin([1.69, 2.59, 3.29, 4.55]) & (df.path_diff == 28)],
-    save_plot=True, datafile_name = datafile_name[2:20])
-    plt.savefig(path+"GI_number.png")
+    # ## Green infrastructure number
+    # two_figure_strip_plot(df[df.mean_rainfall.isin([1.69, 2.59, 3.29, 4.55]) & (df.path_diff == 28)],
+    # save_plot=True, datafile_name = datafile_name[2:20])
+    # plt.savefig(path+"GI_number.png")
     
     ## GI placement
     def round_distance(df):
@@ -484,12 +469,27 @@ if __name__ == '__main__':
         df["rounded_distance"] = np.ceil(df.soil_node_distance_list/n)*n
         df["rounded_distance"] = df["rounded_distance"].astype(int)
         
-        print(df.head())
+    # GI_placement_datafile_name = r'./SWMM_placement_128_20220517/GI_distance_summary.pickle'
+    # df = initialize(GI_placement_datafile_name)
+    # round_distance(df)
+    # two_figure_strip_plot(df, x_attribute = 'rounded_distance', save_plot=False, datafile_name = 'GI_placement')
+    # # plt.savefig(path+'GI_placement28_new_rainfalls.png')
 
-    GI_placement_datafile_name = r'./SWMM_placement_28_20221030/GI_distance_summary.pickle'
-    df = initialize(GI_placement_datafile_name)
+    
+    GI_placement_datafile_name1 = r'./SWMM_placement_28_20221030/GI_distance_summary.pickle'
+    GI_placement_datafile_name2 = r'./SWMM_placement_128_20220517/GI_distance_summary.pickle'
+    df1 = initialize(GI_placement_datafile_name1)
+    df2 = initialize(GI_placement_datafile_name2)
+    df = pd.concat([df1, df2])
     round_distance(df)
-    two_figure_strip_plot(df, x_attribute = 'rounded_distance', save_plot=False, datafile_name = 'GI_placement')
-    plt.savefig(path+'GI_placement28_new_rainfalls.png')
- 
+    print(len(df1[df1.mean_rainfall.isin([1.69,3.29])]),len(df2[df2.mean_rainfall.isin([1.69,3.29])]))
+
+    ## Interaction between network and green infrastructure
+    two_figure_sns_box_plot(df[df.mean_rainfall.isin([1.69,3.29])],datafile_name = 'network_distance')
+    plt.savefig(path+"GI_network_interaction_28_128.png")
+    
+    ## Interaction between network and placement
+    two_figure_sns_box_plot(df[df.mean_rainfall.isin([1.69,3.29])],x_attribute = 'rounded_distance', datafile_name = 'network_placement', pos = np.arange(0,5,1))
+    plt.savefig(path+'GI_placement_interaction_28_128.png')
+
     plt.show()

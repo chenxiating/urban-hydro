@@ -19,7 +19,10 @@ def dt_str_gen():
     return dt_str
 
 def simulation(main_df, mean_rainfall_inch,nodes_num,i,beta,count):
-    make_SWMM_inp.main(main_df = main_df, antecedent_soil_moisture=0.5, mean_rainfall_inch=mean_rainfall_inch,nodes_num=nodes_num,beta=beta,i=i,count=count,fixing_graph=False,changing_diam=False)
+    file_name = r'./gibbs10_20210911-1341/deltaH_beta0.5.pickle'
+    make_SWMM_inp.main(main_df = main_df, antecedent_soil_moisture=0.5, 
+    mean_rainfall_inch=mean_rainfall_inch,nodes_num=nodes_num,beta=beta,i=i,count=count,
+    file_name = file_name, fixing_graph=True,changing_diam=True)
 
 def make_first_graph(nodes_num, beta):
     graph = hydro_network.Storm_network(nodes_num, beta = beta, fixing_graph = True)

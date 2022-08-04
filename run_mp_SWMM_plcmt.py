@@ -57,7 +57,7 @@ def read_pickle_files(datafile_name):
 
 if __name__ == '__main__':
     ## Initialize folder and workspace
-    folder_name='./SWMM_placement_28_20221030/'
+    folder_name='./SWMM_placement_128_20220517/'
     try:
         os.mkdir(folder_name)
     except FileExistsError:
@@ -65,11 +65,11 @@ if __name__ == '__main__':
     os.chdir(folder_name)
 
     ## Environmental attributes
-    mean_rainfall_set = [1.69, 2.59,3.29, 4.55]
+    mean_rainfall_set = [1.69, 2.59, 3.29, 4.55]
 
     ## Read networks and names
     # a = '../gibbs10_20220120-1544/'
-    a = '../gibbs10_dist28/'
+    a = '../gibbs10_dist128/'
     file_names = read_files(a)
     mp_loop(file_names,mean_rainfall_set)
     read_pickle_files('GI_distance_summary.pickle')
