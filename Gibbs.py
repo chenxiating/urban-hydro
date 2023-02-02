@@ -6,27 +6,19 @@ Created on Fri Jul 23 11:49:28 2021
 @author: xuefeng, chenxiating
 """
 import random
-from tracemalloc import start
 import numpy as np
 import glob
 import networkx as nx
 import matplotlib.pyplot as plt
 import math
 import time
-import datetime as date
-from networkx.drawing.nx_agraph import graphviz_layout
 import pickle
 import pandas as pd
 import os
 from multiprocessing import current_process, cpu_count
 
-
-def handler(signum, frame):
-    print("Breaking while loop now!")
-    raise Exception("End of time")
-
 class Uniform_network:
-    def __init__(self, m, n, beta, deltaH = None, mode='Gibbs',outlet_point = None, input_matrix = None): 
+    def __init__(self, m, n, beta, deltaH = None, mode='Gibbs',outlet_point = (0,0), input_matrix = None, export = False): 
         """ m:      number of rows (indexed by i)
             n:      number of columns (indexed by j)
             (i,j)   coordinates gives item (1+j)+i*n in adjacency matrix"""
@@ -63,8 +55,9 @@ class Uniform_network:
         else: 
             self.possible_edges = list(list_set)
             self.outlet_point=outlet_point
-            self.generate_tree()
+            self.generate_tree(export = export)
         self.path_diff = self.calculate_path_diff(self.matrix)
+        self.path_diff_prime = self.calculate_path_diff_prime(self.matrix)
         self.find_outlet_point()
 
 #       # number of adjacency nodes 
@@ -245,6 +238,21 @@ class Uniform_network:
         if diff < 0:
             raise Exception("Diff is negative!")
         return diff
+    
+    def calculate_path_diff_prime(self, input_matrix):
+        """calculate the size-normalized difference between the mapped path length and shortest path length"""
+        G = nx.from_numpy_matrix(input_matrix,create_using=nx.DiGraph)
+        outlet_point_k = [n for n, d in G.out_degree() if d == 0][0]
+        self.outlet_point = self.convert_index(outlet_point_k)
+
+        ratio_sum = sum([((len(nx.shortest_path(G, source = k, target = outlet_point_k)) - 1) -
+        (abs(self.convert_index(k)[0] - self.outlet_point[0]) + abs(self.convert_index(k)[1] - self.outlet_point[1])))/ 
+        (abs(self.convert_index(k)[0] - self.outlet_point[0]) + abs(self.convert_index(k)[1] - self.outlet_point[1])) for k in G.nodes if k != outlet_point_k])
+
+        diff_prime = ratio_sum / len(G.nodes)
+        if diff_prime < 0:
+            raise Exception("Diff is negative!")
+        return diff_prime
 
     def generate_Gibbs(self):
         """reiterate steps to make one Gibbs graph"""
@@ -280,7 +288,7 @@ class Uniform_network:
 
     def pass_deltaH_threshold(self, msg = None):
         if self.deltaH:
-            deltaH_threshold = 1
+            deltaH_threshold = 10
             path_diff = self.calculate_path_diff(self.matrix)
             if msg:
                 print(msg)
@@ -294,7 +302,7 @@ class Uniform_network:
         return nx.is_tree(G) and max(d for n, d in G.out_degree()) <= 1
     
 
-    def generate_tree(self, export=False):
+    def generate_tree(self, export):
         """do random walk from given point until boundary is hit, or until all nodes have been visited
         initialize first point, generate tree until hitting dead end, initialize next point"""
         start = time.perf_counter()
@@ -322,10 +330,11 @@ class Uniform_network:
         self.deltaH_list = self.generate_Gibbs()
             # self.generate_Gibbs(k=k)
         self.path_diff = self.calculate_path_diff(self.matrix)
+        self.path_diff_prime = self.calculate_path_diff_prime(self.matrix)
         finish = time.perf_counter()
         cp = str(current_process())
         cp_name = cp[cp.find('name=')+6:cp.find(' parent=')-1]
-        print(f'beta = {self.beta} Gibbs graph with path diff = {self.path_diff}, finished in {round(finish-start,2)} seconds(s) at {cp_name}')
+        print(f'beta = {self.beta} Gibbs graph with H = {self.path_diff}, Hp = {self.path_diff_prime}, finished in {round(finish-start,2)} seconds(s) at {cp_name}')
         if self.pass_deltaH_threshold(msg = "in generate tree"):
             if export:
                 self.export_tree()
@@ -503,7 +512,6 @@ class Uniform_network:
             plt.savefig(f'./tree_size{self.n}by{self.m}_beta{self.beta}.png')
     
     def export_tree(self, i=0, name = None):
-        print("Exporting tree")
         if not name:
             self_name = str(self)
             ID = self_name[self_name.find('x')-1:]

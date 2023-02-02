@@ -6,8 +6,6 @@ import time
 import datetime as date
 import numpy as np
 import os
-import sys
-from scipy.special import factorial
 
 # def simulation(uni):
 #     # Gibbs.main(size = size,beta = beta)
@@ -35,7 +33,7 @@ def generate_one_tree(size,beta,deltaH = None,tree_count=10):
 #     pool.join()
 #     return(all_deltaH_list)
 
-def generate_forest(size, beta, deltaH=None, tree_count = 10):
+def generate_forest(size, beta, deltaH=None, tree_count = 2):
     my_trees = generate_one_tree(size=size, beta=beta, deltaH=deltaH, tree_count=tree_count)
     return my_trees
 
@@ -43,8 +41,9 @@ if __name__ == '__main__':
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
     size = 10
-    beta_list = np.array([0.2, 0.4, 0.6, 0.8])
-    # deltaH = 28
+    beta_list = [0.05, 0.8]
+    # beta_list = [0.01]
+    # # deltaH = 28
     dir_name =  f'gibbs{size}_{dt_str}'
 
     try: 
@@ -55,13 +54,15 @@ if __name__ == '__main__':
 
     start0 = time.perf_counter()
 
+    deltaH = None
     for beta in beta_list:
         start1 = time.perf_counter()
         # my_trees = generate_starting_tree(size,beta)
-        my_trees = generate_forest(size=size,beta=beta,tree_count=100)
-        print([tree.path_diff for tree in my_trees])
+        my_trees = generate_forest(size=size,beta=beta,deltaH=deltaH, tree_count=500)
+        print([tree.path_diff_prime for tree in my_trees])
         pool = mp.Pool(processes=mp.cpu_count())
-        all_deltaH_list = pd.DataFrame(data=[tree.path_diff for tree in my_trees])
+        all_deltaH_list = pd.DataFrame(data=[[tree.beta, tree.path_diff_prime, tree.path_diff] for tree in my_trees], 
+        columns=['beta', 'Hp', 'H'])
         # Gibbs.gibbs_pdf(beta,all_deltaH_list)
         name = f'deltaH_beta{beta}_size{size}.pickle'
         f = open(name,'wb')

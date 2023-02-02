@@ -15,9 +15,9 @@ def read_files(paths):
         file_names.extend(all_files)
     return file_names
 
-def simulation(main_df, mean_rainfall_set,i,file_name,start):
+def simulation(main_df, mean_rainfall_set,i,file_name,count):
     main_df = make_SWMM_inp.main(main_df = main_df, antecedent_soil_moisture=0.5, mean_rainfall_set=mean_rainfall_set,
-    nodes_num=100,count=10,i=i,mp=True,file_name=file_name,make_cluster=start)
+    nodes_num=100,count=count,i=i,mp=True,file_name=file_name,make_cluster=False)
     print(main_df)
 
 def mp_loop(file_names,mean_rainfall_set):
@@ -27,11 +27,9 @@ def mp_loop(file_names,mean_rainfall_set):
     print(f'There are {file_count} networks in this folder.')
     for i in range(file_count):
         file_name = file_names[i]
-        for start in np.arange(1,25,1,dtype=int):
-            # test_mp_simulation(mean_rainfall_inch=mean_rainfall_inch, file_name=file_name, start = start)
-            print('starting distance:',start)
-            pool.apply_async(simulation,args=(main_df,mean_rainfall_set,i,file_name,start,))
-        print(file_name,  mp.current_process())
+        print(file_name)
+        for count in np.arange(0,60,10,dtype=int):
+            pool.apply_async(simulation,args=(main_df,mean_rainfall_set,i,file_name,count,))
     pool.close()
     pool.join()
 
@@ -73,14 +71,16 @@ if __name__ == '__main__':
     # mean_rainfall_set = [1.69]
 
     ## Read networks and names
-    # a = '../gibbs10_20220120-1544/'
-    # paths = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221219-1304_H200+800/']
-    # paths = [r'./10-grid_20221207_lt400+gt700']
     path = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221227-Hp=0.02+0.2/']
+    # paths = [r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_test/']
     # paths = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221028-1327',
     # '/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221028-1032',
     # '/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20220929-2303-100nodes',
     # '/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221027-1146']
     file_names = read_files(path)
+#     print(len(file_names), '0.1: ', len([k for k in file_names if k[13]=='0']),
+# '1: ', len([k for k in file_names if k[13]=='1']))
     mp_loop(file_names,mean_rainfall_set)
-    read_pickle_files(rf'{path[0]}/{dt_str}_GI_distance_summary_highly_impervious.pickle')
+    read_pickle_files(f'{path[0]}/{dt_str}_GI_coverage_summary_highly_imp.pickle')
+    print(f'Total networks: {len(file_names)} * 4 * 6 = {24*len(file_names)}')
+    
