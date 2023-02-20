@@ -1,34 +1,20 @@
 # urban-hydro 
-March 1, 2021
-- Added Poisson distribution to the kernel for generating graphs
-- Cleaned up run_multiprocessing_pool.py
-- Manning's: now assuming that the water level in a pipe = water level upstream at the node. 
+This repository contains a model that couples gray and green infrastructure for watershed-level monitoring.
 
-Feb 9, 2021
-- Varying different antecedent soil moisture and rainfall intensity
-- Cleaned up multiprocessing script and Slurm script to allow for faster performance
+**Chen et al. (2023), Integrating the spatial configurations of green and gray infrastructure in urban stormwater networks**
 
-Feb 6, 2021
-- Added dispersion and path length/transport time calculations to the hydro_network. 
-- Manning's: now assuming that the water level in a pipe = water level downstream at the node. 
-Previously, the average of upstream and downstrea water levels were considered.
-
-Jan 18, 2021
-- Separated the simulation_hydro_network file as a separate runfile for hydro_network (ongoing 
-process towards OOP/class set-up).
-- Added multiprocessing.
-
-Jan 12, 2021
-- Tested transparency, added fig_text in test_graph.py
-- Cleaned up flood nodes and flood time calculations in efficiency_test_manning.py
-- rainfall_nodes_func now outputs runoff, h_new instead of s, h_new, edge_h
-- Added max highest runoff as a performance criteria. It doesn't quite work, because all the water levels remain the same.
-This is because the runoff currently is only affecting other conveyance activities. The runoff does not go into downstream
-soil. 
-- Turned off attr_array_func. It's unnecessary.
-
-Jan 9, 2021
-Added test_box_plot.py to create box plots, but I'm not very happy with how they look. 
-
-Jan 5, 2021
-create_network function now can calculate diameter changes based on degrees away from the outlet.
+## Code
+This code is written in Python 3.8 and requires [SWMM computational engine] (https://www.epa.gov/water-research/storm-water-management-model-swmm) to be installed in order to perform the hydrologic-hydraulic modeling in 'make_SWMM_inp.py'. The location for SWMM engine needs to be specified under method 'record_SWMM' in script 'make_SWMM_inp.py'.
+* 'Gibbs.py' - generate spanning trees according to Gibbs distribution. 
+    - Input: size of the lattice grid, parameter for flow path meandering, parameter for Gibbs distribution
+    - Output: network without attributes
+* 'hydro_network.py' - assign network attributes
+    - Input: desired stormwater network attributes
+    - Output: stormwater networks with attributes
+* 'make_SWMM_inp.py' - run SWMM and record results
+    - Input: environmental conditions (e.g. rainfall hydrographs)
+    - Output: hydrological outcomes (e.g. peak flow, flooding)
+* 'run_mp_generate_trees.py' - multiprocessing script to generate spanning trees using 'Gibbs.py'
+* 'run_multiprocessing_pool.py' - multiprocessing script to run SWMM simulations using 'make_SWMM_inp.py', without green infrastructure
+* 'run_mp_SWMM_coverage.py' - multiprocessing script to run SWMM simulation with changing green infrastructure coverage
+* 'run_mp_SWMM_plcmt.py' - multiprocessing script to run SWMM simulation with changing green infrastructure's distance to outlet

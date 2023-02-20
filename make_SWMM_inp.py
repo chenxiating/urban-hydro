@@ -21,7 +21,7 @@ def make_inp(f,outlet_node,soil_nodes,simulation_date,infiltration,pcntimp,flowr
     info_outfalls(f=f,graph=graph,outlet_node=outlet_node)
     info_conduits(f=f,graph=graph)
     info_xsections(f=f,graph=graph)
-    info_timeseries(f=f,simulation_date=simulation_date,precip_name=precip_name,precip_duration_hour=2,total_precip=mean_rainfall_inch,precip_interval=15)
+    info_timeseries(f=f,simulation_date=simulation_date,precip_name=precip_name,precip_duration_hour=2,total_precip=mean_rainfall_inch,precip_interval=1)
     info_report(f=f)
     info_tag(f=f)
     info_map(f=f) 
@@ -55,7 +55,7 @@ def info_header(f,simulation_date,infiltration='HORTON',flowrouting='KINWAVE'):
     'REPORT_STEP          00:15:00',
     'WET_STEP             00:05:00',
     'DRY_STEP             00:15:00',
-    'ROUTING_STEP         0:00:30 ',
+    'ROUTING_STEP         0:00:2.5 ',
     'RULE_STEP            00:00:00\n',
     'INERTIAL_DAMPING     PARTIAL',
     'NORMAL_FLOW_LIMITED  BOTH',
@@ -264,7 +264,7 @@ drain_open = 0, drain_close = 0):
     f.writelines('\n')
 
 def info_lid_usage(f, graph, soil_nodes, initsat, name = 'bioret_cell', surf_width = 200):
-    """ LID takes up 1% of the subcatchment area. """
+    """ LID takes up 5% of the subcatchment area. """
     lid_usages = []
     for node in soil_nodes:
         sc_name = 'SC'+str(node).replace(', ','_')
@@ -428,7 +428,6 @@ def info_coordinates(f,graph):
     for node in graph.nodes():
         name = str(node).replace(', ','_')
         try:
-            # print(graph.nodes[node].get('coordinates'))
             xcoord, ycoord = graph.nodes[node].get('coordinates')
             node_coordinate = add_whitespace(name, 17, '') + add_whitespace(xcoord, 19, '') + \
                 add_whitespace(ycoord, 19, '') + '\n'
@@ -499,7 +498,6 @@ def rep_total_inflow_summary(rep_file_name):
             evap_number +=1
             infil_number +=1
         if "Flow Routing Continuity" in line:
-            # print(line_number)
             inflow_summary_number = line_number + 3
         line_number+=1
     rep_file.seek(0)
@@ -521,18 +519,12 @@ def rep_node_flooding_summary(rep_file_name, flood_hour_threshold = 0.3):
             end_number = 0
             break
         if " Flooding refers to all water that overflows a node, whether it ponds or not." in line:
-            # print(line_number)
             node_flooding_summary_number = line_number + 7
-        # if "  Node Flooding Summary" in line:
-        #     # print(line_number)
-        #     node_flooding_summary_number = line_number + 10
         try: 
             if (line_number > node_flooding_summary_number) and ("*****" in line):
                 end_number = line_number - 2
-                # print(end_number)
                 break
         except UnboundLocalError:
-                # node_flooding_summary_number = 0
                 pass
         line_number+=1
     rep_file.seek(0)
@@ -548,33 +540,26 @@ def rep_node_flooding_summary(rep_file_name, flood_hour_threshold = 0.3):
                 if float(lines[i].split()[1]) < flood_hour_threshold:
                     pass
                 else:
-                    # print('max_flood_nodes',max_flood_nodes)
-                    # print(lines[i])
                     flood_nodes_list.append(int(lines[i].split()[0]))
                     node_hours_flooded += float(lines[i].split()[1])
-                    # print('node_hours_flooded',node_hours_flooded)
                     node_flood_vol_MG += float(lines[i].split()[5])
-                    # print('node_flood_vol_MG',node_flood_vol_MG)
                     max_flood_nodes += 1
             except IndexError or UnboundLocalError:
                 pass
     return flood_nodes_list, max_flood_nodes, node_hours_flooded, node_flood_vol_MG
 
-def rep_outflow_sumary(rep_file_name):
+def rep_outflow_summary(rep_file_name):
     rep_file=open(rep_file_name,'r')
     rep_file.seek(0)
     line_number = 0
     for line in rep_file.read().split("\n"):
         if "Outfall Loading Summary" in line:
-            # print(line_number)
             outflow_summary_number = line_number + 8
         try: 
             if (line_number > outflow_summary_number) and ("-----" in line):
                 end_number = line_number
-                # print(end_number)
                 break
         except UnboundLocalError:
-            # outflow_summary_number = 0 
             pass
         line_number+=1
 
@@ -586,33 +571,43 @@ def rep_outflow_sumary(rep_file_name):
     total_vol_MG = 0
     for i in range(outflow_summary_number, end_number):
         try: 
-            # avg_flow_cfs += (lines[i].split()[2])
+            avg_flow_cfs += float(lines[i].split()[2])
             max_flow_cfs += float(lines[i].split()[3])
-            # print('max_flow_cfs',max_flow_cfs)
             total_vol_MG += float(lines[i].split()[4])
-            # print('total_outflow_vol_MG', total_vol_MG)
         except IndexError or UnboundLocalError:
             pass
-    return max_flow_cfs, total_vol_MG
-def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_inch, output_df, k, min_diam,changing_diam, mp):
+    return avg_flow_cfs, total_vol_MG
+
+def max_out_flow_readout(output_file_name,outlet_node):
+    opt_file = subprocess.run(['swmmtoolbox', 'extract', output_file_name, f'node,{outlet_node},Total_inflow'],capture_output=True, text=True)
+    rep_inflow = []
+    lines = opt_file.stdout.splitlines()[1:]
+    for line in lines:
+        rep_inflow.append(float(line.split(",")[1]))
+    print('max rep inflow', max(rep_inflow))
+    return max(rep_inflow)
+
+def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_inch, output_df, k, min_diam,changing_diam, mp, swmm_path = '/Users/xchen/Applications/swmm5/build/runswmm5'):
     simulation_date = '06/01/2021'
     precip_name = 'hydrograph'
     flood_level = 10         # maximum depth allowable for stormwater to accumulate in MH
     simulation_date = '06/01/2021'
     precip_name = 'hydrograph'
     infiltration='HORTON'
-    flowrouting='KINWAVE'
+    # flowrouting='KINWAVE'
+    flowrouting='DYNWAVE'
     new_file=open(input_file_name,'w')
     make_inp(f=new_file,outlet_node=net.outlet_node,soil_nodes=net.soil_nodes,simulation_date=simulation_date,infiltration=infiltration,pcntimp = 80, flowrouting=flowrouting,precip_name=precip_name,graph=net.gph,flood_level=flood_level,
     antecedent_soil_moisture = antecedent_soil_moisture, mean_rainfall_inch = mean_rainfall_inch)
     new_file.close()
     report_file_name='rep_'+input_file_name
     output_file_name='op_'+input_file_name
-    subprocess.run(['/Users/xchen/Applications/swmm5/build/runswmm5',input_file_name, report_file_name, output_file_name])
+    subprocess.run([swmm_path, input_file_name, report_file_name, output_file_name])
     # subprocess.run(['../../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name],stdout=subprocess.DEVNULL)
     flood_nodes_list, max_flood_nodes, node_hours_flooded, node_flood_vol_MG = rep_node_flooding_summary(report_file_name)
     net.flood_nodes = tuple(flood_nodes_list)
-    max_flow_cfs, total_outflow_vol_MG = rep_outflow_sumary(report_file_name)
+    avg_flow_cfs, total_outflow_vol_MG = rep_outflow_summary(report_file_name)
+    max_flow_cfs = max_out_flow_readout(output_file_name,net.outlet_node)
     wet_inflow_vol_MG, total_precip_MG, evap_loss_MG, infil_loss_MG = rep_total_inflow_summary(report_file_name)
     output_df.at[k,'network_branches'] = net.calc_network_branches()
     output_df.at[k,'norm_network_branches'] = net.calc_norm_branch_dist()
@@ -625,6 +620,7 @@ def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_in
     output_df.at[k,'flood_node_distance_norm'] = net.calc_node_distance('flood')/net.max_path_order
     output_df.at[k,'flood_duration_total_list'] = node_hours_flooded
     output_df.at[k,'total_flooded_vol_MG'] = node_flood_vol_MG
+    output_df.at[k,'avg_flow_cfs'] = avg_flow_cfs
     output_df.at[k,'max_flow_cfs'] = max_flow_cfs
     output_df.at[k,'total_outflow_vol_MG'] = total_outflow_vol_MG
     output_df.at[k,'wet_inflow_vol_MG'] = wet_inflow_vol_MG
@@ -647,7 +643,6 @@ def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_in
     
     if mp: 
         subprocess.run(['rm',input_file_name, report_file_name, output_file_name])
-        # subprocess.run(['rm',report_file_name])
 
 def main(main_df,antecedent_soil_moisture,mean_rainfall_set,nodes_num,i,beta=0,changing_diam=True, min_diam = 1.5,count=0,soil_nodes=None,mp=True, fixing_graph = False, file_name = None, make_cluster = False):
     node_drainage_area = 2           # acres
@@ -656,7 +651,6 @@ def main(main_df,antecedent_soil_moisture,mean_rainfall_set,nodes_num,i,beta=0,c
     outlet_node_drainage_area = node_drainage_area*10e5          # set the river area to very large
     init_level = 0.0
     output_df = pd.DataFrame(data={'soil_nodes_list':[()],'flood_nodes_list':[()]},dtype=object)#, columns=output_columns)
-    # output_df = output_df.astype({'soil_nodes_list':'object'})
     k = 0
 
     net = hn.Storm_network(beta = beta, nodes_num = nodes_num, level = init_level, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
@@ -682,64 +676,33 @@ min_diam = min_diam, fixing_graph = fixing_graph, file_name = file_name, make_cl
 #     output_df=output_df, k=k, changing_diam=False,min_diam=min_diam, mp=mp)
 #     k +=1
 
-    # main_df = pd.concat([main_df, output_df], ignore_index=True)
     
     if mp:
         pickle_file_name = f'{antecedent_soil_moisture}_{mean_rainfall_inch}-inch_beta-{beta}_{i}_{len(net.soil_nodes)}-GI_start-cluster-{make_cluster}.pickle'
-        # csv_name = pickle_file_name.replace('pickle', 'csv')
         f = open(pickle_file_name,'wb')
         pickle.dump(output_df, f)
-        # output_df.to_csv(csv_name)
         f.close()
     else:
         main_df = pd.concat([main_df, output_df], ignore_index=True)
         return main_df
 
 if __name__ == '__main__':
-    # today = date.datetime.today()
-    # dt_str = today.strftime("%Y%m%d-%H%M")
-    # folder_name='./SWMM_'+dt_str
-    # try:
-    #     os.mkdir(folder_name)
-    # except FileExistsError:
-    #     pass    
-    # os.chdir(folder_name)
+    # paths = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221219-1304_H200+800/']
+    paths = [r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_test/']
 
-    # ## file names
-
-    # # file_name = r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_dist128/10-grid_beta-0.5_dist-128_ID-0x13f96aaf0>.pickle'
-    # # file_names = [r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20220929-2303/10-grid_beta-0.0_dist-288_ID-0x13ee150d0>.pickle']
-    # # file_names = [r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221002-0641/3-grid_beta-0.0_dist-4_ID-0x13eeefd30>.pickle']
-    # file_names = [None]
-    # i=0
-    # for i in range(5):
-    #     main_df = pd.DataFrame()
-    #     main_df = main(main_df,antecedent_soil_moisture=0.5,mean_rainfall_inch=3.29, 
-    #         i=i,nodes_num=25,count = 0, mp=False)
-    #     f = open('file'+str(i),'wb')
-    #     print(main_df)
-    #     pickle.dump(main_df, f)
-    #     f.close()
-    # main_df = pd.DataFrame()
-    # # main_df = main(main_df,antecedent_soil_moisture=0.5,mean_rainfall_inch=3.29, i=1,nodes_num=9,count = 0, mp=False)
-    paths = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221219-1304_H200+800/']
     file_names = []
     for path in paths: 
         os.chdir(path)
         file_names_path = [one_file for one_file in os.listdir() if (one_file[:7] =='10-grid')]
-        all_files = [path+'/'+one_file for one_file in file_names_path if (int(one_file[one_file.find('dist-')+5:one_file.find('_ID-')])<300 or int(one_file[one_file.find('dist-')+5:one_file.find('_ID-')])>900)]
-        file_names.extend(all_files)
+        # all_files = [path+'/'+one_file for one_file in file_names_path if (int(one_file[one_file.find('dist-')+5:one_file.find('_ID-')])<300 or int(one_file[one_file.find('dist-')+5:one_file.find('_ID-')])>900)]
+        file_names.extend(file_names_path)
 
     nodes_num = 100
     mean_rainfall_set = [4.18]
-
     i = 0
     main_df = pd.DataFrame()
-    file_name = file_names[0]
-    main_df = main(main_df,antecedent_soil_moisture=0.5, mean_rainfall_set=mean_rainfall_set, count = 0,
-        beta = 0, min_diam = 2, i=i,nodes_num=nodes_num, mp=False, file_name=file_name)
-        
-    # f = open(r'./SWMM_placement_20221102/gi_coverage.pickle', 'wb')
-    # pickle.dump(main_df, f)
-    # main_df.to_csv('gi_coverage.csv')
-    # f.close()
+    # file_name = file_names[0]
+    file_name = r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_test/10-grid_beta-1_dist-4_ID-0x12b75fac0>.pickle'
+    for cnt in [30]:
+        main_df = main(main_df,antecedent_soil_moisture=0.5, mean_rainfall_set=mean_rainfall_set, count = cnt,
+            beta = 0, i=i,nodes_num=nodes_num, mp=False, file_name=file_name)

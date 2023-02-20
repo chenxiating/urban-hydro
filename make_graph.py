@@ -13,7 +13,7 @@ matplotlib.rc('font', family='sans-serif')
 matplotlib.rc('font', serif='Arial') 
 
 label_dict = {'flood_duration_list':'Days with Flooding', 'flood_duration_total_list': 'Flooded Node-Day',
-    'max_flow_cfs':f'Peak Flow Rate\nat Outlet (cfs)', 'soil_nodes_count':'% of GI Nodes', 'soil_node_distance_list': "Mean Distance from GI Nodes to Outlet", 
+    'max_flow_cfs':f'Peak Flow Rate\nat Outlet (cfs)', 'avg_flow_cfs':'Average Flow Rate (cfs)','soil_nodes_count':'% of GI Nodes', 'soil_node_distance_list': "Mean Distance from GI Nodes to Outlet", 
     'soil_node_degree_list':'Nodes with More than 1 Upstream Contributor', 'cumulative_node_drainage_area':'Cumulative Upstream Area','mean_rainfall': 'Mean Rainfall Intensity',
     'antecedent_soil':'Antecedent Soil Moisture', 'mean_disp_g':'Mean DG', 'mean_disp_kg': 'Mean DKG', 'max_disp_g':'Max DG', 
     'max_disp_kg':'Max DKG', 'mean_var_path_length':'Time Averaged <L>', 'max_var_path_length': 'L max', 'max_flood_nodes':'Number of Flooded Nodes',
@@ -21,7 +21,7 @@ label_dict = {'flood_duration_list':'Days with Flooding', 'flood_duration_total_
     'mean_flood_nodes_TI':'Average Distance to Outlet of Flood Node (at All Times)','total_flooded_vol_MG':'Total Flood Volume\n(MG)','total_outflow_vol_MG':'Total Outflow Volume (MG)',
     'cumulative_node_drainage_area':'Average Cumulative Upstream Area (Acres)','flood_node_degree_list':'Neighbor Index of Flood Nodes', 
     'flood_node_distance_list':'Mean Distance from\n Flood Nodes to Outlet', 'soil_clustering':'GI Nodes Clustering Coefficient','beta':r'Network Gibbs Parameter $\beta$', 
-    'path_diff':r'Network Path Difference $H$','rounded_path':"\nRounded Network Path Meandering $H$",'rounded_distance':'Rounded Mean Distance from GI Nodes to Outlet',
+    'path_diff':r'Network Path Difference $H (s)$','rounded_path':"\nRounded Network Path Meandering $H (s)$",'rounded_distance':'Rounded Mean Distance from GI Nodes to Outlet',
     'path_diff_prime':r"Normalized Flow Path Meandering $H$", 'pipe_cap': r'Pipe Capacity (ft$^3$)', 'flow_to_outflow': 'Peak flow to Outflow Ratio', 'percent_flooded': f'Flooding Loss\n(% of Total Precip.)',
     'flood_to_outflow': 'Flood to Outflow'} 
 rain_label_dict = {1.44:'1-Year', 1.69:'2-Year', 2.15:'5-Year', 2.59:'10-Year', 3.29:'25-Year', 
@@ -286,7 +286,7 @@ color_attribute = 'soil_nodes_count', cmap_on = True, save_plot = False,draw_tre
         fig.suptitle(title,fontweight='bold')
         plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
     if save_plot:
-        path="/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/figures/models/"+ datafile_name+"/"
+        path="/Users/xchen/Library/CloudStorage/GoogleDrive-chen7090@umn.edu/My Drive/urban-stormwater-analysis/figures/models/"+ datafile_name+"/"
         plt.savefig(path + fig_name +'.pdf')
         print('Plot is saved as', fig_name +'.pdf')
 
@@ -382,7 +382,7 @@ color_attribute = 'soil_nodes_count', cmap_on = True, save_plot = False,draw_tre
 #     fig_name = f'{datafile_name.replace(".pickle","")}_scatter_{x_attribute}_{y1_attribute}_{y2_attribute}'
 #     plt.figtext(0, 0, "Source: "+datafile_name.replace(".pickle",""), fontsize = 6, color = '#696969')
 #     if save_plot:
-#         path="/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/figures/models/"+ datafile_name+"/"
+#         path="/Users/xchen/Library/CloudStorage/GoogleDrive-chen7090@umn.edu/My Drive/urban-stormwater-analysis/figures/models/"+ datafile_name+"/"
 #         plt.savefig(path + fig_name +'.pdf')
 #         print('Plot is saved as', fig_name +'.pdf')
 
@@ -479,7 +479,7 @@ def initialize(datafile_name):
 
     # df.dropna(inplace=True)
     # df.soil_clustering = df.soil_clustering/df.soil_nodes_count
-    path="/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/figures/models/"+ datafile_name+"/"
+    path="/Users/xchen/Library/CloudStorage/GoogleDrive-chen7090@umn.edu/My Drive/urban-stormwater-analysis/figures/models/"+ datafile_name+"/"
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -505,7 +505,7 @@ def import_pickles(path):
 
 if __name__ == '__main__':
     ## Initialization:
-    path = r'/Volumes/GoogleDrive/My Drive/urban-stormwater-analysis/writing/GI_network/figures/'
+    path = r'/Users/xchen/Library/CloudStorage/GoogleDrive-chen7090@umn.edu/My Drive/urban-stormwater-analysis/writing/GI_network/figures/DYNWAVE_202302/'
  
     # ## Gibbs PDF
     # deltaH_pickle_path = r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20220805-1152/'
@@ -527,7 +527,7 @@ if __name__ == '__main__':
         # print("$H < 0.5$:", df[(df.mean_rainfall == 1.69) & (df.rounded_path_group == "$H < 0.5$")].shape )
         # print("0.5 < H <= 1:", df[(df.mean_rainfall == 1.69) & (df.rounded_path_group == "$0.5 \leq H < 1$")].shape )
         # print("$H >= 1$: ", df[(df.mean_rainfall == 1.69) & (df.rounded_path_group == "$H \geq 1$")].shape)
-        df['rounded_path_group'] = df.apply(lambda x: r"$H \approx 0.2$" if (x["path_diff_prime"] >= 0.1) else r"$H \approx 0.02$", axis = 1)
+        df['rounded_path_group'] = df.apply(lambda x: r"$H (s) \approx 0.2$" if (x["path_diff_prime"] >= 0.1) else r"$H (s) \approx 0.02$", axis = 1)
 
         return df
 
@@ -564,11 +564,12 @@ if __name__ == '__main__':
     # # df = initialize(r'./SWMM_20220929-2303-100nodes/GI_changin_diam_summary.pickle')
 
     ## Highly Impervious
-    df1 = initialize(r'./SWMM_20220929-2303-100nodes/GI_changin_diam_summary_highly_imp.pickle')
-    df2 = initialize(r'./SWMM_20220929-2303-100nodes/GI_changin_diam_summary_suburb.pickle') 
+    df1 = initialize(r'./SWMM_20220929-2303-100nodes/GI_changin_diam_summary_high_imp_DYNWAVE.pickle')
+    df2 = initialize(r'./SWMM_20220929-2303-100nodes/GI_changin_diam_summary_suburb_DYNWAVE.pickle') 
     df1['land_type'] = 'High Imp'
     df2['land_type'] = 'Suburb'
     df = pd.concat([df1, df2])
+    df.to_csv(r'./SWMM_20220929-2303-100nodes/GI_changin_diam_summary_concat.csv')
 
     def select_df(df, inc = 0.5, n = 250):
         np.random.seed(0)
@@ -581,9 +582,9 @@ if __name__ == '__main__':
                 rain_df = df[(df['mean_rainfall'] == rain) & (df['land_type'] == land)]
                 for k in np.arange(0,1.5,inc):
                     sub_df = rain_df[(rain_df['path_diff_prime']< k+inc) & (rain_df['path_diff_prime']>= k)]
-                    print(rain, k, sub_df.shape)
+                    # print(rain, k, sub_df.shape)
                     sel_df = sub_df.sample(n)
-                    print(rain, k, sub_df.shape, sel_df.shape)
+                    # print(rain, k, sub_df.shape, sel_df.shape)
                     new_df = pd.concat([new_df, sel_df])
         return new_df
 
@@ -592,21 +593,22 @@ if __name__ == '__main__':
     print('old', df.shape)
     ax.set_ylabel('Count of networks')
     ax.set_xlabel(f"$H$")
-    plt.savefig(path+"hist_bw_Hp_all_highImp.pdf")
+    # plt.savefig(path+"hist_bw_Hp_all_highImp.pdf")
 
     # new_df = round_path(df)
-    new_df = select_df(df)
+    new_df = select_df(df, n = 100)
     print('old', df.shape, 'new', new_df.shape)
     _, ax = plt.subplots()
     new_df[(new_df['mean_rainfall'] < 2)]['path_diff_prime'].hist(grid = False, bins= [0,1.0,1.5])
     
     ax.set_ylabel('Count of networks')
     ax.set_xlabel(f"$H$")
-    plt.savefig(path+"hist_bw_Hp_all_highImp.pdf")
+    # plt.savefig(path+"hist_bw_Hp_all_highImp.pdf")
 
-    two_figure_sns_box_plot(new_df, x_attribute='rounded_path', y1_attribute='max_flow_cfs', sort_attribute = 'mean_rainfall',y2_attribute='percent_flooded', datafile_name='', hue_attr = 'land_type')
-    # two_figure_sns_box_plot(new_df, x_attribute='rounded_path', sort_attribute = 'mean_rainfall',y2_attribute='total_flooded_vol_MG', datafile_name='', hue_attr = 'land_type')
-    plt.savefig(path+"network_structure_changing_diam_highImp.pdf")
+    # two_figure_sns_box_plot(new_df, x_attribute='rounded_path', y1_attribute='max_flow_cfs', sort_attribute = 'mean_rainfall',y2_attribute='percent_flooded', datafile_name='', hue_attr = 'land_type')
+    # plt.savefig(path+"network_structure_max_flow.pdf")
+    two_figure_sns_box_plot(new_df, x_attribute='rounded_path', y1_attribute='avg_flow_cfs', sort_attribute = 'mean_rainfall',y2_attribute='percent_flooded', datafile_name='', hue_attr = 'land_type')
+    plt.savefig(path+"network_structure_avg_flow.pdf")
 
     # fig, ax = plt.subplots()
     # ax.set_ylim([0,45])
@@ -650,21 +652,22 @@ if __name__ == '__main__':
     # df = initialize(r'./gibbs10_20221219-1304_H200+800/GI_coverage_summary_highly_imp.pickle')
     # df = initialize(r'./10-grid_20221207_lt400+gt700/GI_coverage_summary_highly_imp.pickle')
     df = initialize(r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221227-Hp=0.02+0.2/20221227-2212_GI_coverage_summary_highly_imp.pickle')
+    df = initialize(r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221227-Hp=0.02+0.2/20230217-1035_GI_coverage_summary_highly_imp_DYNWAVE.pickle')
     _, ax = plt.subplots()
     df[(df['mean_rainfall'] < 2) & (df['soil_nodes_count']== 0)]['path_diff_prime'].hist(grid = False)
     ax.set_ylabel('Count of networks')
     ax.set_xlabel(f"$H$")
-    plt.savefig(path+"hist_bw_Hp0.02-0.2_highImp.pdf")
+    # plt.savefig(path+"hist_bw_Hp0.02-0.2_highImp.pdf")
 
 
     df = round_path(df)
     df = df[df.changing_diam == True]
     # df = df[df.rounded_path_group != "$0.5 \leq H < 1$"]
-    df = select_df_Hprime(df)
-    two_figure_sns_box_plot(df, y1_attribute = 'flood_to_outflow', y2_attribute = 'total_outflow_vol_MG', sort_attribute = 'mean_rainfall', hue_attr = 'rounded_path_group')
+    df = select_df_Hprime(df, n=200)
+    two_figure_sns_box_plot(df, y1_attribute = 'avg_flow_cfs', y2_attribute = 'percent_flooded', sort_attribute = 'mean_rainfall', hue_attr = 'rounded_path_group')
+    plt.savefig(path+"GI_network_interaction_avg_flow.pdf")
     two_figure_sns_box_plot(df, y2_attribute = 'percent_flooded', sort_attribute = 'mean_rainfall', hue_attr = 'rounded_path_group')
-
-    plt.savefig(path+"GI_network_interaction_newyaxis_bw_Hp0.02-0.2_highImp.pdf")
+    plt.savefig(path+"GI_network_interaction_max_flow.pdf")
 
     
     # sns.histplot(data = df_plt, x = 'soil_nodes_count')
@@ -710,14 +713,17 @@ if __name__ == '__main__':
     ## High Imp 
     # df = initialize(r'./gibbs10_20221219-1304_H200+800/GI_distance_summary_highly_impervious.pickle')
     df = initialize(r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221227-Hp=0.02+0.2/20221227-2047_GI_distance_summary_highly_impervious.pickle')
+    df = initialize(r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221227-Hp=0.02+0.2/20230217-2326_GI_distance_summary_highly_impervious_DYNWAVE.pickle')
+
     df = round_path(df)
     round_distance(df)
     two_figure_sns_box_plot(df[df.mean_rainfall.isin([1.69, 2.59, 3.29, 4.55])],x_attribute = 'rounded_distance', y2_attribute = 'percent_flooded', datafile_name = 'network_placement', 
     pos = np.arange(0,4,1), hue_attr = 'rounded_path_group', alpha_scatter=0.01)
-    plt.savefig(path+'GI_placement_interaction_newyaxis_bw_Hp_0.2+0.02_highImp.pdf')
+    plt.savefig(path+'GI_placement_max_flow.pdf')
 
-    two_figure_sns_box_plot(df[df.mean_rainfall.isin([1.69, 2.59, 3.29, 4.55])],x_attribute = 'rounded_distance', y1_attribute = 'flow_to_outflow', y2_attribute = 'percent_flooded', datafile_name = 'network_placement', pos = np.arange(0,4,1), hue_attr = 'rounded_path_group')
-    
+    two_figure_sns_box_plot(df[df.mean_rainfall.isin([1.69, 2.59, 3.29, 4.55])],x_attribute = 'rounded_distance', y1_attribute = 'avg_flow_cfs', y2_attribute = 'percent_flooded', datafile_name = 'network_placement', 
+    pos = np.arange(0,4,1), hue_attr = 'rounded_path_group', alpha_scatter=0.01)
+    plt.savefig(path+'GI_placement_avg_flow.pdf')
 
     # df_plt = df[df.mean_rainfall.isin([1.69])]# * (df.path_diff == 200)]
     # print(df_plt.shape)

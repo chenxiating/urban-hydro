@@ -81,6 +81,6 @@ if __name__ == '__main__':
 #     print(len(file_names), '0.1: ', len([k for k in file_names if k[13]=='0']),
 # '1: ', len([k for k in file_names if k[13]=='1']))
     mp_loop(file_names,mean_rainfall_set)
-    read_pickle_files(f'{path[0]}/{dt_str}_GI_coverage_summary_highly_imp.pickle')
+    read_pickle_files(f'{path[0]}/{dt_str}_GI_coverage_summary_highly_imp_DYNWAVE.pickle')
     print(f'Total networks: {len(file_names)} * 4 * 6 = {24*len(file_names)}')
     

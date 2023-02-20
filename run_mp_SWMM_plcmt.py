@@ -61,26 +61,9 @@ def read_pickle_files(datafile_name):
 if __name__ == '__main__':
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
-    # ## Initialize folder and workspace
-    # folder_name='./SWMM_placement_20221207_largeH/'
-    # try:
-    #     os.mkdir(folder_name)
-    # except FileExistsError:
-    #     pass    
-
-    ## Environmental attributes
     mean_rainfall_set = [1.69, 2.59, 3.29, 4.55]
-    # mean_rainfall_set = [1.69]
 
-    ## Read networks and names
-    # a = '../gibbs10_20220120-1544/'
-    # paths = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221219-1304_H200+800/']
-    # paths = [r'./10-grid_20221207_lt400+gt700']
     path = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221227-Hp=0.02+0.2/']
-    # paths = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221028-1327',
-    # '/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221028-1032',
-    # '/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20220929-2303-100nodes',
-    # '/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221027-1146']
     file_names = read_files(path)
     mp_loop(file_names,mean_rainfall_set)
-    read_pickle_files(rf'{path[0]}/{dt_str}_GI_distance_summary_highly_impervious.pickle')
+    read_pickle_files(rf'{path[0]}/{dt_str}_GI_distance_summary_highly_impervious_DYNWAVE.pickle')

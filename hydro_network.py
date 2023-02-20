@@ -36,23 +36,21 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
         # gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
         # self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
         self.n = int(np.sqrt(nodes_num))
+        self.nodes_num = nodes_num
         if fixing_graph or file_name:
             if not file_name:
                 file_name = f'{nodes_num}-node_graph_mp.pickle'
             try: 
                 path = rf'{file_name}'
                 input_matrix = np.array(pickle.load(open(path,'rb')))
-                #self.network = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0),input_matrix=input_matrix)
                 self.generate_graph(input_matrix=input_matrix)
             except FileNotFoundError: 
                 self.generate_graph(file_name)
-                # self.network = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0)) 
         else:
             self.generate_graph()
-            # self.network = Gibbs.main(size=self.n, beta = beta, mode="Gibbs",outlet_point = (0,0))
         self.matrix = self.network.matrix
         self.gph = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
-        self.nodes_num = len(self.gph.nodes)
+        self.gph.add_edge(0, -1) # add outfall node -1
         self.set_attributes(elev_min, elev_max, level, node_drainage_area, node_manhole_area, soil_depth, make_cluster, soil_nodes, 
         count, slope, conductivity, changing_diam, min_diam, outlet_node_drainage_area, outlet_elev, outlet_level, n)
 
@@ -145,7 +143,7 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
         if input_matrix is not None:
             outlet_point = None
             self.n = int(np.sqrt(input_matrix.shape[0]))
-        self.network = Gibbs.main(size=self.n, beta = self.beta, mode="Gibbs",outlet_point = outlet_point,input_matrix=input_matrix)
+        self.network = Gibbs.main(size=self.n, beta = self.beta,outlet_point = outlet_point,input_matrix=input_matrix)
         if input_matrix is None: 
             self.network.export_tree()
             print("Exported tree in hydro_network.generate_graph")
@@ -199,36 +197,6 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
             self.soil_nodes = total_soil_nodes
         else: 
             self.soil_nodes = tuple(sample(us_nodes_to_sample, count))
-    
-    # def random_sample_soil_nodes(self, count_to_sample = None, range_min = 1, range_max = 20, range_count = 10):
-    #     """
-    #     randomly generate water retentive nodes in the network
-    #     """
-    #     if range_max >= self.nodes_num:
-    #         range_max = self.nodes_num - 1
-    #     if range_min >= self.nodes_num:
-    #         range_min = self.nodes_num - 1
-    #     range_len = range_max - range_min + 1
-    #     if range_count > range_len:
-    #         range_count = range_len 
-        
-    #     us_nodes_to_sample = self.nodes.copy()
-    #     us_nodes_to_sample.remove(self.outlet_node)
-    #     soil_nodes_combo_all = []
-    #     combo_iter_list = np.linspace(range_min, range_max, num = range_count, dtype = int) # numbers of combinations to iterate from
-    #     for combo in combo_iter_list:
-    #         count_all_possible_combination = float(comb(self.nodes_num - 1, combo))
-    #         if not count_to_sample:
-    #             count_to_sample = np.ceil(np.log10(count_all_possible_combination) + 1).astype(int)
-    #         for _ in range(count_to_sample):
-    #             # soil_nodes_combo_to_add = tuple(sample(range(1, nodes_num), combo))
-    #             soil_nodes_combo_to_add = tuple(sample(us_nodes_to_sample, combo))
-    #             soil_nodes_combo_all.append(soil_nodes_combo_to_add)     
-    #         # print("How many nodes? ", combo, "How many combos?", len(soil_nodes_combo_to_add))
-    #         # print(soil_nodes_combo_all)
-    #     soil_nodes_combo = pd.Series(soil_nodes_combo_all, dtype = object)
-    #     soil_nodes_combo_count = len(soil_nodes_combo)
-    #     return soil_nodes_combo, soil_nodes_combo_count
     
     def make_dist_dict(self):
         dist_dict = {k:(len(nx.shortest_path(self.gph, source=k, target = self.outlet_node)) - 1) for k in self.gph.nodes}
