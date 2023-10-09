@@ -28,7 +28,7 @@ In order to speed up the simulation, the following scripts were written for para
 
 **Important notes:** 
 1. 'run_mp_generate_trees.py' will need to be run first to generate networks. 
-2. The 'path' parameter needs to be updated in both 'run_mp_SWMM_coverage.py' and 'run_mp_SWMM_plcmt.py', based on the networks generated from 'run_mp_generate_trees.py'.
+2. **The 'path' parameter needs to be updated in both 'run_mp_SWMM_coverage.py' and 'run_mp_SWMM_plcmt.py'**, based on the networks generated from 'run_mp_generate_trees.py'.
 3. Currently, the code is not set up to run 'run_mp_SWMM_coverage.py' and 'run_mp_SWMM_plcmt.py' simultaneously. 
 
 If you have any questions while using this code, please contact the author at chen7090@umn.edu.
