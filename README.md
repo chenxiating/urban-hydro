@@ -1,7 +1,7 @@
 # urban-hydro 
 This repository contains a model that couples gray and green infrastructure for watershed-level monitoring.
 
-**Chen et al. (2023), Integrating the spatial configurations of green and gray infrastructure in urban stormwater networks, Water Resources Research (in review) **
+** Chen et al. (2023), Integrating the spatial configurations of green and gray infrastructure in urban stormwater networks, Water Resources Research (in review) **
 
 ## Code
 This code is written in Python 3.8 and requires [SWMM computational engine] (https://www.epa.gov/water-research/storm-water-management-model-swmm) to be installed in order to perform the hydrologic-hydraulic modeling in 'make_SWMM_inp.py'. **The location for SWMM engine needs to be defined in line 24 as 'my_swmm_path' in script 'make_SWMM_inp.py'.**
