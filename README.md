@@ -32,3 +32,5 @@ In order to speed up the simulation, the following scripts were written for para
 3. Currently, the code is not set up to run 'run_mp_SWMM_coverage.py' and 'run_mp_SWMM_plcmt.py' simultaneously. 
 
 If you have any questions while using this code, please contact the author at chen7090@umn.edu.
+
+DOI: [![DOI](https://zenodo.org/badge/326557226.svg)](https://zenodo.org/badge/latestdoi/326557226)
