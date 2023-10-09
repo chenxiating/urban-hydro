@@ -22,9 +22,9 @@ Double check the default values in 'hydro_network.py' to see if they are set to 
 
 In order to speed up the simulation, the following scripts were written for parallel processing the scripts. 
 
-* 'run_mp_generate_trees.py' - multiprocessing script to generate spanning trees using 'Gibbs.py'
-* 'run_mp_SWMM_coverage.py' - multiprocessing script to run SWMM simulation with changing green infrastructure coverage
-* 'run_mp_SWMM_plcmt.py' - multiprocessing script to run SWMM simulation with changing green infrastructure's distance to outlet
+* 'run_mp_generate_trees.py' - multiprocessing script to generate spanning trees using 'Gibbs.py'. 
+* 'run_mp_SWMM_coverage.py' - multiprocessing script to run SWMM simulation with changing green infrastructure coverage. Output will be in the same folder as the networks. 
+* 'run_mp_SWMM_plcmt.py' - multiprocessing script to run SWMM simulation with changing green infrastructure's distance to outlet. Output will be in the same folder as the networks. 
 
 **Important notes:** 
 1. 'run_mp_generate_trees.py' will need to be run first to generate networks. 
