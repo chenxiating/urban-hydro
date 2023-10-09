@@ -1,5 +1,5 @@
-# urban-hydro 
-This repository contains a model that couples gray and green infrastructure for watershed-level monitoring.
+# urban_green_gray_model
+This repository contains a model that couples gray and green infrastructure for watershed-level monitoring. By representing green infrastructure as bioretention cells, and gray infrastructure as urban stormwater networks, we can precisely control for various gray-green infrastructure spatial configurations and assess their hydrological outcomes in a urban watershed. 
 
 ** Chen et al. (2023), Integrating the spatial configurations of green and gray infrastructure in urban stormwater networks, Water Resources Research (in review) **
 
