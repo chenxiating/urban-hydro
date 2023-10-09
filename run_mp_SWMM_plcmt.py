@@ -1,3 +1,18 @@
+"""
+run_mp_SWMM_plcmt.py 
+@author: Xiating Chen
+Last Edited: 2023/10/08
+
+
+This code is to run make_SWMM_inp for cases with increasing green infrastructure nodes' distance to outlet. 
+
+REQUIRED: 'run_mp_generate_trees.py' needs to be run first to generate the networks. 
+
+Update 'path' parameter in line 86 to the folder directory with the desired networks files.
+
+WARNING: Don't run this code as is with 'run_mp_SWMM_coverage.py'. 
+"""
+
 import make_SWMM_inp
 import os
 import numpy as np
@@ -11,7 +26,7 @@ def read_files(paths):
     for path in paths: 
         os.chdir(path)
         file_names_path = [one_file for one_file in os.listdir() if (one_file[:7] =='10-grid')]
-        all_files = [one_file for one_file in file_names_path]# if (int(one_file[one_file.find('dist-')+5:one_file.find('_ID-')])<300 or int(one_file[one_file.find('dist-')+5:one_file.find('_ID-')])>900)]
+        all_files = [one_file for one_file in file_names_path]
         file_names.extend(all_files)
     return file_names
 
@@ -27,8 +42,9 @@ def mp_loop(file_names,mean_rainfall_set):
     print(f'There are {file_count} networks in this folder.')
     for i in range(file_count):
         file_name = file_names[i]
-        for start in np.arange(1,25,1,dtype=int):
-            # test_mp_simulation(mean_rainfall_inch=mean_rainfall_inch, file_name=file_name, start = start)
+        for start in np.arange(1,5,1,dtype=int):
+            # In paper, we used np.aragne(1,25,1,dtype=int)
+            # placing green infrastructure from 1 away from the outlet to 25 segments away from the outlet
             print('starting distance:',start)
             pool.apply_async(simulation,args=(main_df,mean_rainfall_set,i,file_name,start,))
         print(file_name,  mp.current_process())
@@ -59,11 +75,19 @@ def read_pickle_files(datafile_name):
     f.close()
 
 if __name__ == '__main__':
+    ## Initialize folder and workspace 
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
-    mean_rainfall_set = [1.69, 2.59, 3.29, 4.55]
 
-    path = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221227-Hp=0.02+0.2/']
+    ## Environmental attributes
+    mean_rainfall_set = [1.69] #in paper used [1.69, 2.59, 3.29, 4.55]
+
+    ## Read networks
+    path = [r'./example/generated_trees'] # edit here to include the paths, don't include the last backsplash 
     file_names = read_files(path)
+
+    ## Run model (edit in mp_loop)
     mp_loop(file_names,mean_rainfall_set)
-    read_pickle_files(rf'{path[0]}/{dt_str}_GI_distance_summary_highly_impervious_DYNWAVE.pickle')
+
+    ## Read results
+    read_pickle_files(f'{dt_str}_GI_distance_summary.pickle')

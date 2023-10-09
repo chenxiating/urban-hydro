@@ -1,40 +1,63 @@
-from typing import KeysView, Type
-from networkx.algorithms import cluster
+"""
+hydro_network.py 
+@author: Xiating Chen
+Last Edited: 2023/10/07
+
+
+This code is to assign network attributes. 
+    - Input: desired stormwater network attributes
+    - Output: stormwater networks with attributes
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 import matplotlib.colors as colors
-import pandas as pd
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
 import pickle
 from collections import Counter
-import datetime as date
-import datetime
 import time
 from random import sample
 from math import floor
-from scipy.special import factorial
 import statistics
-import os
 import Gibbs
 
 class Storm_network:
-
     def __init__(self, nodes_num, beta = 0.5, n = 0.01, min_diam = 1, changing_diam = True, soil_depth = 0, slope = 0.008, elev_min = 90, 
-elev_max = 100, level = 0.5, node_drainage_area = 1.5, node_manhole_area = 50, conductivity = 0.5, outlet_elev = 85, outlet_level = 1, 
-outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fixing_graph = False, file_name = None, make_cluster = None):
+pipe_length = 200, level = 0, node_drainage_area = 2, outlet_elev = 85, outlet_level = 1, outlet_node_drainage_area = None, 
+soil_nodes = None, count = 0, fixing_graph = False, file_name = None, make_cluster = None, runoff_coef = 0.5):
         """ create a random network with different properties. the slope has been defaulted to be the same in
         the entire network, and the diameter is defaulted to go up as the network is further away from the
-        outlet. conductivity should somehow link to the porosity of soil. node drainage area set in acre.
+        outlet.
+
+        If file_name or fixing_graph is not specified, new graphs will be generated. 
+
+        nodes_num:      number of nodes in the graph
+        beta:           Gibbs distribution parameter
+        n:              Manning's roughness n
+        min_diam:       minimum pipe diameter (ft), default 1
+        changing_diam:  fixed pipe diameter or changing diameter based on drainage area, default sized to drainage
+        soil_depth:     LID soil storage thickness (ft), default 0
+        slope:          pipe slope (-), default 0.008
+        elev_min:       lowest elevation point of the network, excluding the outlet (ft), default 90
+        pipe_length:    pipe length (ft), default 200
+        level:          initial water level in node (ft), default 0
+        node_drainage_area:         drainage area per node/ catchment (acre), default 2
+        outlet_elev:    outlet elevation point (ft), default 85
+        outlet_level:   outlet water level (ft), default 1
+        outlet_node_drainage_area:  drainage area to outelt (acre), default None
+        soil_nodes:     the names of the green infrastructure nodes, default None
+        count:          number of green infrastructure nodes, default 0
+        fixing_graph:   run simulation on one single graph, default False
+        file_name:      file path of the graph, default None
+        make_cluster:   making green infrastructure nodes in close clusters, default False
+        runoff_coef:    determine the runoff coefficient, default 0.5. We used 0.8 for "impervious", and 0.5 for "suburban"
         """
+
         if file_name:
-            beta = file_name[file_name.find('beta-')+len('beta-'):file_name.find('_dist')]
+            beta = file_name[file_name.find('beta-')+len('beta-'):file_name.rfind('_dist')]
         self.beta = float(beta)
         self.count = count
-        # initialize graph
-        # gph = my_grid_graph(m=int(np.sqrt(nodes_num)),n=int(np.sqrt(nodes_num)),beta=beta)
-        # self.matrix = pickle.load(open(r'../gibbs_grid/10-grid_0.pickle','rb'))
         self.n = int(np.sqrt(nodes_num))
         self.nodes_num = nodes_num
         if fixing_graph or file_name:
@@ -50,36 +73,39 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
             self.generate_graph()
         self.matrix = self.network.matrix
         self.gph = nx.from_numpy_matrix(self.matrix, create_using=nx.DiGraph)
-        self.gph.add_edge(0, -1) # add outfall node -1
-        self.set_attributes(elev_min, elev_max, level, node_drainage_area, node_manhole_area, soil_depth, make_cluster, soil_nodes, 
-        count, slope, conductivity, changing_diam, min_diam, outlet_node_drainage_area, outlet_elev, outlet_level, n)
+        self.set_attributes(elev_min, level, node_drainage_area, soil_depth, make_cluster, soil_nodes, 
+        count, pipe_length, slope, changing_diam, min_diam, outlet_node_drainage_area, outlet_elev, outlet_level, n,
+        runoff_coef)
 
-    def set_attributes(self, elev_min, elev_max, level, node_drainage_area, node_manhole_area, soil_depth, make_cluster, soil_nodes, 
-    count, slope, conductivity, changing_diam, min_diam, outlet_node_drainage_area, outlet_elev, outlet_level, n):
+    def set_attributes(self, elev_min, level, node_drainage_area, soil_depth, make_cluster, soil_nodes, 
+    count,pipe_length,slope, changing_diam, min_diam, outlet_node_drainage_area, outlet_elev, outlet_level, n,
+    runoff_coef):
+        """ setting node and edge attributes to graphs """
         # initialize topological order and elevation
         nx.topological_sort(self.gph)
         nodes_in_order = list(nx.topological_sort(self.gph))
-        self.outlet_node = nodes_in_order[len(nodes_in_order)-1]
+        self.gph.add_edge(nodes_in_order[len(nodes_in_order)-1],-1)
+        self.outlet_node = -1
         max_path_order = max(len(nx.shortest_path(self.gph, source = k, target = self.outlet_node)) for k in self.gph.nodes)
-        # elev_range = np.linspace(elev_min, elev_max, num=max_path_order) 
-        elev_range = np.arange(0,max_path_order)*200*slope + elev_min # DEBUG! Fix length
+        elev_range = np.arange(0,max_path_order)*pipe_length*slope + elev_min  
         
+        # assigning edges attributes and topological orders
         for k in nx.topological_sort(self.gph):
             downstream_degree_to_outlet = len(nx.shortest_path(self.gph, source = k, target = self.outlet_node))-1
             elev = elev_range[downstream_degree_to_outlet]
-            a = dict(zip(["elev", "level", "node_drainage_area", "node_manhole_area", "soil_depth"], 
-            [elev, level, node_drainage_area, node_manhole_area, soil_depth]))
+            a = dict(zip(["elev", "level", "node_drainage_area", "soil_depth"], 
+            [elev, level, node_drainage_area, soil_depth]))
             b = dict(zip([k], [a]))
-            # print(k, 'elevation',elev)
             nx.set_node_attributes(self.gph, b)
         self.max_path_order = max_path_order
         self.downstream_degree_to_outlet = {k: len(nx.shortest_path(self.gph, source = k, target = self.outlet_node))-1 for k in self.gph.nodes}
-        self.accumulate_downstream()
         self.get_coordinates()
+        self.accumulate_downstream()
         self.flood_nodes = None
         self.soil_nodes = ()
         self.pipe_cap = 0
 
+        # make green infrastructure cluster
         if make_cluster:
             starting_dist = make_cluster
             self.make_dist_cluster(starting_dist)
@@ -88,41 +114,32 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
         else:
             self.random_sample_soil_nodes(count=count)
         
+        # changing outlet elevation
         if outlet_elev: 
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_elev}, 'elev')
         else:
             outlet_elev = elev_min - outlet_level
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_elev}, 'elev')
         for k in self.gph.edges:
-            # elev_us = self.gph.nodes[k[0]].get('elev')
-            # elev_ds = self.gph.nodes[k[1]].get('elev')
-            # length = abs(elev_us-elev_ds)/slope
-            length = 200
             downstream_degree_to_outlet = len(nx.shortest_path(self.gph, source = k[0], target = self.outlet_node))
-            a = dict(zip(["n", "length",'conductivity'], [n, length, conductivity]))
+            a = dict(zip(["n", "length"], [n, pipe_length]))
             b = dict(zip([k], [a]))
             nx.set_edge_attributes(self.gph, b)
             
-        
+        # size edges to cumulative upstream drainage area using the Rational Method 
         if changing_diam:
             for k in nx.topological_sort(self.gph):
                 if k == self.outlet_node:
                     pass
                 else:
-                    C = 0.8     # higher end of downtown
-                    # C = 0.5       # suburban neighborhoods
+                    C = runoff_coef
                     acre = self.gph.nodes[k]['cumulative_node_drainage_area']
                     Qd = C*(4.18/24)*acre         # cfs, 
-                    # i should be in in/hr. Design storm
-                    # 100-year 24-hr storm is 7.4 inch, 100-yr 2-hr storm is 4.55 inch.
-                    # Sized to 10-year 24-hr storm is 4.18 inch.
+                    # Sized to 10-year 24-hr storm is 4.18 inch. i should be in in/hr.
                     Dr = (2.16*Qd*n/np.sqrt(slope))**(3/8) # Mays 15.2.7, page 621
                     ds_node = [ds_node for k, ds_node in self.gph.out_edges(k,data=False)][0]
-                    # print('ds node',ds_node[0])
                     self.gph[k][ds_node]['diam']=round_pipe_diam(Dr)
                     self.pipe_cap += (self.gph[k][ds_node]['diam']/2)**2*(np.pi)*self.gph[k][ds_node]['length']
-                    # print('node',k,'diameter for outflowing pipe', gph.out_edges(k,data='diam'))
-                    # print('diameter calculated', Dr)
         else:
             nx.set_edge_attributes(self.gph, {edge: {'diam':min_diam} for edge in self.gph.edges})
             self.pipe_cap = sum(e['length'] for e in dict(self.gph.edges).values()) * (min_diam/2)**2*(np.pi)
@@ -134,12 +151,12 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
         
         if outlet_node_drainage_area: 
             nx.set_node_attributes(self.gph, {self.outlet_node: outlet_node_drainage_area}, "node_drainage_area")
-            nx.set_node_attributes(self.gph, {self.outlet_node: outlet_node_drainage_area}, "node_manhole_area")
         self.min_diam = min(e['diam'] for e in dict(self.gph.edges).values())
         self.max_diam = max(e['diam'] for e in dict(self.gph.edges).values())
         return
 
     def generate_graph(self, input_matrix = None):
+        """ generate graph using Gibbs.py """
         if input_matrix is not None:
             outlet_point = None
             self.n = int(np.sqrt(input_matrix.shape[0]))
@@ -148,20 +165,13 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
             self.network.export_tree()
             print("Exported tree in hydro_network.generate_graph")
 
-    def get_coordinates(self):
-        # convert matrix index to (i,j)  coordinates
-        coordinates = {node: self.network.convert_index(node) for node in self.gph.nodes}
-        nx.set_node_attributes(self.gph, coordinates, 'coordinates')
-        return
-
     def accumulate_downstream(self, accum_attr='node_drainage_area', cumu_attr_name=None):
         """
         pass through the graph from upstream to downstream and accumulate the value
         an attribute found in nodes and edges, and assign the accumulated value
         as a new attribute in each node and edge.
         Where there's a flow split, apply an optional split fraction to
-        coded in the upstream edge. (This is from Adam Erispaha's Sewergraph Package)
-        believe this isnt' being used.
+        coded in the upstream edge. (This is from Adam Erispaha's Sewergraph Package).
         """
 
         if cumu_attr_name is None:
@@ -185,8 +195,15 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
             self.gph.nodes[topo_node][cumu_attr_name] = attrib_val
 
         return 
+    
+    def get_coordinates(self):
+        """ convert matrix index to (i,j)  coordinates"""
+        coordinates = {node: self.network.convert_index(node) for node in self.gph.nodes}
+        nx.set_node_attributes(self.gph, coordinates, 'coordinates')
+        return
 
     def random_sample_soil_nodes(self, count):
+        """ randomly assign green infrastructure nodes """
         us_nodes_to_sample = list(self.gph.nodes).copy()
         us_nodes_to_sample.remove(self.outlet_node)
 
@@ -199,11 +216,14 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
             self.soil_nodes = tuple(sample(us_nodes_to_sample, count))
     
     def make_dist_dict(self):
+        """ create dictionary that shows each node's distance to the outlet """
         dist_dict = {k:(len(nx.shortest_path(self.gph, source=k, target = self.outlet_node)) - 1) for k in self.gph.nodes}
         dist_dict = dict(sorted(dist_dict.items(), key=lambda item: item[1]))
         return dist_dict
 
     def calc_node_distance(self,type = 'soil'):
+        """ calculate the distance to outlet of a particular node group (e.g. flood, green
+        infrastructure) """
         if type == 'flood':
             nodes = self.flood_nodes
         else: 
@@ -220,51 +240,17 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
             return node_elev
     
     def calc_hydrograph_example(self, to_node = None):
+        """ example to build a hydrograph """
         if not to_node:
             to_node = self.outlet_node
-        check_ds_path = nx.shortest_path(self.gph, source=to_node, target = self.outlet_node)
         nodes = [n for n in nx.traversal.bfs_tree(self.gph, to_node, reverse=True) if n != to_node]
-        # nodes = set(self.nodes) - set(check_ds_path)
         each_path = {k: (len(nx.shortest_path(self.gph, source=k, target = to_node)) - 1) for k in nodes}
         unique_vals = set(each_path.values())
         a = [sum(value == v for value in each_path.values()) for v in unique_vals]
         return np.array(a)
     
-    def make_degree_dict(self):
-        degrees = dict(self.gph.degree())
-        degrees = dict(sorted(degrees.items(), key=lambda item: item[1]))
-        return degrees
-    
-    def calc_node_degree(self,type = 'soil'):
-        if type == 'flood':
-            nodes = self.flood_nodes
-        else: 
-            nodes = self.soil_nodes
-        nodes_length = len(nodes)
-        if nodes_length == 0:
-            return 0
-        else:
-            degrees = dict(self.gph.degree())
-            # soil_node_degree = ignore_zero_div(sum(degrees.get(k,0) for k in soil_nodes),soil_nodes_length)
-            node_degree_sum = sum(degrees[k]*degrees[k] for k in nodes)
-            # print(soil_node_degree_sum)
-            node_degree = ignore_zero_div(node_degree_sum,nodes_length)
-            return node_degree
-
-    def calc_network_branches(self):
-        node_degree = len([n for n, d in self.gph.in_degree() if d >=2])
-        return node_degree
-    
-    def calc_norm_branch_dist(self):
-        branch_nodes = [n for n, d in self.gph.in_degree() if d >=2]
-        total_path = 0
-        for k in branch_nodes:
-            each_path = len(nx.shortest_path(self.gph, source=k, target = self.outlet_node)) - 1
-            total_path += each_path/self.max_path_order
-        return total_path/len(branch_nodes)
-    
     def calc_flow_path(self, accum_attr='length', path_attr_name=None):
-        """calculate flow paths lengths and travel time"""
+        """ calculate flow paths lengths and travel time """
         path_dict = {}
         if path_attr_name is None:
             path_attr_name = 'path_{}'.format(accum_attr)
@@ -281,9 +267,7 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
                     for out_edge in out_edge_set:
                         if self.gph.edges[out_edge].get('edge_velocity') > 0: 
                             path_attr += self.gph.edges[out_edge].get(accum_attr)
-                            # print('succeed:', node, 'i_node', i, out_edge, gph.edges[out_edge].get('edge_velocity'), gph.edges[out_edge].get(accum_attr), path_attr)
                         else: 
-                            # print('fail:', node, 'i_node', i, out_edge, gph.edges[out_edge].get('edge_velocity'), gph.edges[out_edge].get(accum_attr), path_attr)
                             path_attr = 0
                             keep_running = False
                             break
@@ -293,6 +277,7 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
         return path_dict
     
     def iter_nodes(self, nodes, nodes_to_search = None, dir = 'ds'):
+        """ a method used to look for nodes interatively """
         big_group = {}
         us_nodes = {}
         ds_nodes = {}
@@ -329,6 +314,7 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
                     # nodes.remove(gi_node)
                     to_add = search_us_neighbor(gi_node, to_add=to_add)
             return to_add
+        
         if nodes_to_search is None:
             nodes_to_search = nodes
         
@@ -338,10 +324,10 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
             root = search_ds_neighbor(node)
             to_add = search_us_neighbor(root)
             big_group[root] += to_add
-        # print(big_group, self.soil_nodes)
         return big_group
 
     def calc_node_clustering(self,type = 'soil'):
+        """ calculate nodes degree of clustering (not used in paper) """
         clustering_coef = 0
         self.soil_node_cluster = []
         if type == 'flood':
@@ -352,27 +338,14 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
             big_group=self.iter_nodes(nodes=nodes,dir='ds')
             self.soil_node_cluster = big_group.values()
             cluster_hist = Counter(self.soil_node_cluster)
-            # clustering_coef = sum(a/len(self.soil_nodes) for a in big_group.values() if a > 1)/len(big_group)
             norm_hist = {i: floor(len(self.soil_nodes)/i) for i in cluster_hist.keys()}
-            # norm_coef = 1/sum([cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys()]) /len(self.soil_nodes)
-            # clustering_coef = norm_coef*sum(i * cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys())
             clustering_coef = 1/len(self.soil_nodes) * sum(i*cluster_hist[i]/norm_hist[i] for i in cluster_hist.keys())
-            # print(f'Clustering coefficient is {clustering_coef}')
-            # SHOULD THIS BE ADJUSTED DEPENDING ON HOW LARGE THE GRID IS?
         return clustering_coef
     
     def make_dist_cluster(self, starting_dist):
+        """ make clusters of green infrastructure nodes from a given distance """
         dist_dict = self.make_dist_dict()
         count = self.count
-
-        # def flatten(x):
-        #     result = []
-        #     for el in x:
-        #         if hasattr(el, "__iter__") and not isinstance(el, str):
-        #             result.extend(flatten(el))
-        #         else:
-        #             result.append(el)
-        #     return result
 
         def make_list(starting_dist):
             sub = [i for i in dist_dict if dist_dict[i] == starting_dist]
@@ -387,88 +360,17 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
             while len(soil_nodes_list) < count:
                 deficit = count - len(soil_nodes_list)
                 new_starting_dist += 1
-                # soil_nodes_list = list(set(soil_nodes_list + make_list(new_starting_dist)))
                 try: 
                     soil_nodes_list = soil_nodes_list + list(set(make_list(new_starting_dist))-set(soil_nodes_list))[:deficit]
-                    # soil_nodes_list = list(set(soil_nodes_list + make_list(new_starting_dist)))
 
                 except TypeError:
                     new_starting_dist = starting_dist
                     while len(soil_nodes_list) < count:
                         new_starting_dist = new_starting_dist - 1
                         soil_nodes_list = soil_nodes_list + list(set(make_list(new_starting_dist))-set(soil_nodes_list))[:deficit]
-                        # soil_nodes_list = list(set(soil_nodes_list + make_list(new_starting_dist)))
             soil_nodes_list = soil_nodes_list[:count]
         self.soil_nodes = soil_nodes_list
-        # print(self.soil_nodes)
                 
-    # def make_cluster(self, starting_dist, size):
-    #     dist_dict = self.make_dist_dict()
-    #     count = self.count
-
-    #     def flatten(x):
-    #         result = []
-    #         for el in x:
-    #             if hasattr(el, "__iter__") and not isinstance(el, str):
-    #                 result.extend(flatten(el))
-    #             else:
-    #                 result.append(el)
-    #         return result
-
-    #     def make_list(starting_dist):
-    #         sub = [i for i in dist_dict if dist_dict[i] == starting_dist]
-    #         us_nodes = {k:k for k in sub}
-    #         for root in sub:
-    #             # n = size
-    #             edges = self.gph.in_edges(root)
-    #             if len(edges) > 0: 
-    #                 if type(us_nodes[root]) is list:
-    #                     to_add = us_nodes[root]
-    #                 else:
-    #                     to_add = [us_nodes[root]]
-    #                 to_add = search_us_neighbor(to_add,root)
-    #                 us_nodes[root] = to_add 
-    #             else: 
-    #                 us_nodes.pop(root)
-    #                 pass   
-                
-    #         soil_nodes_list = flatten([i for i in us_nodes.values()])
-    #         return soil_nodes_list
-        
-    #     def search_us_neighbor(to_add,root):
-    #         edges = self.gph.in_edges(root)
-    #         if len(edges) == 0:
-    #             return to_add
-    #         else:
-    #             for edge in edges:
-    #                 to_add.append(edge[0])
-    #             n = (size - len(to_add))*(len(edges) > 0)
-    #             while n > 0:
-    #                 for edge in edges:
-    #                     # print('root', root, 'us node', edge[0], 'to_add',to_add)
-    #                     old_to_add = to_add
-    #                     to_add = search_us_neighbor(to_add,edge[0])
-    #                     n = (size - len(to_add))*((len(old_to_add) - len(to_add)) != 0)
-    #             return to_add
-        
-    #     soil_nodes_list = make_list(starting_dist)
-    #     if count:
-    #         while len(soil_nodes_list) < count:
-    #             starting_dist -= size
-    #             soil_nodes_list = list(set(soil_nodes_list + make_list(starting_dist)))
-    #         print(soil_nodes_list)
-    #         soil_nodes_list = soil_nodes_list[:count]
-    #     self.soil_nodes = soil_nodes_list
-    #     # print(self.soil_nodes)
-
-    def calc_upstream_cumulative_area(self,accum_attr='node_drainage_area', cumu_attr_name=None):
-        if cumu_attr_name is None:
-            cumu_attr_name = 'cumulative_{}'.format(accum_attr)
-                
-        cumulative_attr_value = sum(self.gph.nodes[node][cumu_attr_name] for node in self.soil_nodes)
-        # print('soil_nodes',self.soil_nodes,'cumu',cumulative_attr_value)
-        return cumulative_attr_value
-    
     def draw_network_init(self, ax = None, label_on = False, title = None):
         """ draw the network flow and the dispersion coefficients at a single timestep. """
         node_color = []
@@ -491,7 +393,6 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
                 node_color.append('#a5d1f0')
                 node_size.append(node_size_og)
 
-        # _, ax0 = plt.subplots(1,2, gridspec_kw={'width_ratios': [2, 3]})
         fig = plt.figure()
         gs = fig.add_gridspec(3,2)
         plt.suptitle(rf'{self.n} by {self.n} network with $\beta$ = {self.beta}')
@@ -505,21 +406,6 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
         nx.draw(self.gph, pos, ax1, node_color = node_color, node_size = node_size,labels = node_label, 
         font_size=6,edge_color='lightgrey',with_labels = label_on)
         
-        # try: 
-        #     self.calc_node_clustering()
-        #     ax2 = plt.subplot(321)
-        #     ax3 = plt.subplot(323)
-        #     ax4 = plt.subplot(325)
-        #     ax4.grid(alpha=0.1)
-        #     cluster = self.soil_node_cluster
-        #     bin_spacing = list(np.linspace(1,max(cluster)+3,max(cluster)+3, endpoint=True,dtype=int))
-        #     ax4.hist(cluster,bins=bin_spacing,align='left',color='C2',edgecolor='white', linewidth=1.2)
-        #     ax4.set_xlabel('Number of LID Nodes per Cluster')
-        #     ax4.set_ylabel('Count')
-        # except ValueError:
-        #     ax2 = plt.subplot(221)
-        #     ax3 = plt.subplot(223)
-        
         ax2 = fig.add_subplot(gs[2,:])
         k = self.downstream_degree_to_outlet
         distance_dist = [k[j] for j in k]
@@ -529,26 +415,14 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
         ax2.set_xlabel('Dist. to Outlet')
         ax2.set_ylabel('Count')
         
-        
-        # m = dict(self.gph.degree())
-        # degree_dist = [m[j] for j in m]
-        # ax3.grid(alpha=0.1)
-        # ax3.hist(degree_dist)
-        # ax3.set_xlabel('Degrees')
-        # ax3.set_ylabel('Count')
-
-        # plt.tight_layout()
         plt.subplots_adjust(wspace=0)
 
         if title:
             plt.suptitle(title)
             
             
-    def draw_network_timestamp(self, ax = None, edge_attribute = 'edge_dq', label_on = False, flood_level = 10, title = None):
+    def draw_network_timestamp(self, edge_attribute = 'edge_dq', label_on = False, flood_level = 10, title = None):
         """ draw the network flow and the dispersion coefficients at a single timestep. """
-        # pos = nx.spring_layout(gph)
-        # pos = nx.planar_layout(gph, scale = 100)
-        # print(edge_attribute)
         pos = graphviz_layout(self.gph, prog = 'dot')
         edge_color = {m: self.gph.edges[m].get(edge_attribute)/3600 for m in self.gph.edges}
         node_color = []
@@ -569,15 +443,11 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
                 node_size.append(node_size_og)
         node_label = {n: str(n) + ':' + str(round(self.gph.nodes[n].get('level') + self.gph.nodes[n].get('elev') ,1)) 
         for n in self.gph.nodes if self.gph.nodes[n]['overflow']>0}
-        edge_label = {m: str(round(self.gph.edges[m].get(edge_attribute), 2)) for m in self.gph.edges}
-        # if edge_attribute 'edge_dq':
-        #     edge_label = {m: str(round(gph.edges[m].get(edge_attribute), 2)) for m in gph.edges}
 
         cmap = plt.cm.RdBu
         vmin = min(min(edge_color.values()),-max(edge_color.values()))
         vcenter = 0
         vmax = max(max(edge_color.values()),-min(edge_color.values()))
-        # print(vmin, vcenter, vmax)
         norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm._A = []
@@ -585,10 +455,6 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
         nx.draw(self.gph, pos, ax0[1], node_color = node_color, node_size = node_size, 
         edge_color = [sm.to_rgba(i) for i in edge_color.values()], labels = node_label, 
         font_size=6,with_labels = label_on, edge_cmap = cmap)
-        # if label_on:
-        #     nx.draw_networkx_edge_labels(gph, pos, edge_labels=edge_label)
-        #fig = plt.gcf()
-        #cbar_ax = fig0.add_axes([0.1, 0.25, 0.05, 0.35])
         plt.colorbar(sm, cax = ax0[0])
         ax0[0].set_xlabel('Edge dQ (cfs)')
         ax0[0].set_ylim(bottom = vmin,top=vmax)
@@ -596,6 +462,7 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
             plt.suptitle(title)
 
     def graph_histogram(self, kernel=None, ax=None):
+        """ plot degree distribution of the graph with option for kernal density plot """
         degrees = dict(self.gph.degree())
         degrees_list = degrees.values()
         mean_degrees = sum(degrees_list)/len(degrees)
@@ -606,167 +473,24 @@ outlet_node_drainage_area = None, seed = None, soil_nodes = None, count = 0, fix
         ax.hist(degrees_list, bins=bin_list, label='Histogram',density=True)
         plt.xticks(bin_list)
         if kernel:
-            # kernel = lambda x: mean_degrees**x*np.exp(-mean_degrees)/factorial(x)
-        # x = np.linspace(1, 20, 20, dtype=int)
-        # x = np.asarray([2, 3])
-        # print(x)
-        # print(factorial(x))
             ax1 = ax.twinx()
-            # ax1.set_ylims(bottom = 0)    
             ax1.plot(bin_list, kernel(bin_list), 'k-o', label='Poisson Distribution')
 
-    def dispersion_func(self, l_name = 'length', t_name = 'edge_time'):
-        """
-        calculate dispersion coefficients. this doesn't work with Darcy yet.
-        """
-        path_length = 'path_{}'.format(l_name)
-        path_time = 'path_{}'.format(t_name)
-
-        network_path_length_dict = nx.get_node_attributes(self.gph, path_length)
-        network_path_length_set = [network_path_length_dict[k] for k in network_path_length_dict]
-        network_path_time_dict = nx.get_node_attributes(self.gph, path_time)
-        network_path_time_set = [network_path_time_dict[k] for k in network_path_time_dict]
-        # print('network_path_length_dict', network_path_length_dict)
-        # print('network_path_dq_dict', nx.get_edge_attributes(gph, 'edge_dq'))
-        # print('network_path_time_dict', network_path_time_dict)
-
-        try: 
-            mean_path_length = statistics.mean(network_path_length_set)
-            mean_path_time = statistics.mean(network_path_time_set)
-            var_path_length = statistics.variance(network_path_length_set)
-            disp_g = 0.5*ignore_zero_div(var_path_length,mean_path_time)
-            #print(disp_g)
-            network_celerity = ignore_zero_div(mean_path_length,mean_path_time)
-            # print('network_celerity', network_celerity)
-            flowpath_celerity_dict = {k: ignore_zero_div(network_path_length_dict[k],network_path_time_dict[k]) for k in network_path_time_dict}
-            # print('flowpath_celerity_dict', flowpath_celerity_dict)
-            stretched_path_length_set = [ignore_zero_div(network_path_length_dict[k],flowpath_celerity_dict[k])*network_celerity for k in network_path_length_dict]
-            # print('stretched_path_length_set', stretched_path_length_set)
-            disp_kg = 0.5*ignore_zero_div(statistics.variance(stretched_path_length_set),mean_path_length)*network_celerity
-        except statistics.StatisticsError:
-            var_path_length = 0
-            disp_g = 0
-            disp_kg = 0
-        return var_path_length, disp_g, disp_kg
-
-    def draw_varying_size(self, ax = None, attribute = 'level', edge_attribute = None, node_drawing_ratio = 20):
-        """
-        a function to draw the network. not being used.
-        """
-        node_sizes = []
-        node_colors = []
-        labels = {}
-        edge_labels = {}
-        pos = graphviz_layout(self.gph, prog = 'dot')
-        cnt = len(self.gph.nodes)
-        for n in nx.topological_sort(self.gph):
-            x = self.gph.nodes[n].get(attribute)
-            node_sizes.append(node_drawing_ratio*x)
-            node_colors.append(n/cnt)
-            labels[n] = str(n) + ": " + str(round(x, 1))
-        
-        for m in self.gph.edges: 
-            if edge_attribute is None:
-                edge_labels[m] = str(m)
-            else:
-                edge_labels[m] = self.gph.edges[m].get(edge_attribute)
-        
-        nx.draw(self.gph, pos, ax, node_color = node_colors, node_size = node_sizes, labels=labels, with_labels=True, cmap = plt.cm.rainbow)
-        nx.draw_networkx_edge_labels(self.gph, pos, edge_labels=edge_labels)
-        #node_colors = np.pad(node_colors[0:(len(node_colors)-1)], (1, 0), constant_values = 0)
-        #node_colors_array = [plt.cm.rainbow(x) for x in node_colors]node_colors_array = [plt.cm.rainbow(x) for x in node_colors]
-        rainbow = plt.cm.get_cmap('rainbow',cnt)
-        node_colors_array = [rainbow(x) for x in node_colors]
-        #print(dict(zip(["node", "node_colors", "node_colors_array"],[gph.nodes, node_colors, node_colors_array])))
-        return node_colors_array
-
+    
 # other utility codes
 def round_pipe_diam(old_diam):
+    """ this is to round up pipes to common size """
+    common_sizes = [12, 15, 18, 21, 24, 30, 33, 36, 42, 48, 54, 60, 66, 72, 78]
     old_inch = old_diam * 12
-    if old_inch <= 12: 
-        new_diam = 12
-    elif old_inch <= 15:
-        new_diam = 15
-    elif old_inch <= 18:
-        new_diam = 18
-    elif old_inch <= 21:
-        new_diam = 21
-    elif old_inch <= 24:
-        new_diam = 24
-    elif old_inch <= 30:
-        new_diam = 30
-    elif old_inch <= 33:
-        new_diam = 33
-    elif old_inch <= 36:
-        new_diam = 36
-    elif old_inch <= 42:
-        new_diam = 42
-    elif old_inch <= 48: 
-        new_diam = 48
-    elif old_inch <= 54:
-        new_diam = 54
-    elif old_inch <= 60:
-        new_diam = 60
-    elif old_inch <= 66:
-        new_diam = 66
-    elif old_inch <= 72:
-        new_diam = 72
-    elif old_inch <= 78:
-        new_diam = 78
-    else:
-        new_diam = round(old_inch)
-    return new_diam/12
+    
+    for size in common_sizes:
+        if old_inch <= size:
+            return size / 12
+    raise ValueError('Pipe size is larger than common size.')
 
-def fill_numbers(dictionary, full_list, number = 0):
-    """
-    a function to pad a dictionary with one number. this is used in the soil moisture calculation, 
-    where non-water-retentive nodes automatically get s = 1 (saturated). 
-    """
-    my_dict = dict.fromkeys(full_list, number)
-    my_dict.update(dictionary)
-    return my_dict
-
-def ignore_zero_div(x,y):
-    np.seterr(all='ignore')
-    if np.isnan(x*y):
-        return 0
-    else:
-        try:
-            return x/y
-        except ZeroDivisionError or FloatingPointError:
-            return 0
-
-def print_time(earlier_time):
-    now_time = time.time()
-    print("--- %s seconds ---" % round((time.time() - earlier_time),5))
-    return now_time
-
-def fill_zeros(x, y):
-        if len(x) <= len(y):
-            z = np.pad(x, (0,len(y)-len(x)), 'constant')
-            ans = y+z
-        else: 
-            z = np.pad(y, (0,len(x)-len(y)),'constant')
-            ans = x+z
-        return ans
 if __name__ == '__main__':
-    file_name = r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_100nodes_debug/dist1822/10-grid_beta-0.0_dist-1822_ID-0x143151ca0>.pickle'
-    file_name = r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10dist_34/10-grid_beta-0.6_dist-34_ID-0x1408013d0>.pickle'#/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221028-1327/10-grid_beta-0.01_dist-914_ID-0x10d6c69d0>.pickle'
-    # file_name = r'5-grid_beta-0.8_dist-24_ID-0x14a546430>.pickle'
-    a = Storm_network(beta=0,file_name = file_name, nodes_num=100,count=0,changing_diam=True)
+    
+    file_name = r'./example/10-grid_beta-0.5_dist-128_ID-0x10b3f48e0>.pickle' # example
+    a = Storm_network(file_name = file_name, nodes_num=100,count=0,changing_diam=True)
     a.draw_network_init(label_on=True)
-    # plt.savefig(r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_25nodes_debug/dist6/dist6.pdf')
-    # file_name = r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_25-nodes_debug/dist142/5-grid_beta-0.0_dist-142_ID-0x143bd2e50>.pickle'
-    # b = Storm_network(beta=0,file_name = file_name, nodes_num=25,count=0,changing_diam=True)
-    # b.draw_network_init(label_on=True)
-
-    # file_name = r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_for_Debug/another set/10-grid_beta-0.0_dist-364_ID-0x13f4a8130>.pickle'
-    # b = Storm_network(beta=0,file_name = file_name, nodes_num=100,count=0,changing_diam=True)
-    # b.draw_network_init(label_on=True)
-    # print(b.calc_hydrograph_example(11))
-
-    # plt.subplot()
-    # plt.plot(a.calc_hydrograph_example(0), label = '2 b')
-    # plt.plot(b.calc_hydrograph_example(0), label = '1 b')
-    # plt.legend()
     plt.show()

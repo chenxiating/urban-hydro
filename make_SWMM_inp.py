@@ -1,3 +1,18 @@
+"""
+make_SWMM_inp.py 
+@author: Xiating Chen
+Last Edited: 2023/10/07
+
+This code is to run SWMM and record results. 
+    - Input: network and green infrasturcture configurations, environmental conditions (e.g. rainfall hydrographs)
+    - Output: hydrological outcomes (e.g. peak flow, flooding)
+
+Note: 
+    1. The file is written in US/imperial unit.  
+    2. Remember to specify "my_swmm_path" in line 24 to map to the SWMM engine
+    on your computer.
+"""
+
 import hydro_network as hn
 import numpy as np
 import pandas as pd
@@ -6,7 +21,10 @@ import subprocess
 import os
 from math import prod
 
+my_swmm_path = '/Users/xchen/Applications/swmm5/build/runswmm5'
+
 def make_inp(f,outlet_node,soil_nodes,simulation_date,infiltration,pcntimp,flowrouting,precip_name,graph,flood_level,antecedent_soil_moisture,mean_rainfall_inch):
+    """ make input file for SWMM """
     info_header(f=f,simulation_date=simulation_date,infiltration=infiltration,flowrouting=flowrouting)
     info_evaporations(f=f,et_rate=5)
     info_temperature(f=f)
@@ -584,18 +602,16 @@ def max_out_flow_readout(output_file_name,outlet_node):
     lines = opt_file.stdout.splitlines()[1:]
     for line in lines:
         rep_inflow.append(float(line.split(",")[1]))
-    print('max rep inflow', max(rep_inflow))
     return max(rep_inflow)
 
-def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_inch, output_df, k, min_diam,changing_diam, mp, swmm_path = '/Users/xchen/Applications/swmm5/build/runswmm5'):
+def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_inch, output_df, k, min_diam,changing_diam, mp, swmm_path = my_swmm_path):
     simulation_date = '06/01/2021'
     precip_name = 'hydrograph'
     flood_level = 10         # maximum depth allowable for stormwater to accumulate in MH
     simulation_date = '06/01/2021'
     precip_name = 'hydrograph'
     infiltration='HORTON'
-    # flowrouting='KINWAVE'
-    flowrouting='DYNWAVE'
+    flowrouting='DYNWAVE' 
     new_file=open(input_file_name,'w')
     make_inp(f=new_file,outlet_node=net.outlet_node,soil_nodes=net.soil_nodes,simulation_date=simulation_date,infiltration=infiltration,pcntimp = 80, flowrouting=flowrouting,precip_name=precip_name,graph=net.gph,flood_level=flood_level,
     antecedent_soil_moisture = antecedent_soil_moisture, mean_rainfall_inch = mean_rainfall_inch)
@@ -603,21 +619,15 @@ def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_in
     report_file_name='rep_'+input_file_name
     output_file_name='op_'+input_file_name
     subprocess.run([swmm_path, input_file_name, report_file_name, output_file_name])
-    # subprocess.run(['../../swmm51015_engine/build/runswmm5',input_file_name, report_file_name, output_file_name],stdout=subprocess.DEVNULL)
     flood_nodes_list, max_flood_nodes, node_hours_flooded, node_flood_vol_MG = rep_node_flooding_summary(report_file_name)
     net.flood_nodes = tuple(flood_nodes_list)
     avg_flow_cfs, total_outflow_vol_MG = rep_outflow_summary(report_file_name)
     max_flow_cfs = max_out_flow_readout(output_file_name,net.outlet_node)
     wet_inflow_vol_MG, total_precip_MG, evap_loss_MG, infil_loss_MG = rep_total_inflow_summary(report_file_name)
-    output_df.at[k,'network_branches'] = net.calc_network_branches()
-    output_df.at[k,'norm_network_branches'] = net.calc_norm_branch_dist()
     output_df.at[k,'soil_node_distance_list'] = net.calc_node_distance()
     output_df.at[k,'soil_clustering'] = net.calc_node_clustering()
-    output_df.at[k,'cumulative_node_drainage_area'] = net.calc_upstream_cumulative_area()
     output_df.at[k,'soil_nodes_count'] = len(net.soil_nodes)/(net.nodes_num)*100
     output_df.at[k,'max_flood_nodes'] = max_flood_nodes
-    output_df.at[k,'flood_node_distance_list'] = net.calc_node_distance('flood')
-    output_df.at[k,'flood_node_distance_norm'] = net.calc_node_distance('flood')/net.max_path_order
     output_df.at[k,'flood_duration_total_list'] = node_hours_flooded
     output_df.at[k,'total_flooded_vol_MG'] = node_flood_vol_MG
     output_df.at[k,'avg_flow_cfs'] = avg_flow_cfs
@@ -631,8 +641,6 @@ def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_in
     output_df.at[k,'antecedent_soil'] = antecedent_soil_moisture
     output_df.at[k,'soil_nodes_list'] = net.soil_nodes
     output_df.at[k,'flood_nodes_list'] = net.flood_nodes
-    output_df.at[k,'flood_node_degree_list'] = net.calc_node_degree(type = 'flood')
-    output_df.at[k,'flood_node_distance_list'] = net.calc_node_distance(type = 'flood')
     output_df.at[k,'beta'] = net.beta
     output_df.at[k,'changing_diam'] = changing_diam
     output_df.at[k,'min_diam'] = net.min_diam
@@ -644,8 +652,25 @@ def record_SWMM(input_file_name, net, antecedent_soil_moisture, mean_rainfall_in
     if mp: 
         subprocess.run(['rm',input_file_name, report_file_name, output_file_name])
 
-def main(main_df,antecedent_soil_moisture,mean_rainfall_set,nodes_num,i,beta=0,changing_diam=True, min_diam = 1.5,count=0,soil_nodes=None,mp=True, fixing_graph = False, file_name = None, make_cluster = False):
-    node_drainage_area = 2           # acres
+def main(main_df,antecedent_soil_moisture,mean_rainfall_set,nodes_num,i,beta=0,changing_diam=True, min_diam = 1.5,count=0,soil_nodes=None,
+         mp=True, fixing_graph = False, file_name = None, make_cluster = False):
+    """
+    main_df:        dataframe to append new data to
+    antecedent_soil_moisture:       antecedent soil moisture (-), default 0.5
+    mean_rainfall_set:  2-hour rainfall inputs
+    nodes_num:      number of nodes in the graph
+    i:              number of current dataframe row to append to
+    beta:           Gibbs distribution parameter
+    changing_diam:  determines whether pipes are sized
+    min_diam:       minimum pipe diameter (ft), default 1
+    count:          number of green infrastructure nodes to generate, default 0
+    soil_nodes:     the names of the green infrastructure nodes, default None
+    mp:             determines whether to use multiprocessing to parapllelly run simulations
+    fixing_graph:   run simulation on one single graph, default False
+    file_name:      file path of the graph, default None
+    make_cluster:   making green infrastructure nodes in close clusters, default False
+    """
+    node_drainage_area = 2 
     outlet_level = 1
     outlet_elev = 85               
     outlet_node_drainage_area = node_drainage_area*10e5          # set the river area to very large
@@ -660,49 +685,43 @@ min_diam = min_diam, fixing_graph = fixing_graph, file_name = file_name, make_cl
     if soil_node_in_set_check == 0:
         print(net.soil_nodes)
         print(net.gph.nodes)
-        # changing_diam = 1, k = 0
+
     for mean_rainfall_inch in mean_rainfall_set: 
         input_file_name = f'dataset_{mean_rainfall_inch}-inch_{count}-GI_{antecedent_soil_moisture}-sm_beta-{beta}_{i}_start-{make_cluster}_dist-{net.network.path_diff}.inp'
         record_SWMM(input_file_name=input_file_name, net=net, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch,
         output_df=output_df, k=k, changing_diam=changing_diam,min_diam=min_diam, mp=mp)
         k += 1
-
-#         # changing_diam = 0, k = 1
-#     net = hn.Storm_network(beta = beta, nodes_num = nodes_num, level = init_level, node_drainage_area = node_drainage_area, outlet_level = outlet_level, 
-# outlet_node_drainage_area = outlet_node_drainage_area, outlet_elev= outlet_elev, count = count, soil_nodes = soil_nodes, changing_diam = False, 
-# min_diam = min_diam, fixing_graph = fixing_graph, file_name = file_name, make_cluster = make_cluster)
-#     input_file_name = f'dataset_{mean_rainfall_inch}-inch_{len(net.soil_nodes)}-GI_{antecedent_soil_moisture}-sm_beta-{beta}_{i}_start-{make_cluster}_dist-{net.network.path_diff}.inp'
-#     record_SWMM(input_file_name=input_file_name, net=net, antecedent_soil_moisture=antecedent_soil_moisture, mean_rainfall_inch=mean_rainfall_inch,
-#     output_df=output_df, k=k, changing_diam=False,min_diam=min_diam, mp=mp)
-#     k +=1
-
     
     if mp:
         pickle_file_name = f'{antecedent_soil_moisture}_{mean_rainfall_inch}-inch_beta-{beta}_{i}_{len(net.soil_nodes)}-GI_start-cluster-{make_cluster}.pickle'
         f = open(pickle_file_name,'wb')
         pickle.dump(output_df, f)
         f.close()
+        return pickle_file_name
     else:
         main_df = pd.concat([main_df, output_df], ignore_index=True)
         return main_df
 
 if __name__ == '__main__':
-    # paths = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221219-1304_H200+800/']
-    paths = [r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_test/']
-
-    file_names = []
-    for path in paths: 
-        os.chdir(path)
-        file_names_path = [one_file for one_file in os.listdir() if (one_file[:7] =='10-grid')]
-        # all_files = [path+'/'+one_file for one_file in file_names_path if (int(one_file[one_file.find('dist-')+5:one_file.find('_ID-')])<300 or int(one_file[one_file.find('dist-')+5:one_file.find('_ID-')])>900)]
-        file_names.extend(file_names_path)
-
-    nodes_num = 100
-    mean_rainfall_set = [4.18]
-    i = 0
+    mean_rainfall_set = [2,3]   # test rainfall
+    counts = [10, 20, 30] # test soil moisture counts
+    file_name = r'./example/10-grid_beta-0.5_dist-128_ID-0x10b3f48e0>.pickle' # example
+    
+    ## For regular processing (no parallel processing)
+    # all raw inputs and outputs files are retained
     main_df = pd.DataFrame()
-    # file_name = file_names[0]
-    file_name = r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_test/10-grid_beta-1_dist-4_ID-0x12b75fac0>.pickle'
-    for cnt in [30]:
-        main_df = main(main_df,antecedent_soil_moisture=0.5, mean_rainfall_set=mean_rainfall_set, count = cnt,
-            beta = 0, i=i,nodes_num=nodes_num, mp=False, file_name=file_name)
+    for cnt in counts:
+        main_df = main(main_df= None, antecedent_soil_moisture=0.5, mean_rainfall_set=mean_rainfall_set, count = cnt,
+            beta = 0, i= 1,nodes_num=100, mp=False, file_name=file_name)
+
+    ## For parallel processing 
+    # all raw inputs and outputs files are deleted. Outputs are saved
+    # in a Pickle file. 
+    all_reports = []
+    for cnt in counts:
+        report_pickle_name = main(main_df= None, antecedent_soil_moisture=0.5, mean_rainfall_set=mean_rainfall_set, count = cnt,
+            beta = 0, i= 1,nodes_num=100, mp=True, file_name=file_name)
+        all_reports.append(report_pickle_name)
+    
+    f = open(report_pickle_name, 'rb')
+    print(pickle.load(f).head())

@@ -1,9 +1,11 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Fri Jul 23 11:49:28 2021
+Gibbs.py 
+@author: Xiating Chen, Xue Feng
+Last Edited: 2023/10/05
 
-@author: xuefeng, chenxiating
+This code is to generate spanning trees according to Gibbs distribution. 
+    - Input: size of the lattice grid, parameter for flow path meandering, parameter for Gibbs distribution
+    - Output: network without attributes
 """
 import random
 import numpy as np
@@ -15,14 +17,14 @@ import pickle
 from multiprocessing import current_process
 
 class Uniform_network:
-    def __init__(self, m, n, beta, deltaH = None, outlet_point = (0,0), input_matrix = None, export = False): 
+    def __init__(self, m, n, beta, deltaH = None, outlet_point = (0,0), input_matrix = None, export = True): 
         """ m:      number of rows (indexed by i)
             n:      number of columns (indexed by j)
             beta:   beta for the Gibbs distribution
             deltaH: if passed, generate a tree with a specific deltaH value
             outlet_point:   if passed, coordinates of the outlet, default at (0,0)
             input_matrix:   if passed, adjacency matrix of the network without generating new tree
-            export: to export tree as a pickle file, default no export"""
+            export: to export tree as a pickle file, default export tree"""
         
         self.m = m
         self.n = n
@@ -69,7 +71,6 @@ class Uniform_network:
             first_point = next_point
         
         self.deltaH_list = self.generate_Gibbs()    # Metropolis-Hastings sampling according to the Gibbs distribution
-        ### add an outfall node ###
 
         self.path_diff = self.calculate_path_diff(self.matrix)  
         self.path_diff_prime = self.calculate_path_diff_prime(self.matrix)
@@ -78,11 +79,8 @@ class Uniform_network:
         cp = str(current_process())
         cp_name = cp[cp.find('name=')+6:cp.find(' parent=')-1]
         print(f'beta = {self.beta} Gibbs graph with H = {self.path_diff}, Hp = {self.path_diff_prime}, finished in {round(finish-start,2)} seconds(s) at {cp_name}')
-        if self.pass_deltaH_threshold(msg = "in generate tree"):
-            if export:
+        if export:
                 self.export_tree()
-        elif self.deltaH:
-            print(f'We did not reach the delta H threshold. We are generating trees here!')
         return self.path_diff
 
     def convert_ij(self, i,j): 
@@ -298,14 +296,13 @@ class Uniform_network:
         f.close()
 
 def gibbs_pdf(beta,all_deltaH_list):
-    """plot the frequency distribution of all H generated"""
+    """ plot the frequency distribution of all H generate with a given beta """
     fig = plt.figure()
     plt.suptitle(rf'Distribution of {int(len(all_deltaH_list))} random Gibbs trees with $\beta$ = {beta}')
     gs = fig.add_gridspec(1,5)
     ax1 = fig.add_subplot(gs[0,:-1])
     ax2 = fig.add_subplot(gs[0,-1])
     for deltaH_list in all_deltaH_list:
-        print(deltaH_list)
         ax1.plot(deltaH_list,alpha = max(0.05, 1/len(all_deltaH_list)), color = 'C0')
     ax1.set_ylabel('$\Delta H$')
     ax1.set_xlabel('Iteration')
@@ -318,7 +315,15 @@ def gibbs_pdf(beta,all_deltaH_list):
     plt.subplots_adjust(wspace=0)
     plt.savefig(f'./dist_beta{beta}.png')
 
-def test(size, beta=0.5, tree_num = 1000):
+def generate_many_trees(size, beta=0.5, tree_num = 1000):
+    """ this function can be used to test out generate multiple square-trees with a given beta, and 
+    the delta H (path difference) will be saved as an output. 
+
+    It will also create a figure that shows the delta H distribution of the graphs generated.
+    size:   number of rows and columns in the square matrix (square graph)
+    beta:   parameter for Gibbs distribtuion 
+    tree_num: number of trees to be generated """
+
     start = time.perf_counter()    
     all_deltaH_list = []
     for _ in range(tree_num):
@@ -331,14 +336,25 @@ def test(size, beta=0.5, tree_num = 1000):
     f.close()
     finish = time.perf_counter()
     print(f'{size} by {size} final graph, finished in {round(finish-start,2)} seconds')
-    return uni
 
 def main(size, beta, outlet_point,input_matrix = None):
+    """ generate one single tree.
+    size:   number of rows and columns in the square matrix (square graph)
+    beta:   parameter for Gibbs distribtuion 
+    outlet_point: specify a fixed outlet point in the square graph
+    input_matrix: the incidence matrix of the graph.
+    
+    When "input_matrix" is specified, it overrides the other inputs 
+    (e.g., size, beta, outlet_point). """
+
     gibbs = Uniform_network(m=size, n=size, beta=beta, outlet_point=outlet_point, input_matrix=input_matrix)
     return gibbs
 
 if __name__ == '__main__':
-    for beta_val in [0.01]:
-        # gibbs = Uniform_network(3, 3, beta=beta_val, outlet_point = (0,0))
-        test(size=3, beta=beta_val, tree_num=1000)
-    plt.show()
+
+    ## To generate 1000 trees (3x3 grid) with different beta values
+    for beta_val in [0.01, 1]:
+        generate_many_trees(size=3, beta=beta_val, tree_num=1000)
+    
+    ## To generate one single tree
+    main(size = 3, beta = 0.01, outlet_point = (0,0))

@@ -1,3 +1,18 @@
+"""
+run_mp_SWMM_coverage.py 
+@author: Xiating Chen
+Last Edited: 2023/10/08
+
+
+This code is to run make_SWMM_inp for cases with increasing green infrastructure nodes. 
+
+REQUIRED: 'run_mp_generate_trees.py' needs to be run first to generate the networks. 
+
+Update 'path' parameter in line 85 to the folder directory with the desired networks files.
+
+WARNING: Don't run this code as is with 'run_mp_SWMM_plcmt.py'. 
+"""
+
 import make_SWMM_inp
 import os
 import numpy as np
@@ -28,7 +43,9 @@ def mp_loop(file_names,mean_rainfall_set):
     for i in range(file_count):
         file_name = file_names[i]
         print(file_name)
-        for count in np.arange(0,60,10,dtype=int):
+        for count in np.arange(0,20,10,dtype=int):
+            # In paper, we used np.arange(0,60,10,dtype=int)
+            # increasing green infrastructure from no GI to 50 GI at increments on 10
             pool.apply_async(simulation,args=(main_df,mean_rainfall_set,i,file_name,count,))
     pool.close()
     pool.join()
@@ -57,30 +74,18 @@ def read_pickle_files(datafile_name):
     f.close()
 
 if __name__ == '__main__':
+    ## Initialize folder and workspace 
     today = date.datetime.today()
     dt_str = today.strftime("%Y%m%d-%H%M")
-    # ## Initialize folder and workspace
-    # folder_name='./SWMM_placement_20221207_largeH/'
-    # try:
-    #     os.mkdir(folder_name)
-    # except FileExistsError:
-    #     pass    
 
     ## Environmental attributes
-    mean_rainfall_set = [1.69, 2.59, 3.29, 4.55]
-    # mean_rainfall_set = [1.69]
+    mean_rainfall_set = [1.69] #in paper used [1.69, 2.59, 3.29, 4.55]
 
-    ## Read networks and names
-    path = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_20221227-Hp=0.02+0.2/']
-    # paths = [r'/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/gibbs10_test/']
-    # paths = ['/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221028-1327',
-    # '/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221028-1032',
-    # '/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20220929-2303-100nodes',
-    # '/Users/xchen/python_scripts/urban_stormwater_analysis/urban-hydro/SWMM_20221027-1146']
+    ## Read networks
+    path = [r'./example/generated_trees/'] # edit here to include the paths, don't include the last backsplash 
     file_names = read_files(path)
-#     print(len(file_names), '0.1: ', len([k for k in file_names if k[13]=='0']),
-# '1: ', len([k for k in file_names if k[13]=='1']))
+
+    ## Run model (edit in mp_loop)
     mp_loop(file_names,mean_rainfall_set)
-    read_pickle_files(f'{path[0]}/{dt_str}_GI_coverage_summary_highly_imp_DYNWAVE.pickle')
-    print(f'Total networks: {len(file_names)} * 4 * 6 = {24*len(file_names)}')
+    read_pickle_files(f'{dt_str}_GI_coverage_summary.pickle')
     
