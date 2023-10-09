@@ -4,9 +4,8 @@ run_mp_generate_trees.py
 Last Edited: 2023/10/08
 
 
-This code is to run make_SWMM_inp for cases with increasing green infrastructure nodes. 
-
-REQUIRED: 
+This code is to run Gibbs to generate many trees. It should be run before running 
+'run_mp_SWMM_coverage.py' and 'run_mp_SWMM_plcmt.py'. 
 
 """
 
